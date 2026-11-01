@@ -516,6 +516,7 @@
         // drawn after the streamed tiles and only where none drew (stencil), so the coarse disc never shows through imagery
         terrMat.stencilWrite = true; terrMat.stencilRef = 1; terrMat.stencilFunc = THREE.NotEqualStencilFunc;
         terrMat.stencilFail = terrMat.stencilZFail = terrMat.stencilZPass = THREE.KeepStencilOp;
+        terrMat.transparent = false; terrMat.opacity = 1; terrMat.depthWrite = true; terrMat.depthTest = true; // opaque pass: drawn before every Sheol glow
         var terrain = new THREE.Mesh(tg, terrMat);
         terrain.renderOrder = 40;
         world.add(terrain);
@@ -703,20 +704,86 @@
         var ptScale = { value: 400 };
         function softPts(hex, size, op) {
           return new THREE.ShaderMaterial({
-            transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+            transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending,
             uniforms: { uC: { value: new THREE.Color(hex) }, uS: { value: size }, uO: { value: op }, uScale: ptScale },
             vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nuniform float uS, uScale; varying float vA; void main(){ vec4 w = modelMatrix * vec4(position,1.0); vec4 mv = viewMatrix * w; vA = 1.0 - smoothstep(-0.6 - uS, -0.6 * uS, w.y); gl_PointSize = uS * uScale / max(-mv.z, 0.001); gl_Position = projectionMatrix * mv; if (vA <= 0.0) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);\n#include <logdepthbuf_vertex>\n}",
             fragmentShader: "#include <logdepthbuf_pars_fragment>\nuniform vec3 uC; uniform float uO; varying float vA; void main(){\n#include <logdepthbuf_fragment>\nfloat d = length(gl_PointCoord - 0.5) * 2.0; if (d >= 1.0) discard; float a = (1.0 - d); a *= a; gl_FragColor = vec4(uC * a * uO * vA, 1.0); }"
           });
         }
         abyss.add(pick(new THREE.Points(ag, softPts(0xb03018, 0.35, 0.35)), "abyss"));
-        var fireMat = new THREE.MeshBasicMaterial({ color: 0xff6a20, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }), fires = [];
-        [0.5, 1.8, 3.1, 4.3, 5.6].forEach(function (a) {
-          var f = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.3, 3.5, 12, 1, true), fireMat.clone());
-          f.position.set(Math.cos(a) * 11.8, -2.4, Math.sin(a) * 11.8);
-          abyss.add(pick(f, "abyss"));
-          fires.push(f);
+        // columns of heavenly fire: GPU flame particles (additive) with a smoke plume above, no solid geometry
+        var FIRE_GLSL = "float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\n" +
+          "float vn(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);" +
+          " return mix(mix(mix(h3(i), h3(i + vec3(1.0,0.0,0.0)), f.x), mix(h3(i + vec3(0.0,1.0,0.0)), h3(i + vec3(1.0,1.0,0.0)), f.x), f.y)," +
+          " mix(mix(h3(i + vec3(0.0,0.0,1.0)), h3(i + vec3(1.0,0.0,1.0)), f.x), mix(h3(i + vec3(0.0,1.0,1.0)), h3(i + vec3(1.0,1.0,1.0)), f.x), f.y), f.z); }\n" +
+          "vec2 curl(vec3 p){ float e = 0.15; float a = vn(p + vec3(0.0,0.0,e)) - vn(p - vec3(0.0,0.0,e)); float b = vn(p + vec3(e,0.0,0.0)) - vn(p - vec3(e,0.0,0.0)); return vec2(a, -b) / (2.0 * e); }\n";
+        var FIRE_H = 3.5, FIRE_LIFE = 1.6, SMOKE_LIFE = 5.0, FIRE_N = MOB ? 130 : 260, SMOKE_N = MOB ? 55 : 110; // 370 per column on desktop, half on phones
+        var fireT = { value: 0 };
+        function fireMatFor(smoke) {
+          var u = { uT: fireT, uScale: ptScale, uNear: { value: 1 }, uLife: { value: smoke ? SMOKE_LIFE : FIRE_LIFE } };
+          var vs = "#include <common>\n#include <logdepthbuf_pars_vertex>\n" + FIRE_GLSL +
+            "attribute vec4 aS; uniform float uT, uScale, uNear, uLife; varying float vA, vAge, vSd, vRot;\nvoid main(){\n" +
+            " float age = fract(uT / uLife + aS.x); float th = aS.y * 6.2832; vec3 p; float sz, fl = vn(vec3(aS.x * 41.0, uT * 2.5, aS.w * 13.0));\n" +
+            (smoke
+              ? " float r = (0.12 + aS.z * 0.25) * (0.6 + age * 1.4); p = vec3(cos(th) * r, 1.4 + age * 2.0, sin(th) * r);\n" +
+                " vec3 q = vec3(p.x * 0.9 + aS.y * 3.0, p.y * 0.6 - uT * 0.35, p.z * 0.9); p.xz += curl(q) * 0.22 * (0.3 + age);\n" +
+                " sz = (0.35 + 0.9 * age) * (0.8 + 0.4 * aS.w);\n" +
+                " vec4 w = modelMatrix * vec4(p, 1.0); vec4 mv = viewMatrix * w;\n" +
+                " vA = smoothstep(0.0, 0.2, age) * (1.0 - smoothstep(0.5, 0.95, age)) * uNear * (1.0 - smoothstep(-0.9, -0.5, w.y));\n"
+              : " float h = " + FIRE_H.toFixed(1) + " * age * (0.55 + 0.45 * age); float r = aS.z * 0.2 * (1.0 - 0.7 * age); p = vec3(cos(th) * r, h, sin(th) * r);\n" +
+                " vec3 q = vec3(p.x * 1.6 + aS.y * 3.0, h * 0.9 - uT * 1.4, p.z * 1.6); p.xz += (curl(q) + 0.5 * curl(q * 2.1 + 7.3)) * 0.12 * (0.25 + age * 1.2);\n" +
+                " sz = (0.62 - 0.46 * age) * (0.75 + 0.5 * aS.w) * (0.85 + 0.3 * fl);\n" +
+                " vec4 w = modelMatrix * vec4(p, 1.0); vec4 mv = viewMatrix * w;\n" +
+                " vA = smoothstep(0.0, 0.08, age) * (1.0 - smoothstep(0.45, 1.0, age)) * (0.7 + 0.5 * fl) * uNear * (1.0 - smoothstep(-1.0, -0.6, w.y));\n") +
+            " vAge = age; vSd = aS.w * 17.0 + aS.y * 5.0; vRot = th + uT * (aS.w - 0.5) * 0.6;\n" +
+            " gl_PointSize = min(sz * uScale / max(-mv.z, 0.001), 512.0); gl_Position = projectionMatrix * mv; if (vA <= 0.001) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);\n" +
+            "#include <logdepthbuf_vertex>\n}";
+          var fs = "#include <logdepthbuf_pars_fragment>\n" + FIRE_GLSL +
+            "uniform float uT; varying float vA, vAge, vSd, vRot;\nvoid main(){\n#include <logdepthbuf_fragment>\n" +
+            " vec2 pc = gl_PointCoord - 0.5; float d = length(pc) * 2.0; if (d >= 1.0) discard;\n" +
+            (smoke
+              ? " float cs = cos(vRot), sn = sin(vRot); pc = mat2(cs, -sn, sn, cs) * pc;\n" +
+                " float n = vn(vec3(pc * 3.0 + vSd, uT * 0.2)) * 0.65 + vn(vec3(pc * 6.5 + vSd * 1.3, uT * 0.35)) * 0.35;\n" +
+                " float a = 1.0 - smoothstep(0.1, 1.0, d + (n - 0.5) * 0.7);\n" +
+                " gl_FragColor = vec4(mix(vec3(0.20, 0.16, 0.13), vec3(0.11, 0.09, 0.08), vAge) * (0.8 + 0.4 * n), a * vA * 0.35); }"
+              : " float n = vn(vec3(pc * 3.5 + vSd, uT * 1.8 - vAge * 2.0)) * 0.65 + vn(vec3(pc * 7.0 + vSd * 1.7, uT * 3.1)) * 0.35;\n" +
+                " float a = 1.0 - smoothstep(0.15, 1.0, d + (n - 0.5) * 0.6); a *= a;\n" +
+                " vec3 col = mix(vec3(1.0, 0.97, 0.82), vec3(1.0, 0.62, 0.18), smoothstep(0.0, 0.3, vAge));\n" +
+                " col = mix(col, vec3(0.85, 0.2, 0.04), smoothstep(0.3, 0.6, vAge)); col = mix(col, vec3(0.45, 0.05, 0.02), smoothstep(0.6, 0.95, vAge));\n" +
+                " col = mix(col, vec3(1.0, 0.95, 0.8), (1.0 - d) * (1.0 - smoothstep(0.0, 0.35, vAge)) * 0.5);\n" +
+                " gl_FragColor = vec4(col * a * vA * 0.35, 1.0); }");
+          return new THREE.ShaderMaterial({
+            transparent: true, depthWrite: false, blending: smoke ? THREE.NormalBlending : THREE.AdditiveBlending,
+            uniforms: u, vertexShader: vs, fragmentShader: fs
+          });
+        }
+        function fireGeo(n, smoke) {
+          var pos = new Float32Array(n * 3), s = new Float32Array(n * 4), g = new THREE.BufferGeometry();
+          for (var k = 0; k < n; k++) {
+            s[k * 4] = Math.random(); s[k * 4 + 1] = Math.random(); s[k * 4 + 2] = Math.sqrt(Math.random()); s[k * 4 + 3] = Math.random();
+            pos[k * 3 + 1] = smoke ? 1.4 + s[k * 4] * 2.0 : s[k * 4] * FIRE_H; // static spread, used only for picking
+          }
+          g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+          g.setAttribute("aS", new THREE.BufferAttribute(s, 4));
+          g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, smoke ? 2.4 : FIRE_H / 2, 0), smoke ? 2.2 : 2.2);
+          return g;
+        }
+        var fires = [];
+        [0.5, 1.8, 3.1, 4.3, 5.6].forEach(function (a, k) {
+          var g = new THREE.Group();
+          g.position.set(Math.cos(a) * 11.8, -2.4 - FIRE_H / 2, Math.sin(a) * 11.8); // rises from the abyss floor
+          var smoke = new THREE.Points(fireGeo(SMOKE_N, true), fireMatFor(true)), flame = new THREE.Points(fireGeo(FIRE_N, false), fireMatFor(false));
+          smoke.renderOrder = 3; flame.renderOrder = 4;
+          var fl = new THREE.PointLight(0xff7a30, 0.9, 3.2, 1.6); fl.position.set(0, 1.0, 0);
+          g.add(smoke); g.add(pick(flame, "abyss")); g.add(fl);
+          abyss.add(g);
+          fires.push({ c: new THREE.Vector3(g.position.x, -2.4, g.position.z), m: [flame.material, smoke.material], l: fl, k: k });
         });
+        function fireNoise(x) { // smooth 1D value noise for the light flicker: no per-frame jumps
+          var i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f);
+          function h(n) { var s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); }
+          return h(i) * (1 - u) + h(i + 1) * u;
+        }
 
         // firmament
         var dome = new THREE.Mesh(
@@ -876,7 +943,7 @@
           }
           var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = ANI; return t;
         }
-        var rockBump = grainTex(500, 3, 26), glows = []; rockBump.repeat.set(8, 8); // glows: [sprite, base opacity], faded near the camera
+        var rockBump = grainTex(500, 3, 26), glows = [], sheolLights = [], sheolFx = []; // Sheol lights [light, scale] and glows, muted from above the disc rockBump.repeat.set(8, 8); // glows: [sprite, base opacity], faded near the camera
         var rockMat = new THREE.MeshStandardMaterial({ color: 0x2f251e, roughness: 1, metalness: 0, bumpMap: rockBump, bumpScale: 2.5 });
         var ceilG = new THREE.RingGeometry(0.02, R, 128, 40).rotateX(Math.PI / 2), cp0 = ceilG.attributes.position;
         for (i = 0; i < cp0.count; i++) { var cx0 = cp0.getX(i), cz0 = cp0.getZ(i); cp0.setY(i, -Math.abs(n3(cx0 * 1.3, 0, cz0 * 1.3)) * 0.28 * (1 - Math.pow(Math.hypot(cx0, cz0) / R, 4))); }
@@ -904,10 +971,10 @@
           world.add(pick(m, i ? "sheol" : "bosom"));
           hollows.push(hp);
           if (!i) {
-            var hl = new THREE.PointLight(0xfff0c8, 1.6, 4, 1.5);
-            hl.position.copy(hp).addScaledVector(d, 0.7); world.add(hl);
-            var hg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(255, 240, 200), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.5 }));
-            hg.position.copy(hp).addScaledVector(d, 0.6); hg.scale.set(1.6, 1.6, 1); hg.renderOrder = 20; world.add(hg); glows.push([hg, 0.5]);
+            var hl = new THREE.PointLight(0xfff0c8, 1.6, 2.2, 1.5); // range capped below the disc top (y 0)
+            hl.position.copy(hp).addScaledVector(d, 0.7); world.add(hl); sheolLights.push([hl, 1.6]);
+            var hg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(255, 240, 200), blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true, transparent: true, opacity: 0.5 }));
+            hg.position.copy(hp).addScaledVector(d, 0.6); hg.scale.set(1.6, 1.6, 1); hg.renderOrder = 50; world.add(hg); glows.push([hg, 0.5]); sheolFx.push(hg);
             var pool = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.12, 32), new THREE.MeshStandardMaterial({ color: 0x9fe6ff, emissive: 0x4fc8ff, emissiveIntensity: 0.7, roughness: 0.9 }));
             pool.position.copy(hp).addScaledVector(d, 0.8); pool.position.y = -3.06; world.add(pick(pool, "bosom")); // clear of the floor: no z-fighting
           }
@@ -923,15 +990,15 @@
           var t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; return t;
         }
         var ga = 42 * Math.PI / 180, gd = V(Math.cos(ga), 0, Math.sin(ga)), gc = MC.clone().addScaledVector(gd, 2.3);
-        var gulf = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 2.2), new THREE.MeshBasicMaterial({ map: fireTex(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        var gulf = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 2.2), new THREE.MeshBasicMaterial({ map: fireTex(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true, side: THREE.DoubleSide }));
         gulf.position.set(gc.x, -2.2, gc.z); gulf.rotation.y = -ga;
         world.add(pick(gulf, "gulf"));
-        gulf.renderOrder = 21;
+        gulf.renderOrder = 51; sheolFx.push(gulf);
         var trench = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.3, 0.35), darkMat);
         trench.position.set(gc.x, -3.05, gc.z); trench.rotation.y = -ga;
         world.add(trench);
-        var gl = new THREE.PointLight(0xff6a20, 1.5, 5, 1.5);
-        gl.position.set(gc.x, -2.6, gc.z); world.add(gl);
+        var gl = new THREE.PointLight(0xff6a20, 1.5, 2.4, 1.5);
+        gl.position.set(gc.x, -2.6, gc.z); world.add(gl); sheolLights.push([gl, 0]); // 0: intensity animated in the frame loop
         // Tartarus: the lowest pit, lava, embers and smoke
         var lc = document.createElement("canvas"); lc.width = lc.height = 256;
         var lx = lc.getContext("2d");
@@ -946,23 +1013,24 @@
         var lava = new THREE.Mesh(new THREE.CircleGeometry(1.35, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: lavaT, color: 0xb0b0b0 }));
         lava.position.y = -3.84; // above the bumpy pit floor, never coplanar with it
         world.add(pick(lava, "tartarus"));
-        var pitL = new THREE.PointLight(0xff4a10, 2.2, 6, 1.4); pitL.position.set(0, -3.5, 0); world.add(pitL);
-        var pitL2 = new THREE.PointLight(0xff8a30, 1.2, 4, 1.5); pitL2.position.set(0.6, -3.0, 0.4); world.add(pitL2);
-        var pitGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(255, 60, 10), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.7 }));
-        pitGlow.position.set(0, -3.4, 0); pitGlow.scale.set(3.2, 3.2, 1); pitGlow.renderOrder = 22; world.add(pitGlow); glows.push([pitGlow, 0.45]);
+        var pitL = new THREE.PointLight(0xff4a10, 2.2, 3.3, 1.4); pitL.position.set(0, -3.5, 0); world.add(pitL); sheolLights.push([pitL, 0]);
+        var pitL2 = new THREE.PointLight(0xff8a30, 1.2, 2.8, 1.5); pitL2.position.set(0.6, -3.0, 0.4); world.add(pitL2); sheolLights.push([pitL2, 1.2]);
+        var pitGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(255, 60, 10), blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true, transparent: true, opacity: 0.7 }));
+        pitGlow.position.set(0, -3.4, 0); pitGlow.scale.set(3.2, 3.2, 1); pitGlow.renderOrder = 52; world.add(pitGlow); glows.push([pitGlow, 0.45]); sheolFx.push(pitGlow);
         var EN = 500, ep = new Float32Array(EN * 3), es = new Float32Array(EN);
         function ember(i, y) { var r = Math.sqrt(Math.random()) * 1.2, a = Math.random() * 6.28; ep[i * 3] = Math.cos(a) * r; ep[i * 3 + 1] = y; ep[i * 3 + 2] = Math.sin(a) * r; es[i] = 0.2 + Math.random() * 0.5; }
         for (i = 0; i < EN; i++) ember(i, -3.95 + Math.random() * 3);
         var eg = new THREE.BufferGeometry();
         eg.setAttribute("position", new THREE.BufferAttribute(ep, 3));
-        world.add(new THREE.Points(eg, softPts(0xffa050, 0.06, 1)));
+        var embers = new THREE.Points(eg, softPts(0xffa050, 0.06, 1)); embers.renderOrder = 50;
+        world.add(embers); sheolFx.push(embers);
         var smokeT = glowTex(60, 54, 50), smoke = [];
         for (i = 0; i < 14; i++) { // slow, soft smoke; each puff keeps a fixed column and fades fully before it recycles
-          var sm = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeT, transparent: true, depthWrite: false, opacity: 0 }));
+          var sm = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeT, transparent: true, depthWrite: false, depthTest: true, opacity: 0 }));
           var sa0 = i * 2.39996, sr0 = 0.25 + 0.5 * ((i * 0.618) % 1);
           sm.position.set(Math.cos(sa0) * sr0, -3.8 + i / 14 * 2.8, Math.sin(sa0) * sr0);
-          sm.userData.x = sm.position.x; sm.userData.z = sm.position.z; sm.renderOrder = 23 + i;
-          world.add(sm); smoke.push(sm);
+          sm.userData.x = sm.position.x; sm.userData.z = sm.position.z; sm.renderOrder = 53 + i;
+          world.add(sm); smoke.push(sm); sheolFx.push(sm);
         }
 
         // the pillars of the earth (1 Samuel 2:8, Job 9:6): fluted, weathered stone columns from the floor of Sheol to the underside of the disc
@@ -1249,7 +1317,7 @@
           var tx = new THREE.Texture(t.im); tx.anisotropy = ANI; tx.encoding = THREE.sRGBEncoding; tx.needsUpdate = true;
           if (isBM(t.im)) { tx.flipY = false; for (var vi = 1; vi < NV * 2; vi += 2) uv[vi] = 1 - uv[vi]; } // ImageBitmaps ignore flipY: flip the uvs instead
           // double-sided so skirts seen from either side seal LOD cracks: no black slivers of void at the horizon
-          var mat = new THREE.MeshStandardMaterial({ map: tx, roughness: 1, metalness: 0, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+          var mat = new THREE.MeshStandardMaterial({ map: tx, roughness: 1, metalness: 0, side: THREE.DoubleSide, transparent: false, opacity: 1, depthWrite: true }); // opaque: nothing beneath the disc shows through
           mat.userData.f = { value: smooth(11, 14, t.z) }; mat.onBeforeCompile = tileOBC;
           tStencil(mat, t.z === 2);
           // tile centre in absolute coords; the world group's -anchor makes its render position (c - anchor), computed in doubles.
@@ -1264,7 +1332,8 @@
         }
         function tshow(t, under) {
           var m = t.mesh, mt = m.material;
-          m.visible = true; mt.opacity = under ? 1 : t.f; mt.transparent = !under && t.f < 1; mt.depthWrite = !under; m.renderOrder = under ? 0 : t.z;
+          // tiles are always opaque; a parent fully covered by its four loaded children is skipped instead of drawn under them
+          m.visible = !under; mt.opacity = 1; mt.transparent = false; mt.depthWrite = true; m.renderOrder = under ? 0 : t.z;
         }
         function tdraw(t, dt) { // a parent stays until all four children load, and under them while they fade in
           if (t.st === 2) { if (t.f < 1) tFading = true; t.f = t.root && BK.ok ? 1 : Math.min(1, t.f + dt / 0.4); } // roots over the backdrop need no fade
@@ -1757,7 +1826,7 @@
               if (t.f < 1) tFading = true;
               t.f = Math.min(1, t.f + dt / 0.6);
               var mt = t.mesh.material; t.mesh.visible = true; t.mesh.renderOrder = 30;
-              mt.opacity = t.f; mt.transparent = t.f < 1; mt.depthWrite = true;
+              mt.opacity = 1; mt.transparent = false; mt.depthWrite = true;
             });
           }
           if (tFading) busy = true;
@@ -1833,7 +1902,12 @@
             if (mNear < 0.01) ms.visible = false;
             if (ms.visible) ms.material.opacity = marks[mk].b * mNear * (0.85 + 0.15 * Math.sin(now * 0.8 + marks[mk].ph));
           }
-          for (var f = 0; f < fires.length; f++) fires[f].material.opacity = (0.26 + 0.04 * Math.sin(now * 0.9 + f * 1.7)) * smooth(0.4, 1.5, cp.distanceTo(fires[f].position)); // never fills the screen
+          fireT.value = now % 400; // 400 s is a whole number of flame and smoke lifetimes
+          for (var f = 0; f < fires.length; f++) {
+            var fc = fires[f], fNear = smooth(0.4, 1.5, cp.distanceTo(fc.c)); // never fills the screen
+            fc.m[0].uniforms.uNear.value = fc.m[1].uniforms.uNear.value = fNear;
+            fc.l.intensity = 0.9 * (0.75 + 0.25 * (0.6 * fireNoise(now * 1.3 + fc.k * 11) + 0.4 * fireNoise(now * 2.7 + fc.k * 23)));
+          }
           if (playing) { dayT += dt / 6; yearT += dt / 48; }
           var yr = yearT % 1, rad = 5 - 1.3 * Math.cos(yr * Math.PI * 2), a = dayT * Math.PI * 2;
           sun.position.set(Math.cos(a) * rad, 3, Math.sin(a) * rad);
@@ -1865,8 +1939,12 @@
           gulf.material.opacity = 0.7 + 0.06 * Math.sin(now * 0.9);
           gulf.material.map.offset.x += dt * 0.03;
           lavaT.offset.set(Math.sin(now * 0.1) * 0.05, now * 0.008);
-          pitL.intensity = 1.5 + 0.12 * Math.sin(now * 0.8);
-          gl.intensity = 1.0 + 0.08 * Math.sin(now * 0.7 + 1);
+          // from above the disc (inside its radius) Sheol is hidden: lights off, glows hidden, labels hidden below
+          var sheolHide = cp.y > 0 && rr < R, shK = sheolHide ? 0 : 1;
+          pitL.intensity = (1.5 + 0.12 * Math.sin(now * 0.8)) * shK;
+          gl.intensity = (1.0 + 0.08 * Math.sin(now * 0.7 + 1)) * shK;
+          for (var sl = 0; sl < sheolLights.length; sl++) if (sheolLights[sl][1]) sheolLights[sl][0].intensity = sheolLights[sl][1] * shK;
+          for (var sf = 0; sf < sheolFx.length; sf++) sheolFx[sf].visible = !sheolHide;
           hemi.intensity = cp.y < -0.25 ? 0.14 : 0.42; // the cavern stays dark
           for (var gw = 0; gw < glows.length; gw++) { var gs0 = glows[gw][0]; gs0.material.opacity = glows[gw][1] * smooth(gs0.scale.x * 0.6, gs0.scale.x * 1.8, cp.distanceTo(gs0.position)); }
           for (i = 0; i < EN; i++) { ep[i * 3 + 1] += es[i] * dt * 0.5; ep[i * 3] += Math.sin(now * 0.5 + i) * dt * 0.03; if (ep[i * 3 + 1] > -0.05) ember(i, -3.95); } // born under the lava, faded out inside the rock ceiling: none pop
@@ -1896,6 +1974,7 @@
               else if (op > 0.01 && PLACE[L.set] && !(akm < 800) && L.set !== "R") op = 0;
               L.vb = op;
             } else op = L.vb || 0;
+            if (sheolHide && L.set === "hades") op = 0;
             if (op <= 0.01 && L.o === 0) continue;
             if (op > 0.01 && FADE[L.set]) op *= (cp.y > 0 ? 1 : 0) * (1 - smooth(altRef * 14, altRef * 30, cp.distanceTo(L.p)));
             if (op > 0.01) {
