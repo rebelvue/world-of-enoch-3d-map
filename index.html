@@ -117,7 +117,7 @@
         <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12" /></svg>
       </button>
       <button class="x-menu x-compass x-glass" id="compass" type="button" aria-label="Reset north and tilt">
-        <svg viewBox="0 0 22 22" id="needle"><path d="M11 3l3 8h-6z" fill="#ff5a4a" /><path d="M11 19l3-8h-6z" fill="rgb(255 255 255 / 0.7)" /><text x="11" y="2.6" font-size="0" fill="none">N</text></svg>
+        <svg viewBox="0 0 22 22" id="needle"><path d="M11 3l3 8h-6z" fill="#ff5a4a" /><path d="M11 19l3-8h-6z" fill="rgb(255 255 255 / 0.7)" /></svg>
       </button>
       <button class="x-menu x-aa x-glass" id="aa" type="button" aria-label="Show all labels" aria-pressed="true">Aa</button>
       <aside class="x-sheet x-glass" id="sheet" aria-label="View settings">
@@ -1248,7 +1248,8 @@
           geo.setIndex(tileIdx(G)); geo.computeBoundingSphere();
           var tx = new THREE.Texture(t.im); tx.anisotropy = ANI; tx.encoding = THREE.sRGBEncoding; tx.needsUpdate = true;
           if (isBM(t.im)) { tx.flipY = false; for (var vi = 1; vi < NV * 2; vi += 2) uv[vi] = 1 - uv[vi]; } // ImageBitmaps ignore flipY: flip the uvs instead
-          var mat = new THREE.MeshStandardMaterial({ map: tx, roughness: 1, metalness: 0, side: THREE.FrontSide, transparent: true, opacity: 0 });
+          // double-sided so skirts seen from either side seal LOD cracks: no black slivers of void at the horizon
+          var mat = new THREE.MeshStandardMaterial({ map: tx, roughness: 1, metalness: 0, side: THREE.DoubleSide, transparent: true, opacity: 0 });
           mat.userData.f = { value: smooth(11, 14, t.z) }; mat.onBeforeCompile = tileOBC;
           tStencil(mat, t.z === 2);
           // tile centre in absolute coords; the world group's -anchor makes its render position (c - anchor), computed in doubles.
@@ -1410,41 +1411,162 @@
           });
         });
         // zoom toward the point under the cursor or between the fingers
-        var zq = null, pts = new Map(), pinch0 = 0, zray = new THREE.Raycaster(), zv = new THREE.Vector2();
-        controls.enableZoom = false;
+        var zq = null, pts = new Map(), zray = new THREE.Raycaster(), zv = new THREE.Vector2();
         function zoomReq(cx, cy, k) { mv = null; zq = { x: cx, y: cy, f: (zq ? zq.f : 0) + k }; }
         stage.addEventListener("wheel", function (e) { e.preventDefault(); e.stopPropagation(); zoomReq(e.clientX, e.clientY, Math.max(-1, Math.min(1, e.deltaY * (e.deltaMode ? 0.05 : 0.0015)))); }, { capture: true, passive: false });
-        stage.addEventListener("pointerdown", function (e) { pts.set(e.pointerId, [e.clientX, e.clientY]); pinch0 = 0; }, true);
-        stage.addEventListener("pointermove", function (e) {
-          if (!pts.has(e.pointerId)) return;
-          pts.set(e.pointerId, [e.clientX, e.clientY]);
-          if (pts.size !== 2) return;
-          var a = Array.from(pts.values()), d = Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]);
-          if (pinch0) zoomReq((a[0][0] + a[1][0]) / 2, (a[0][1] + a[1][1]) / 2, Math.log(pinch0 / d) * 1.4);
-          pinch0 = d;
-        }, true);
-        ["pointerup", "pointercancel"].forEach(function (t) { stage.addEventListener(t, function (e) { pts.delete(e.pointerId); pinch0 = 0; }, true); });
-        function zoomStep(dt) { // applies part of the queued zoom each frame
-          if (!zq || Math.abs(zq.f) < 0.002) { zq = null; return false; }
-          var s = zq.f * (1 - Math.exp(-dt * 12)), cp = camera.position, gy = controls.target.y;
-          zq.f -= s;
-          zv.set(zq.x / innerWidth * 2 - 1, -zq.y / innerHeight * 2 + 1);
+        // zoom by exp(s) toward the ground point under a screen point (works in render or absolute coords)
+        function zoomAt(x, y, s) {
+          var cp = camera.position, gy = controls.target.y, ox = camAbs ? 0 : ANC0.x, oz = camAbs ? 0 : ANC0.z;
+          camera.updateMatrixWorld();
+          zv.set(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1);
           zray.setFromCamera(zv, camera);
           var dr = zray.ray.direction, p = tmp2;
           if (dr.y < -1e-4 && (gy - cp.y) / dr.y < cp.distanceTo(controls.target) * 6) p.copy(cp).addScaledVector(dr, (gy - cp.y) / dr.y); else p.copy(controls.target);
-          var f = Math.exp(s), alt = cp.y - ground(cp.x, cp.z), dist = cp.distanceTo(p);
+          var f = Math.exp(s), alt = cp.y - ground(cp.x + ox, cp.z + oz), dist = cp.distanceTo(p);
           if (f < 1 && dist * f < 0.00015 && dist < alt * 1.5) f = Math.max(f, 0.00015 / dist); // 300 m floor; each step scales distance, so speed follows it
           if (dist * f > 120) f = 120 / dist;
           cp.sub(p).multiplyScalar(f).add(p);
           controls.target.sub(p).multiplyScalar(f).add(p);
+        }
+        function zoomStep(dt) { // applies part of the queued zoom each frame
+          if (!zq || Math.abs(zq.f) < 0.002) { zq = null; return false; }
+          var s = zq.f * (1 - Math.exp(-dt * 12));
+          zq.f -= s;
+          zoomAt(zq.x, zq.y, s);
           return true;
+        }
+
+        // Google Earth style gestures. Touch: one finger grabs and pans the ground, pinch zooms toward the pinch center,
+        // twist turns the heading, two fingers moving up or down tilt. Mouse: left-drag pans, right- or Ctrl-drag turns and
+        // tilts, wheel zooms toward the cursor. Double-tap or double-click zooms in. Released motion glides out.
+        var gRay = new THREE.Raycaster(), gV = new THREE.Vector2(), gA = new THREE.Vector3(), gB = new THREE.Vector3(), gR = new THREE.Vector3(), gF = new THREE.Vector3();
+        var ivel = { x: 0, z: 0, h: 0, t: 0, z2: 0 }, gest = null, lastMoveT = 0, lastTap = null, inertOn = false;
+        function hitAt(x, y, out) { // the plane at the target's height, under a screen point; null near the horizon
+          camera.updateMatrixWorld();
+          gV.set(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1); gRay.setFromCamera(gV, camera);
+          var o = camera.position, d = gRay.ray.direction, py = controls.target.y;
+          if (Math.abs(d.y) < 1e-3) return null;
+          var t = (py - o.y) / d.y;
+          if (t <= 0 || t > o.distanceTo(controls.target) * 25) return null;
+          return out.copy(o).addScaledVector(d, t);
+        }
+        function shift(dx, dz) { camera.position.x += dx; camera.position.z += dz; controls.target.x += dx; controls.target.z += dz; }
+        function panPx(x0, y0, x1, y1) { // the ground under (x0, y0) moves to (x1, y1)
+          var a = hitAt(x0, y0, gA), b = a && hitAt(x1, y1, gB), dx, dz, dist = camera.position.distanceTo(controls.target);
+          if (a && b) { dx = a.x - b.x; dz = a.z - b.z; }
+          else { // near the horizon: move by screen distance at the target's range
+            var k = dist * 2 * Math.tan(camera.fov * Math.PI / 360) / innerHeight;
+            gR.setFromMatrixColumn(camera.matrixWorld, 0); gR.y = 0; gR.normalize(); gF.crossVectors(Y, gR);
+            dx = (-(x1 - x0) * gR.x + (y1 - y0) * gF.x) * k; dz = (-(x1 - x0) * gR.z + (y1 - y0) * gF.z) * k;
+          }
+          var l = Math.hypot(dx, dz), mx = dist * 1.5;
+          if (l > mx) { dx *= mx / l; dz *= mx / l; }
+          shift(dx, dz);
+          return [dx, dz];
+        }
+        function spin(ang, px, pz) { // turn the heading about a vertical axis through (px, pz)
+          var c = Math.cos(ang), s = Math.sin(ang);
+          [camera.position, controls.target].forEach(function (p) { var x = p.x - px, z = p.z - pz; p.x = px + x * c - z * s; p.z = pz + x * s + z * c; });
+        }
+        function tilt(d) { // tilt about the target; above the disc never past the horizon
+          var t = controls.target, o = gA.copy(camera.position).sub(t), r = o.length();
+          if (!r) return;
+          var ph = Math.acos(Math.max(-1, Math.min(1, o.y / r))), th = Math.atan2(o.x, o.z), mx = t.y > -0.2 ? Math.PI / 2 - 0.03 : Math.PI * 0.86;
+          ph = Math.max(0.002, Math.min(mx, ph + d));
+          camera.position.set(t.x + r * Math.sin(ph) * Math.sin(th), t.y + r * Math.cos(ph), t.z + r * Math.sin(ph) * Math.cos(th));
+        }
+        function track(k, v, dtm) { ivel[k] = ivel[k] * 0.5 + (v / dtm) * 0.5; }
+        var cvs = renderer.domElement;
+        cvs.addEventListener("pointerdown", function (e) {
+          try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
+          pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now(), rot: e.button === 2 || e.ctrlKey });
+          mv = null; ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = 0; gest = null; lastMoveT = performance.now();
+        });
+        cvs.addEventListener("pointermove", function (e) {
+          var p = pts.get(e.pointerId);
+          if (!p) return;
+          var now = performance.now(), dtm = Math.max(0.008, (now - lastMoveT) / 1000), px = p.x, py = p.y;
+          p.x = e.clientX; p.y = e.clientY;
+          if (px === p.x && py === p.y) return;
+          lastMoveT = now;
+          if (pts.size === 1) {
+            if (p.rot || e.ctrlKey) {
+              var a1 = (p.x - px) * 0.005, t1 = -(p.y - py) * 0.005;
+              spin(a1, controls.target.x, controls.target.z); tilt(t1); track("h", a1, dtm); track("t", t1, dtm);
+            } else { var d = panPx(px, py, p.x, p.y); track("x", d[0], dtm); track("z", d[1], dtm); }
+          } else if (pts.size === 2) {
+            var o = null; pts.forEach(function (q, id) { if (id !== e.pointerId) o = q; });
+            var m0x = (o.x + px) / 2, m0y = (o.y + py) / 2, m1x = (o.x + p.x) / 2, m1y = (o.y + p.y) / 2;
+            var d0 = Math.hypot(px - o.x, py - o.y) || 1, d1 = Math.hypot(p.x - o.x, p.y - o.y) || 1;
+            if (!gest) { // decide once per gesture: both fingers moving up or down together tilts; anything else pinches/twists/pans
+              var dyA = o.y - o.y0, dyB = p.y - p.y0, dxA = o.x - o.x0, dxB = p.x - p.x0, dd = Math.abs(Math.hypot(p.x0 - o.x0, p.y0 - o.y0) - d1);
+              if (Math.max(Math.hypot(dxA, dyA), Math.hypot(dxB, dyB)) < 10) return;
+              gest = dyA * dyB > 0 && Math.abs(dyA + dyB) > Math.abs(dxA + dxB) * 1.5 && dd < Math.abs(dyA + dyB) * 0.4 ? "tilt" : "pinch";
+            }
+            if (gest === "tilt") { var t2 = -(m1y - m0y) * 0.006; tilt(t2); track("t", t2, dtm); }
+            else {
+              var s = Math.log(d0 / d1); zoomAt(m1x, m1y, s); track("z2", s, dtm);
+              var da = Math.atan2(p.y - o.y, p.x - o.x) - Math.atan2(py - o.y, px - o.x);
+              if (da > Math.PI) da -= 2 * Math.PI; else if (da < -Math.PI) da += 2 * Math.PI;
+              var pv = hitAt(m1x, m1y, gB) || controls.target;
+              spin(-da, pv.x, pv.z); track("h", -da, dtm);
+              controls.update(); var d2 = panPx(m0x, m0y, m1x, m1y); track("x", d2[0], dtm); track("z", d2[1], dtm);
+            }
+          }
+          controls.update(); kick();
+        });
+        function ptrEnd(e) {
+          var p = pts.get(e.pointerId);
+          if (!p) return;
+          pts.delete(e.pointerId);
+          var now = performance.now();
+          if (e.type === "pointerup" && pts.size === 0 && !gest && Math.hypot(p.x - p.x0, p.y - p.y0) < 10 && now - p.t0 < 300) { // a tap: two in a row zoom in
+            if (lastTap && now - lastTap.t < 320 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 40) { zoomReq(p.x, p.y, -1.1); lastTap = null; }
+            else lastTap = { t: now, x: p.x, y: p.y };
+          }
+          if (pts.size === 1) pts.forEach(function (q) { q.x0 = q.x; q.y0 = q.y; }); // the remaining finger carries on panning
+          gest = null;
+          if (pts.size === 0) {
+            if (now - lastMoveT > 90) ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = 0;
+            ivel.x *= 0.8; ivel.z *= 0.8; // a touch less glide than the release speed
+          }
+          kick();
+        }
+        ["pointerup", "pointercancel"].forEach(function (t) { cvs.addEventListener(t, ptrEnd); });
+        function inertia(dt) { // smooth exponential glide after release, in absolute coords inside frame()
+          if (pts.size || mv) return false;
+          var k = Math.exp(-dt * 3.2), on = false, dist = camera.position.distanceTo(controls.target);
+          if (Math.hypot(ivel.x, ivel.z) > dist * 0.01) { shift(ivel.x * dt, ivel.z * dt); ivel.x *= k; ivel.z *= k; on = true; } else ivel.x = ivel.z = 0;
+          if (Math.abs(ivel.h) > 0.005) { spin(ivel.h * dt, controls.target.x, controls.target.z); ivel.h *= k; on = true; } else ivel.h = 0;
+          if (Math.abs(ivel.t) > 0.005) { tilt(ivel.t * dt); ivel.t *= k; on = true; } else ivel.t = 0;
+          if (Math.abs(ivel.z2) > 0.02) { zoomAt(innerWidth / 2, innerHeight / 2, ivel.z2 * dt); ivel.z2 *= k; on = true; } else ivel.z2 = 0;
+          return on;
+        }
+        // compass: shows north (the disc's center) and resets heading and tilt
+        var needle = $("needle"), lastNd = 1e9;
+        function northReset() {
+          var t = controls.target.clone().add(tmp.set(camAbs ? 0 : ANC0.x, 0, camAbs ? 0 : ANC0.z)), o0 = camera.position.clone().sub(controls.target), l = o0.length();
+          var r = Math.hypot(t.x, t.z), ox = r > 1e-6 ? t.x / r : 0, oz = r > 1e-6 ? t.z / r : 1; // camera sits on the far side, looking toward the center
+          var o1 = V(ox * 0.004, 1, oz * 0.004).normalize();
+          ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = 0;
+          mv = { t: 0, dur: 0.9, t0: t.clone(), t1: t.clone(), l0: l, l1: l, o0: o0.normalize(), o1: o1 };
+          kick();
+        }
+        $("compass").addEventListener("click", northReset);
+        function compassDraw() {
+          var t = controls.target, cp = camera.position, fx = t.x - cp.x, fz = t.z - cp.z;
+          if (Math.hypot(fx, fz) < 1e-9) { camera.getWorldDirection(gF); fx = gF.x; fz = gF.z; }
+          var nx = -t.x, nz = -t.z;
+          if (Math.hypot(nx, nz) < 1e-6) { nx = 0; nz = -1; }
+          var ang = Math.atan2(fx * nz - fz * nx, fx * nx + fz * nz); // from view direction to north
+          var deg = Math.round(ang * 180 / Math.PI);
+          if (deg !== lastNd) { lastNd = deg; needle.style.transform = "rotate(" + deg + "deg)"; }
         }
         camera.position.set(0, fitDist() * 1.6, 0.01);
         goView("home", 1.5);
-        controls.addEventListener("start", function () { mv = null; });
 
         // tap to identify
-        var ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), down = null, BG = { dome: 1, ice: 1, abyss: 1 };
+        var ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), down = null, BG = { dome: 1, ice: 1, abyss: 1, waters: 1 };
         function shown(o) { for (; o; o = o.parent) if (!o.visible) return false; return true; }
         ray.params.Points.threshold = 0.3;
         // country picking: the ID map read on the CPU one pixel at a time
@@ -1600,12 +1722,13 @@
               controls.target.copy(cp).addScaledVector(tmp2.normalize(), Math.min(40, Math.max(0.00003, alt * 4)));
             }
           }
-          controls.update();
+          inertOn = inertia(dt);
           var zooming = zoomStep(dt);
+          controls.update();
           // smooth zoom: OrbitControls jumps the distance; ease toward it instead
           tmp2.copy(cp).sub(controls.target);
           var dNow = tmp2.length();
-          if (mv || moving || !zP || zooming) zD = zP = dNow;
+          if (true) zD = zP = dNow; // distance changes are already eased by the gestures and zoom queue
           else {
             zD = Math.min(controls.maxDistance || 120, Math.max(controls.minDistance || 0, zD * dNow / zP));
             zP += (zD - zP) * (1 - Math.exp(-dt * 10));
@@ -1620,6 +1743,7 @@
             if (cp.y < fl) cp.y = fl;
           } else if (rr < R && cp.y <= -0.25 && cp.y > -0.53) cp.y = -0.53;
           zP = cp.distanceTo(controls.target);
+          controls.update(); compassDraw();
           // streaming tiles: rebuild the quadtree ~5 times a second, fade and draw every frame
           ST.dt = (ST.dt || 0) + dt;
           if (ST.dt > 0.2) { ST.dt = 0; tupdate(cp, !mv && !moving && !zooming && !pts.size); }
@@ -1691,6 +1815,14 @@
           // sky, season, gates
           domeStars.rotation.y += dt * 0.02;
           domeStars.visible = dome.visible = show.dome;
+          // waters above: always slowly moving; windows of heaven open during the Flood (-2348 to -2347, Ussher)
+          var flood = smooth(-2348.5, -2348, y) * (1 - smooth(-2347, -2346.5, y));
+          waters.visible = show.dome; waterU.uT.value = now % 1000; waterU.uFl.value = flood;
+          waterU.uIn.value = smooth(0.2, 1.2, 10.3 - Math.hypot(rr, cp.y)) ; // fades as the camera nears the shell from inside: never a full-screen veil
+          rain.visible = show.dome && flood > 0.01; rainU.uT.value = now % 1000; rainU.uFl.value = flood;
+          if (flood > 0.01) busy = true;
+          prisonU.uT.value = now % 1000;
+          for (var pi2 = 0; pi2 < PRI.length; pi2++) { var hzm = PRI[pi2][1], pdist = cp.distanceTo(hzm.position); hzm.quaternion.copy(camera.quaternion); hzm.material.uniforms.uO.value = smooth(hzm.scale.x * 0.8, hzm.scale.x * 3, pdist); hzm.visible = pdist > 0.3; }
           dome.material.uniforms.uK.value = cp.y > 0 && rr < R ? 0.25 + 0.75 * smooth(0.005, 1.5, cp.y - g0) : 1; // a faint veil from the ground, never a wall of haze
           winds.visible = show.winds;
           for (var mk = 0; mk < marks.length; mk++) {
@@ -1701,7 +1833,7 @@
             if (mNear < 0.01) ms.visible = false;
             if (ms.visible) ms.material.opacity = marks[mk].b * mNear * (0.85 + 0.15 * Math.sin(now * 0.8 + marks[mk].ph));
           }
-          for (var f = 0; f < fires.length; f++) fires[f].material.opacity = 0.26 + 0.04 * Math.sin(now * 0.9 + f * 1.7);
+          for (var f = 0; f < fires.length; f++) fires[f].material.opacity = (0.26 + 0.04 * Math.sin(now * 0.9 + f * 1.7)) * smooth(0.4, 1.5, cp.distanceTo(fires[f].position)); // never fills the screen
           if (playing) { dayT += dt / 6; yearT += dt / 48; }
           var yr = yearT % 1, rad = 5 - 1.3 * Math.cos(yr * Math.PI * 2), a = dayT * Math.PI * 2;
           sun.position.set(Math.cos(a) * rad, 3, Math.sin(a) * rad);
@@ -1718,6 +1850,7 @@
             }
           }
           sky.visible = show.sky;
+          sun.visible = cp.distanceTo(sun.position) > 1.0; moonGlow.visible = cp.distanceTo(moon.position) > 0.8; // no glow quad can fill the screen
           sunLight.intensity = show.sky ? 1.1 : 0;
           amb.intensity = show.sky ? 0.06 : 0.45;
           sun.quaternion.copy(camera.quaternion); // the sun quad always faces the viewer
@@ -1783,9 +1916,6 @@
           lastCam.copy(cp); lastQ.copy(camera.quaternion);
           cp.x -= ANC0.x; cp.z -= ANC0.z; controls.target.x -= ANC0.x; controls.target.z -= ANC0.z; camAbs = false;
           world.position.set(-ANC0.x, 0, -ANC0.z);
-          // stars ride with the camera, shrunk inside the far plane
-          var sk2 = Math.min(1, camera.far * 0.9 / 300);
-          stars.position.copy(cp); stars.scale.setScalar(sk2);
           starU.uPx.value = prNow; starU.uT.value = now; starU.uTw.value = cp.y > 0 && akm < 200 ? 1 - smooth(20, 200, akm) : 0; // gentle twinkle near the ground only
           // pixel ratio: lower while the view moves (desktop), fixed on phones
           if (camChanged) prT = now;
@@ -1793,7 +1923,7 @@
           if (prW !== prNow) { prNow = prW; renderer.setPixelRatio(prW); renderer.setSize(innerWidth, innerHeight); ptScale.value = innerHeight * prW / 2; }
           renderer.render(scene, camera);
           // keep running while anything moves; after 1 s of stillness the loop pauses until input or a load wakes it
-          if (camChanged || busy || mv || moving || zooming || zq || tlPlay || playing || pts.size || jid !== null || ud || Object.keys(keys).some(function (k) { return keys[k]; }) || now - prT < 0.35) lastAct = performance.now();
+          if (camChanged || busy || inertOn || mv || moving || zooming || zq || tlPlay || playing || pts.size || jid !== null || ud || Object.keys(keys).some(function (k) { return keys[k]; }) || now - prT < 0.35) lastAct = performance.now();
           if (performance.now() - lastAct > 1000) { running = false; lastTs = 0; return; }
           requestAnimationFrame(frame);
         }
