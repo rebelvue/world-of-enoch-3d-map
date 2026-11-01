@@ -30,6 +30,7 @@
       #stage { position: fixed; inset: 0; }
       #stage canvas { position: fixed; inset: 0; width: 100% !important; height: 100% !important; display: block; touch-action: none; }
       .x-tex { display: none; }
+      .x-vig { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgb(0 0 0 / 0) 52%, rgb(4 3 6 / 0.62) 100%); }
       .x-glass { background: rgb(20 20 24 / 0.42); -webkit-backdrop-filter: var(--hark-blur); backdrop-filter: var(--hark-blur); border: 1px solid rgb(255 255 255 / 0.1); }
       .x-title { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); margin: 0; font: var(--type-small); font-weight: var(--weight-medium); color: rgb(255 255 255 / 0.85); text-shadow: 0 1px 6px #000; pointer-events: none; }
       .x-menu { position: fixed; top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: var(--tap); height: var(--tap); border-radius: 50%; display: grid; place-items: center; color: #fff; cursor: pointer; padding: 0; z-index: 3; }
@@ -111,6 +112,7 @@
       <script type="application/json" id="polities" src="polities.json"></script>
       <script type="application/json" id="cinfo" src="countries_info.json"></script>
       <div id="stage"></div>
+      <div class="x-vig" id="vig" aria-hidden="true"></div>
       <div class="x-labels" id="labels" aria-hidden="true"></div>
       <p class="x-title">The World of Enoch</p>
       <button class="x-menu x-glass" id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet">
@@ -693,7 +695,7 @@
         }
         var abyss = new THREE.Group();
         world.add(abyss);
-        var AN = 1400, ap = new Float32Array(AN * 3);
+        var AN = MOB ? 700 : 1400, ap = new Float32Array(AN * 3);
         for (j = 0; j < AN; j++) {
           var ar = 10.6 + Math.random() * 3, at = Math.random() * Math.PI * 2;
           ap[j * 3] = Math.cos(at) * ar; ap[j * 3 + 1] = -0.5 - Math.random() * 3.5; ap[j * 3 + 2] = Math.sin(at) * ar;
@@ -784,6 +786,68 @@
           function h(n) { var s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); }
           return h(i) * (1 - u) + h(i + 1) * u;
         }
+        // underworld pass: shared helpers (fbm for rock relief, soft puff sprites, a shared fx clock)
+        function fbm2(x, y, z, o) { var s = 0, a = 0.5, f = 1; for (var q = 0; q < o; q++) { s += a * n3(x * f + q * 3.1, y * f, z * f - q * 1.7); f *= 2.13; a *= 0.5; } return s; }
+        function puffTex(seed) {
+          var c = document.createElement("canvas"); c.width = c.height = 128;
+          var x = c.getContext("2d"), rnd = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+          for (var q = 0; q < 28; q++) {
+            var a = rnd() * 6.28, d = rnd() * 30, px = 64 + Math.cos(a) * d, py = 64 + Math.sin(a) * d * 0.7, r = 16 + rnd() * 28, g = x.createRadialGradient(px, py, 0, px, py, r);
+            g.addColorStop(0, "rgba(255,255,255,0.16)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+          }
+          x.globalCompositeOperation = "destination-in"; // soft round edge: the quad never shows
+          var m = x.createRadialGradient(64, 64, 16, 64, 64, 64); m.addColorStop(0, "rgba(0,0,0,1)"); m.addColorStop(1, "rgba(0,0,0,0)");
+          x.fillStyle = m; x.fillRect(0, 0, 128, 128);
+          return new THREE.CanvasTexture(c);
+        }
+        var PUFF = [puffTex(7), puffTex(131), puffTex(977)], fxT = { value: 0 };
+        function puffSprite(tex, hex, add) {
+          return new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: hex, transparent: true, depthWrite: false, depthTest: true, opacity: 0, fog: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending }));
+        }
+        var PTS_VS_HEAD = "#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute vec4 aS; uniform float uT, uScale; varying float vA; varying vec3 vC;\n";
+        var PTS_FS = "#include <logdepthbuf_pars_fragment>\nvarying float vA; varying vec3 vC; void main(){\n#include <logdepthbuf_fragment>\nfloat d = length(gl_PointCoord - 0.5) * 2.0; if (d >= 1.0) discard; float a = 1.0 - d; a *= a; gl_FragColor = vec4(vC * a * vA, 1.0); }";
+        // abyss: layered red-black mist sinking into black with depth (sprites fade in and out over each cycle, so none pop)
+        var AMN = MOB ? 24 : 48, amist = [], AMC = [0x3a0c06, 0x3a0e08, 0x1c0605, 0x070203], AMO = [0.5, 0.38, 0.5, 0.62];
+        for (j = 0; j < AMN; j++) {
+          var aly = j % 4, ams = puffSprite(PUFF[j % 3], AMC[aly], aly === 0);
+          ams.userData = { a: hash(j, 1) * 6.2832, r: 10.6 + hash(j, 2) * 4.2, y0: -1.4 - aly * 1.5 - hash(j, 3) * 0.6, ph: hash(j, 4), sp: 0.018 + hash(j, 5) * 0.02, rot: (hash(j, 6) - 0.5) * 0.006, w: 3.2 + aly * 0.8 + hash(j, 7), h: 1.5 + aly * 0.4, o: AMO[aly] };
+          ams.renderOrder = 4; abyss.add(ams); amist.push(ams);
+        }
+        // abyss: slow falling ash and embers, animated on the GPU
+        var ASN = MOB ? 450 : 900, asP = new Float32Array(ASN * 3), asS = new Float32Array(ASN * 4);
+        for (j = 0; j < ASN; j++) { asP[j * 3] = 10.3 + Math.random() * 4.4; asS[j * 4] = Math.random(); asS[j * 4 + 1] = Math.random(); asS[j * 4 + 2] = Math.random(); asS[j * 4 + 3] = Math.random(); }
+        var asG = new THREE.BufferGeometry(); asG.setAttribute("position", new THREE.BufferAttribute(asP, 3)); asG.setAttribute("aS", new THREE.BufferAttribute(asS, 4));
+        var ash = new THREE.Points(asG, new THREE.ShaderMaterial({
+          transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, uniforms: { uT: fxT, uScale: ptScale },
+          vertexShader: PTS_VS_HEAD + "void main(){ float H = 7.5, ph = fract(aS.x + uT * (0.05 + 0.08 * aS.z) / H), ang = aS.y * 6.2832 + uT * 0.004 * (aS.w - 0.5), r = position.x;\n" +
+            " vec3 p = vec3(cos(ang) * r + sin(uT * 0.3 + aS.w * 30.0) * 0.12, -0.7 - ph * H, sin(ang) * r + cos(uT * 0.25 + aS.z * 20.0) * 0.12);\n" +
+            " vec4 mv = viewMatrix * modelMatrix * vec4(p, 1.0); float dist = -mv.z, emb = step(0.68, aS.w);\n" +
+            " vA = smoothstep(0.0, 0.08, ph) * (1.0 - smoothstep(0.55, 1.0, ph)) * smoothstep(0.15, 0.5, dist);\n" +
+            " vC = mix(vec3(0.15, 0.12, 0.11), mix(vec3(1.0, 0.45, 0.12), vec3(0.6, 0.08, 0.02), ph) * (0.75 + 0.25 * sin(uT * 1.3 + aS.x * 50.0)), emb);\n" +
+            " float px = mix(0.04, 0.025, emb) * (0.6 + 0.8 * aS.z) * uScale / max(dist, 0.001); gl_PointSize = clamp(px, 1.5, 8.0); vA *= min(px / 1.5, 1.0);\n" +
+            " gl_Position = projectionMatrix * mv; if (vA <= 0.001) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);\n#include <logdepthbuf_vertex>\n}",
+          fragmentShader: PTS_FS
+        }));
+        ash.frustumCulled = false; ash.renderOrder = 4; abyss.add(ash);
+        // heat shimmer: screen-space distortion on billboards at the fire columns only (desktop); the frame is copied once and re-drawn displaced
+        var shimOn = false, shimQ = [], shimS = null, shimG = null, shimTex = { value: null }, shimRes = { value: new THREE.Vector2(1, 1) }, shimSz = new THREE.Vector2(), shimV0 = new THREE.Vector2(0, 0);
+        if (!MOB) {
+          shimS = new THREE.Scene(); shimG = new THREE.Group(); shimS.add(shimG);
+          fires.forEach(function (fc) {
+            var sm = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 4.2), new THREE.ShaderMaterial({
+              transparent: true, depthWrite: false, depthTest: true, uniforms: { uTex: shimTex, uRes: shimRes, uT: fireT, uAmp: { value: 0 } },
+              vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nvarying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n#include <logdepthbuf_vertex>\n}",
+              fragmentShader: "#include <logdepthbuf_pars_fragment>\n" + FIRE_GLSL + "uniform sampler2D uTex; uniform vec2 uRes; uniform float uT, uAmp; varying vec2 vUv; void main(){\n#include <logdepthbuf_fragment>\n" +
+                " float m = pow(1.0 - abs(vUv.x * 2.0 - 1.0), 1.5) * smoothstep(0.0, 0.2, vUv.y) * (1.0 - smoothstep(0.6, 1.0, vUv.y)); vec2 q = vUv * vec2(5.0, 9.0);\n" +
+                " vec2 o = vec2(vn(vec3(q.x, q.y - uT * 2.2, uT * 0.7)) - 0.5, vn(vec3(q.x + 7.3, q.y - uT * 1.7, uT * 0.5 + 3.0)) - 0.5);\n" +
+                " gl_FragColor = vec4(texture2D(uTex, gl_FragCoord.xy / uRes + o * uAmp * m).rgb, 1.0); }"
+            }));
+            sm.position.set(fc.c.x, -2.3, fc.c.z); sm.frustumCulled = false; shimG.add(sm); shimQ.push(sm);
+          });
+        }
+        // underground grade: an exponential fog, zero density above the disc (same program either way, so nothing recompiles or pops)
+        scene.fog = new THREE.FogExp2(0x000000, 0);
+        var fogCool = new THREE.Color(0x06080e), fogWarm = new THREE.Color(0x1c0b05), fogAbyss = new THREE.Color(0x0b0303), fillCool = new THREE.Color(0x2c3c5c), fillCoolG = new THREE.Color(0x140c08), hemiSky = hemi.color.clone(), hemiGnd = hemi.groundColor.clone(), ambW = new THREE.Color(0xffffff), vigEl = $("vig"), vigO = -1;
 
         // firmament
         var dome = new THREE.Mesh(
@@ -943,40 +1007,124 @@
           }
           var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = ANI; return t;
         }
-        var rockBump = grainTex(500, 3, 26), glows = [], sheolLights = [], sheolFx = []; // Sheol lights [light, scale] and glows, muted from above the disc rockBump.repeat.set(8, 8); // glows: [sprite, base opacity], faded near the camera
-        var rockMat = new THREE.MeshStandardMaterial({ color: 0x2f251e, roughness: 1, metalness: 0, bumpMap: rockBump, bumpScale: 2.5 });
-        var ceilG = new THREE.RingGeometry(0.02, R, 128, 40).rotateX(Math.PI / 2), cp0 = ceilG.attributes.position;
-        for (i = 0; i < cp0.count; i++) { var cx0 = cp0.getX(i), cz0 = cp0.getZ(i); cp0.setY(i, -Math.abs(n3(cx0 * 1.3, 0, cz0 * 1.3)) * 0.28 * (1 - Math.pow(Math.hypot(cx0, cz0) / R, 4))); }
+        var glows = [], sheolLights = [], sheolFx = []; // Sheol lights [light, scale] and glows [sprite, base opacity], muted from above the disc; glows fade near the camera
+        // procedural rock: fbm normal detail, wet sheen in the crevices, roughness 0.9; the floor also carries thin ember rivers
+        var CAVE_GLSL = "float cvh(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\n" +
+          "float cvn(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(cvh(i), cvh(i + vec3(1.0,0.0,0.0)), f.x), mix(cvh(i + vec3(0.0,1.0,0.0)), cvh(i + vec3(1.0,1.0,0.0)), f.x), f.y), mix(mix(cvh(i + vec3(0.0,0.0,1.0)), cvh(i + vec3(1.0,0.0,1.0)), f.x), mix(cvh(i + vec3(0.0,1.0,1.0)), cvh(i + vec3(1.0,1.0,1.0)), f.x), f.y), f.z); }\n" +
+          "float cfbm(vec3 p){ float s = 0.0, a = 0.5; for (int i = 0; i < " + (MOB ? 3 : 5) + "; i++){ s += a * cvn(p); p = p * 2.07 + vec3(1.7, 9.2, 3.1); a *= 0.5; } return s / " + (MOB ? "0.875" : "0.96875") + "; }\n" +
+          "vec3 cvPerturb(vec3 sp, vec3 sn, vec2 dH, float fd){ vec3 sx = dFdx(sp), sy = dFdy(sp), r1 = cross(sy, sn), r2 = cross(sn, sx); float det = dot(sx, r1) * fd; vec3 g = sign(det) * (dH.x * r1 + dH.y * r2); return normalize(abs(det) * sn - g); }\n";
+        var ROCK_FRAG = "float cfw = clamp(length(fwidth(vOP)) * 18.0, 0.0, 1.0); float hR = cfbm(vOP * 2.6); float hF = cvn(vOP * 13.0) * 0.6 + cvn(vOP * 29.0) * 0.4;\n" +
+          "float hh = hR * 0.8 + hF * 0.2 * (1.0 - cfw); normal = cvPerturb(-vViewPosition, normal, vec2(dFdx(hh), dFdy(hh)) * 0.08, faceDirection);\n" +
+          "float crev = 1.0 - smoothstep(0.30, 0.48, hR); float tone = cfbm(vOP * 0.7 + 4.0);\n" +
+          "diffuseColor.rgb *= mix(vec3(0.82, 0.82, 0.86), vec3(1.12, 1.0, 0.9), tone) * (0.7 + 0.6 * hh) * mix(1.0, 0.6, crev);\n" +
+          "roughnessFactor = mix(roughnessFactor, 0.3, crev * 0.8);\n";
+        var RIVER_FRAG = "if (uRiv > 0.5) { float fm = (1.0 - smoothstep(-2.75, -2.35, vOP.y)) * smoothstep(1.4, 1.9, length(vOP.xz)); vec2 q = vOP.xz * 0.42;\n" +
+          " vec2 wq = vec2(cfbm(vec3(q, 1.3)), cfbm(vec3(q + 5.2, 2.1))); float rn = cvn(vec3(q * 1.6 + wq * 2.2, 0.5)), rw = abs(rn - 0.5);\n" +
+          " float ch = 1.0 - smoothstep(0.012, 0.03 + fwidth(rn), rw), hal = 1.0 - smoothstep(0.0, 0.09, rw);\n" +
+          " float fl = cvn(vec3(vOP.xz * 2.4 + wq * 3.0 - vec2(uT * 0.09, uT * 0.06), uT * 0.18)), fl2 = cvn(vec3(vOP.xz * 7.0 - uT * 0.25, uT * 0.4));\n" +
+          " vec3 lc = mix(vec3(0.55, 0.06, 0.01), vec3(1.0, 0.32, 0.06), clamp(fl * fl2 * 1.4, 0.0, 1.0));\n" +
+          " vec2 gv = vOP.xz - uGc.xz; float gt = dot(gv, uGd.xz), ge = length(gv - uGd.xz * gt), tg = (1.0 - smoothstep(0.08, 0.32, ge)) * (1.0 - smoothstep(2.0, 2.4, abs(gt)));\n" +
+          " totalEmissiveRadiance += ((lc * ch * (0.35 + 0.9 * fl) + vec3(0.25, 0.04, 0.0) * hal * 0.25) * fm + vec3(0.9, 0.22, 0.04) * tg * (0.4 + 0.5 * fl)) * 0.6; }\n";
+        var caveT = fxT, GULF_C = new THREE.Vector3(), GULF_D = new THREE.Vector3();
+        function caveMat(side, riv, vc) {
+          var m = new THREE.MeshStandardMaterial({ color: 0x2c2723, roughness: 0.9, metalness: 0, side: side, vertexColors: !!vc });
+          m.onBeforeCompile = function (sh) {
+            sh.uniforms.uT = caveT; sh.uniforms.uRiv = { value: riv }; sh.uniforms.uGc = { value: GULF_C }; sh.uniforms.uGd = { value: GULF_D };
+            sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vOP;" + (vc ? " attribute vec3 aGlow; varying vec3 vGlow;" : ""))
+              .replace("#include <begin_vertex>", "#include <begin_vertex>\nvOP = position;" + (vc ? " vGlow = aGlow;" : ""));
+            sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vOP; uniform float uT, uRiv; uniform vec3 uGc, uGd;" + (vc ? " varying vec3 vGlow;" : "") + "\n" + CAVE_GLSL)
+              .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n" + ROCK_FRAG)
+              .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n" + RIVER_FRAG + (vc ? "totalEmissiveRadiance += vGlow * (0.9 + 0.1 * sin(uT * 0.5));\n" : ""));
+          };
+          m.customProgramCacheKey = function () { return "cave" + (vc ? 1 : 0); };
+          return m;
+        }
+        var rockMat = caveMat(THREE.FrontSide, 0, false);
+        // the great mountain and the gulf, placed first: the floor carves the gulf's trench
+        var MC = V(-3.8, -3.25, -0.5);
+        var ga = 42 * Math.PI / 180, gd = V(Math.cos(ga), 0, Math.sin(ga)), gc = MC.clone().addScaledVector(gd, 2.3);
+        GULF_C.copy(gc); GULF_D.copy(gd);
+        // rock ceiling: the underside of the disc, noise-displaced with hanging crags
+        var ceilG = new THREE.RingGeometry(0.02, R, MOB ? 160 : 320, MOB ? 50 : 100).rotateX(Math.PI / 2), cp0 = ceilG.attributes.position;
+        for (i = 0; i < cp0.count; i++) {
+          var cx0 = cp0.getX(i), cz0 = cp0.getZ(i), ce0 = 1 - Math.pow(Math.min(1, Math.hypot(cx0, cz0) / R), 4);
+          var ch0 = fbm2(cx0 * 0.55, 0, cz0 * 0.55, 5), cs0 = Math.max(0, fbm2(cx0 * 2.2 + 11, 0, cz0 * 2.2 - 4, 3));
+          cp0.setY(i, -(0.08 + Math.abs(ch0) * 0.18 + cs0 * cs0 * 0.35) * ce0);
+        }
         ceilG.computeVertexNormals();
         var ceil = new THREE.Mesh(ceilG, rockMat);
         ceil.position.y = -0.5;
         world.add(pick(ceil, ""));
-        var prof = [[0, -4], [1.3, -3.98], [1.7, -3.3], [4, -3.2], [7, -2.9], [9, -2.2], [9.9, -1.2], [10, -0.5]], pts = [];
-        for (i = 0; i < prof.length - 1; i++) for (k = 0; k < 4; k++) pts.push(new THREE.Vector2(prof[i][0] + (prof[i + 1][0] - prof[i][0]) * k / 4, prof[i][1] + (prof[i + 1][1] - prof[i][1]) * k / 4));
+        // rock floor: the bowl profile sampled finely, then fbm-displaced; a trench is carved under the gulf
+        var prof = [[0, -4], [1.3, -3.98], [1.7, -3.3], [4, -3.2], [7, -2.9], [9, -2.2], [9.9, -1.2], [10, -0.5]], pts = [], PSTEP = MOB ? 0.12 : 0.06;
+        function profY(r) { for (var q = 0; q < prof.length - 1; q++) if (r <= prof[q + 1][0]) return prof[q][1] + (prof[q + 1][1] - prof[q][1]) * (r - prof[q][0]) / (prof[q + 1][0] - prof[q][0]); return -0.5; }
+        function bowlAt(x, y, z) {
+          var r = Math.hypot(x, z), wF = clamp01((-0.5 - y) / 0.6), wall = smooth(8.6, 9.9, r);
+          var n = (fbm2(x * 0.7, y * 0.7, z * 0.7, 5) * 0.2 + fbm2(x * 2.6 + 3, y * 2.6, z * 2.6, 3) * 0.05) * wF;
+          var gx = x - gc.x, gz = z - gc.z, gt = gx * gd.x + gz * gd.z, ge = Math.hypot(gx - gd.x * gt, gz - gd.z * gt);
+          var dy = n * (1 - wall) - 0.32 * smooth(0.42, 0.08, ge) * smooth(2.5, 2.0, Math.abs(gt));
+          if (r < 1.4) dy = Math.min(dy, -3.9 - y); // the pit floor stays under the lava
+          return [n * 1.4 * wall, dy];
+        }
+        function floorAt(x, z) { var y0 = profY(Math.hypot(x, z)); return y0 + bowlAt(x, y0, z)[1]; }
+        for (i = 0; i < prof.length - 1; i++) {
+          var sl0 = Math.hypot(prof[i + 1][0] - prof[i][0], prof[i + 1][1] - prof[i][1]), ns0 = Math.max(1, Math.ceil(sl0 / PSTEP));
+          for (k = 0; k < ns0; k++) pts.push(new THREE.Vector2(prof[i][0] + (prof[i + 1][0] - prof[i][0]) * k / ns0, prof[i][1] + (prof[i + 1][1] - prof[i][1]) * k / ns0));
+        }
         pts.push(new THREE.Vector2(10, -0.5));
-        var bowlMat = rockMat.clone();
-        bowlMat.side = THREE.BackSide;
-        world.add(new THREE.Mesh(rocky(new THREE.LatheGeometry(pts, 128), 0.16, function (x, y) { return clamp01((-0.5 - y) / 0.6); }), bowlMat));
+        var bowlG = new THREE.LatheGeometry(pts, MOB ? 128 : 256), bp0 = bowlG.attributes.position;
+        for (i = 0; i < bp0.count; i++) {
+          var bx = bp0.getX(i), by = bp0.getY(i), bz = bp0.getZ(i), br = Math.hypot(bx, bz) || 1, bd = bowlAt(bx, by, bz);
+          bp0.setXYZ(i, bx + bx / br * bd[0], by + bd[1], bz + bz / br * bd[0]);
+        }
+        bowlG.computeVertexNormals();
+        var bowlMat = caveMat(THREE.BackSide, 1, false);
+        world.add(new THREE.Mesh(bowlG, bowlMat));
         // the great mountain of hard rock with four hollow places
-        var MC = V(-3.8, -3.25, -0.5);
-        var mtn = new THREE.Mesh(rocky(new THREE.ConeGeometry(2.8, 2.5, 14, 8), 0.16), rockMat);
+        // four hollow places (1 Enoch 22): real chambers carved into the mountain, darker inside, each with its own faint light baked into the rock
+        var HOL = [[20, [0.5, 0.7, 0.95]], [65, [0.42, 0.16, 0.05]], [105, [0.2, 0.19, 0.3]], [145, [0.34, 0.07, 0.04]]], hollows = [];
+        var mtnG = rocky(new THREE.ConeGeometry(2.8, 2.5, MOB ? 64 : 112, MOB ? 28 : 48), 0.16), mp0 = mtnG.attributes.position;
+        var mCol = new Float32Array(mp0.count * 3), mGlo = new Float32Array(mp0.count * 3);
+        var HD = HOL.map(function (h) { var a = h[0] * Math.PI / 180; return { d: V(Math.cos(a), 0, Math.sin(a)), c: h[1] }; });
+        for (i = 0; i < mp0.count; i++) {
+          var mx = mp0.getX(i), my = mp0.getY(i), mz = mp0.getZ(i), mr = Math.hypot(mx, mz) || 1, mcr = fbm2(mx * 1.6, my * 1.6, mz * 1.6, 4) * 0.09 * Math.min(1, mr);
+          mx += mx / mr * mcr; mz += mz / mr * mcr;
+          var mdk = 1, g3 = [0, 0, 0];
+          for (k = 0; k < 4; k++) {
+            var H0 = HD[k], hcx = H0.d.x * 2.0, hcz = H0.d.z * 2.0, hcy = -0.55, mdd = Math.hypot(mx - hcx, (my - hcy) * 0.85, mz - hcz), kk = smooth(0.66, 0.05, mdd);
+            if (kk <= 0) continue;
+            var push = 0.62 * Math.pow(kk, 0.6); mx -= H0.d.x * push; mz -= H0.d.z * push;
+            my += (Math.max(my, hcy - 0.32) - my) * kk; // a level floor inside each chamber
+            mdk = Math.min(mdk, 1 - 0.72 * kk);
+            var gk = Math.pow(kk, 1.6) * 0.22; g3[0] += H0.c[0] * gk; g3[1] += H0.c[1] * gk; g3[2] += H0.c[2] * gk;
+          }
+          mp0.setXYZ(i, mx, my, mz); mCol[i * 3] = mCol[i * 3 + 1] = mCol[i * 3 + 2] = mdk; mGlo[i * 3] = g3[0]; mGlo[i * 3 + 1] = g3[1]; mGlo[i * 3 + 2] = g3[2];
+        }
+        mtnG.setAttribute("color", new THREE.BufferAttribute(mCol, 3)); mtnG.setAttribute("aGlow", new THREE.BufferAttribute(mGlo, 3));
+        mtnG.computeVertexNormals();
+        var mtn = new THREE.Mesh(mtnG, caveMat(THREE.FrontSide, 0, true));
         mtn.position.set(MC.x, MC.y + 1.25, MC.z);
         world.add(pick(mtn, "sheol"));
-        var darkMat = new THREE.MeshBasicMaterial({ color: 0x050302 }), brightMat = new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0xffe9b0, emissiveIntensity: 1.2 }), hollows = [];
-        [20, 65, 105, 145].forEach(function (deg, i) {
-          var a = deg * Math.PI / 180, d = V(Math.cos(a), 0, Math.sin(a)), hp = MC.clone().addScaledVector(d, 1.8);
+        var springU = { uT: fxT, uO: { value: 1 } }, spring = null;
+        HD.forEach(function (H0, i) {
+          var d = H0.d, hp = MC.clone().addScaledVector(d, 1.8);
           hp.y = -2.55;
-          var m = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 14), i ? darkMat : brightMat);
-          m.position.copy(hp); m.scale.set(1, 1.15, 1);
-          world.add(pick(m, i ? "sheol" : "bosom"));
           hollows.push(hp);
-          if (!i) {
-            var hl = new THREE.PointLight(0xfff0c8, 1.6, 2.2, 1.5); // range capped below the disc top (y 0)
-            hl.position.copy(hp).addScaledVector(d, 0.7); world.add(hl); sheolLights.push([hl, 1.6]);
-            var hg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(255, 240, 200), blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true, transparent: true, opacity: 0.5 }));
-            hg.position.copy(hp).addScaledVector(d, 0.6); hg.scale.set(1.6, 1.6, 1); hg.renderOrder = 50; world.add(hg); glows.push([hg, 0.5]); sheolFx.push(hg);
-            var pool = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.12, 32), new THREE.MeshStandardMaterial({ color: 0x9fe6ff, emissive: 0x4fc8ff, emissiveIntensity: 0.7, roughness: 0.9 }));
-            pool.position.copy(hp).addScaledVector(d, 0.8); pool.position.y = -3.06; world.add(pick(pool, "bosom")); // clear of the floor: no z-fighting
+          var c = H0.c, gw = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(Math.round(c[0] * 255), Math.round(c[1] * 255), Math.round(c[2] * 255)), blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true, transparent: true, opacity: 0, fog: false }));
+          gw.position.copy(MC).addScaledVector(d, i ? 1.62 : 1.75); gw.position.y = i ? -2.6 : -2.72; gw.scale.set(i ? 0.7 : 1.1, i ? 0.7 : 1.1, 1); gw.renderOrder = 50;
+          world.add(gw); glows.push([gw, i ? 0.14 : 0.32]); sheolFx.push(gw);
+          if (!i) { // the bright spring of water: cool white-blue, softly glowing, slow ripples
+            var hl = new THREE.PointLight(0xcfe6ff, 1.2, 2.2, 1.5); // range capped below the disc top (y 0)
+            hl.position.copy(MC).addScaledVector(d, 1.9); hl.position.y = -2.6; world.add(hl); sheolLights.push([hl, 1.2]);
+            spring = new THREE.Mesh(new THREE.CircleGeometry(0.26, 48).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
+              transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, uniforms: springU,
+              vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nvarying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n#include <logdepthbuf_vertex>\n}",
+              fragmentShader: "#include <logdepthbuf_pars_fragment>\n" + CAVE_GLSL + "uniform float uT, uO; varying vec3 vP; void main(){\n#include <logdepthbuf_fragment>\n" +
+                " float r = length(vP.xz) / 0.26, a = 1.0 - smoothstep(0.45, 1.0, r), rip = sin(r * 28.0 - uT * 2.2) * 0.5 + 0.5, n = cvn(vec3(vP.xz * 18.0, uT * 0.5));\n" +
+                " vec3 col = mix(vec3(0.5, 0.75, 1.0), vec3(0.92, 0.97, 1.0), rip * 0.4 + n * 0.4); gl_FragColor = vec4(col * a * (0.5 + 0.25 * n) * uO, 1.0); }"
+            }));
+            spring.position.copy(MC).addScaledVector(d, 1.8); spring.position.y = -2.85; spring.renderOrder = 49;
+            world.add(pick(spring, "bosom")); sheolFx.push(spring);
           }
         });
         // the great gulf of fire between them
@@ -989,14 +1137,11 @@
           for (var i = 0; i < 40; i++) { x.fillStyle = "rgba(0,0,0," + (0.3 + Math.random() * 0.5) + ")"; x.fillRect(Math.random() * 128, 0, 2 + Math.random() * 6, Math.random() * 110); }
           var t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; return t;
         }
-        var ga = 42 * Math.PI / 180, gd = V(Math.cos(ga), 0, Math.sin(ga)), gc = MC.clone().addScaledVector(gd, 2.3);
         var gulf = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 2.2), new THREE.MeshBasicMaterial({ map: fireTex(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true, side: THREE.DoubleSide }));
         gulf.position.set(gc.x, -2.2, gc.z); gulf.rotation.y = -ga;
         world.add(pick(gulf, "gulf"));
         gulf.renderOrder = 51; sheolFx.push(gulf);
-        var trench = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.3, 0.35), darkMat);
-        trench.position.set(gc.x, -3.05, gc.z); trench.rotation.y = -ga;
-        world.add(trench);
+        // (the trench under the gulf is carved into the floor and glows in the floor's shader)
         var gl = new THREE.PointLight(0xff6a20, 1.5, 2.4, 1.5);
         gl.position.set(gc.x, -2.6, gc.z); world.add(gl); sheolLights.push([gl, 0]); // 0: intensity animated in the frame loop
         // Tartarus: the lowest pit, lava, embers and smoke
@@ -1017,7 +1162,7 @@
         var pitL2 = new THREE.PointLight(0xff8a30, 1.2, 2.8, 1.5); pitL2.position.set(0.6, -3.0, 0.4); world.add(pitL2); sheolLights.push([pitL2, 1.2]);
         var pitGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(255, 60, 10), blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true, transparent: true, opacity: 0.7 }));
         pitGlow.position.set(0, -3.4, 0); pitGlow.scale.set(3.2, 3.2, 1); pitGlow.renderOrder = 52; world.add(pitGlow); glows.push([pitGlow, 0.45]); sheolFx.push(pitGlow);
-        var EN = 500, ep = new Float32Array(EN * 3), es = new Float32Array(EN);
+        var EN = MOB ? 250 : 500, ep = new Float32Array(EN * 3), es = new Float32Array(EN);
         function ember(i, y) { var r = Math.sqrt(Math.random()) * 1.2, a = Math.random() * 6.28; ep[i * 3] = Math.cos(a) * r; ep[i * 3 + 1] = y; ep[i * 3 + 2] = Math.sin(a) * r; es[i] = 0.2 + Math.random() * 0.5; }
         for (i = 0; i < EN; i++) ember(i, -3.95 + Math.random() * 3);
         var eg = new THREE.BufferGeometry();
@@ -1032,6 +1177,37 @@
           sm.userData.x = sm.position.x; sm.userData.z = sm.position.z; sm.renderOrder = 53 + i;
           world.add(sm); smoke.push(sm); sheolFx.push(sm);
         }
+        // three layers of low, slowly drifting fog, warmer near the embers, cooler toward the walls
+        var cfog = [], FLY = [[0.4, 2.6, 0.9, 0.16], [0.75, 3.2, 1.1, 0.11], [1.15, 3.8, 1.3, 0.07]], FGN = MOB ? 8 : 16, fWarmC = new THREE.Color(0x8a3e1e), fCoolC = new THREE.Color(0x3b3a46);
+        FLY.forEach(function (L, li) {
+          for (var q = 0; q < FGN; q++) {
+            var fr = 1.8 + Math.sqrt(hash(li, q + 9)) * 7.0, fs = puffSprite(PUFF[(q + li) % 3], 0xffffff, false);
+            fs.material.color.copy(fCoolC).lerp(fWarmC, clamp01(smooth(7, 1.5, fr) * 0.7 + (2 - li) * 0.15));
+            fs.userData = { a: (q + li * 0.37) / FGN * 6.2832 + hash(q, li) * 0.3, r: fr, h: L[0], w: L[1] * (0.8 + 0.4 * hash(q, li + 3)), hh: L[2], o: L[3], sp: (li % 2 ? -1 : 1) * (0.006 + 0.004 * hash(q, 5)), ph: hash(q, li + 11) * 6.28 };
+            fs.renderOrder = 60 + li; world.add(fs); cfog.push(fs); sheolFx.push(fs);
+          }
+        });
+        // sparse dust motes catching the ember light (and the spring's cool light near it)
+        var DN = MOB ? 300 : 600, dP = new Float32Array(DN * 3), dS = new Float32Array(DN * 4);
+        for (i = 0; i < DN; i++) {
+          var da = Math.random() * 6.2832, dr = Math.sqrt(Math.random()) * 9.2, dx = Math.cos(da) * dr, dz = Math.sin(da) * dr, dfy = floorAt(dx, dz) + 0.15;
+          dP[i * 3] = dx; dP[i * 3 + 1] = dfy + Math.random() * Math.max(0, -0.95 - dfy); dP[i * 3 + 2] = dz;
+          for (k = 0; k < 4; k++) dS[i * 4 + k] = Math.random();
+        }
+        var dG = new THREE.BufferGeometry(); dG.setAttribute("position", new THREE.BufferAttribute(dP, 3)); dG.setAttribute("aS", new THREE.BufferAttribute(dS, 4));
+        var dust = new THREE.Points(dG, new THREE.ShaderMaterial({
+          transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, uniforms: { uT: fxT, uScale: ptScale, uPit: { value: V(0, -3.5, 0) }, uSpr: { value: spring ? spring.position.clone() : V(0, -9, 0) } },
+          vertexShader: PTS_VS_HEAD + "uniform vec3 uPit, uSpr; void main(){\n" +
+            " vec3 p = position + vec3(sin(uT * 0.05 * (0.5 + aS.x) + aS.y * 6.28), sin(uT * 0.04 * (0.5 + aS.z) + aS.w * 6.28) * 0.6, cos(uT * 0.045 * (0.5 + aS.y) + aS.x * 6.28)) * 0.25;\n" +
+            " vec4 w = modelMatrix * vec4(p, 1.0); vec4 mv = viewMatrix * w; float dist = -mv.z, dp = length(p - uPit), ds = length(p - uSpr);\n" +
+            " vec3 warm = vec3(1.0, 0.55, 0.25) * (1.6 / (1.0 + dp * dp * 0.35)) + vec3(0.9, 0.35, 0.12) * 0.25 * smoothstep(-1.5, -3.5, p.y), cool = vec3(0.6, 0.8, 1.0) * (1.2 / (1.0 + ds * ds * 3.0));\n" +
+            " vC = (warm + cool + vec3(0.1, 0.11, 0.14)) * (0.55 + 0.45 * sin(uT * (0.6 + aS.z) + aS.w * 40.0)) * 0.5;\n" +
+            " vA = smoothstep(0.12, 0.4, dist) * (1.0 - smoothstep(-0.9, -0.6, w.y)) * (1.0 - smoothstep(8.0, 14.0, dist));\n" +
+            " float px = (0.012 + 0.012 * aS.x) * uScale / max(dist, 0.001); gl_PointSize = clamp(px, 1.5, 6.0); vA *= min(px / 1.5, 1.0);\n" +
+            " gl_Position = projectionMatrix * mv; if (vA <= 0.001) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);\n#include <logdepthbuf_vertex>\n}",
+          fragmentShader: PTS_FS
+        }));
+        dust.frustumCulled = false; dust.renderOrder = 50; world.add(dust); sheolFx.push(dust);
 
         // the pillars of the earth (1 Samuel 2:8, Job 9:6): fluted, weathered stone columns from the floor of Sheol to the underside of the disc
         var colBump = grainTex(700, 2, 14); colBump.repeat.set(3, 6);
@@ -1550,7 +1726,14 @@
           try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
           pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now(), rot: e.button === 2 || e.ctrlKey });
           mv = null; ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = 0; gest = null; lastMoveT = performance.now();
+          if (pts.size === 2) { // measure the two-finger gesture from the moment the second finger lands
+            var ab = []; pts.forEach(function (q) { q.x0 = q.x; q.y0 = q.y; ab.push(q); });
+            var sdx = ab[1].x - ab[0].x, sdy = ab[1].y - ab[0].y;
+            g2 = { d: Math.hypot(sdx, sdy) || 1, a: Math.atan2(sdy, sdx), dx: sdx, dy: sdy, rotOn: false };
+          }
         });
+        var g2 = null;
+        function wrapA(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
         cvs.addEventListener("pointermove", function (e) {
           var p = pts.get(e.pointerId);
           if (!p) return;
@@ -1567,19 +1750,28 @@
             var o = null; pts.forEach(function (q, id) { if (id !== e.pointerId) o = q; });
             var m0x = (o.x + px) / 2, m0y = (o.y + py) / 2, m1x = (o.x + p.x) / 2, m1y = (o.y + p.y) / 2;
             var d0 = Math.hypot(px - o.x, py - o.y) || 1, d1 = Math.hypot(p.x - o.x, p.y - o.y) || 1;
-            if (!gest) { // decide once per gesture: both fingers moving up or down together tilts; anything else pinches/twists/pans
-              var dyA = o.y - o.y0, dyB = p.y - p.y0, dxA = o.x - o.x0, dxB = p.x - p.x0, dd = Math.abs(Math.hypot(p.x0 - o.x0, p.y0 - o.y0) - d1);
-              if (Math.max(Math.hypot(dxA, dyA), Math.hypot(dxB, dyB)) < 10) return;
-              gest = dyA * dyB > 0 && Math.abs(dyA + dyB) > Math.abs(dxA + dxB) * 1.5 && dd < Math.abs(dyA + dyB) * 0.4 ? "tilt" : "pinch";
+            if (!g2) { var gdx = p.x - o.x, gdy = p.y - o.y; o.x0 = o.x; o.y0 = o.y; p.x0 = p.x; p.y0 = p.y; g2 = { d: Math.hypot(gdx, gdy) || 1, a: Math.atan2(gdy, gdx), dx: gdx, dy: gdy, rotOn: false }; }
+            // the start angle is measured from the first finger to the second in insertion order; use the same order now
+            var fa = null, fb = null; pts.forEach(function (q) { if (!fa) fa = q; else fb = q; });
+            var angNow = Math.atan2(fb.y - fa.y, fb.x - fa.x), angChange = Math.abs(wrapA(angNow - g2.a));
+            if (!gest) { // Google Maps style: score the first 18 px of movement, then lock the mode until the fingers lift
+              var dyA = o.y - o.y0, dyB = p.y - p.y0, dxA = o.x - o.x0, dxB = p.x - p.x0;
+              if (Math.max(Math.hypot(dxA, dyA), Math.hypot(dxB, dyB)) < 18) return;
+              var vy = (dyA + dyB) / 2, vx = (dxA + dxB) / 2, same = dyA * dyB > 0, distChange = Math.abs(d1 - g2.d), horiz = Math.abs(g2.dy) < Math.abs(g2.dx);
+              if (same && horiz && Math.abs(vy) > 12 && Math.abs(vy) > 2 * Math.abs(vx) && distChange < 0.5 * Math.abs(vy) && angChange < 0.12) gest = "tilt";
+              else if (angChange > 0.12 && distChange < angChange * g2.d * 0.6) { gest = "rotate"; g2.rotOn = true; }
+              else gest = "pinch";
             }
-            if (gest === "tilt") { var t2 = -(m1y - m0y) * 0.006; tilt(t2); track("t", t2, dtm); }
+            if (gest === "tilt") { var t2 = -(m1y - m0y) * 0.008; tilt(t2); track("t", t2, dtm); } // swipe up tilts toward the horizon
             else {
               var s = Math.log(d0 / d1); zoomAt(m1x, m1y, s); track("z2", s, dtm);
-              var da = Math.atan2(p.y - o.y, p.x - o.x) - Math.atan2(py - o.y, px - o.x);
-              if (da > Math.PI) da -= 2 * Math.PI; else if (da < -Math.PI) da += 2 * Math.PI;
-              var pv = hitAt(m1x, m1y, gB) || controls.target;
-              spin(-da, pv.x, pv.z); track("h", -da, dtm);
-              controls.update(); var d2 = panPx(m0x, m0y, m1x, m1y); track("x", d2[0], dtm); track("z", d2[1], dtm);
+              if (!g2.rotOn && angChange > 0.12) g2.rotOn = true; // pinch: twist only after 0.12 rad, then freely
+              if (g2.rotOn) {
+                var da = wrapA(Math.atan2(p.y - o.y, p.x - o.x) - Math.atan2(py - o.y, px - o.x));
+                var pv = hitAt(m1x, m1y, gB) || controls.target;
+                spin(-da, pv.x, pv.z); track("h", -da, dtm);
+              }
+              if (gest === "pinch") { controls.update(); var d2 = panPx(m0x, m0y, m1x, m1y); track("x", d2[0], dtm); track("z", d2[1], dtm); }
             }
           }
           controls.update(); kick();
@@ -1594,7 +1786,7 @@
             else lastTap = { t: now, x: p.x, y: p.y };
           }
           if (pts.size === 1) pts.forEach(function (q) { q.x0 = q.x; q.y0 = q.y; }); // the remaining finger carries on panning
-          gest = null;
+          if (pts.size < 2) { gest = null; g2 = null; }
           if (pts.size === 0) {
             if (now - lastMoveT > 90) ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = 0;
             ivel.x *= 0.8; ivel.z *= 0.8; // a touch less glide than the release speed
@@ -1945,7 +2137,33 @@
           gl.intensity = (1.0 + 0.08 * Math.sin(now * 0.7 + 1)) * shK;
           for (var sl = 0; sl < sheolLights.length; sl++) if (sheolLights[sl][1]) sheolLights[sl][0].intensity = sheolLights[sl][1] * shK;
           for (var sf = 0; sf < sheolFx.length; sf++) sheolFx[sf].visible = !sheolHide;
-          hemi.intensity = cp.y < -0.25 ? 0.14 : 0.42; // the cavern stays dark
+          // grade: below the disc a cool blue-black fill against the warm ember lights, eased in (no step, no pop)
+          var ugK = smooth(-0.02, -0.35, cp.y);
+          hemi.intensity = 0.42 + (0.14 - 0.42) * smooth(-0.1, -0.35, cp.y); // the cavern stays dark
+          hemi.color.copy(hemiSky).lerp(fillCool, ugK); hemi.groundColor.copy(hemiGnd).lerp(fillCoolG, ugK); amb.color.copy(ambW).lerp(fillCool, ugK);
+          if (ugK > 0) {
+            if (rr < R) scene.fog.color.copy(fogCool).lerp(fogWarm, smooth(7, 1, Math.hypot(cp.x, cp.y + 3.4, cp.z))); else scene.fog.color.copy(fogAbyss);
+            scene.fog.density = ugK * (rr < R ? 0.085 : 0.05);
+          } else scene.fog.density = 0;
+          var vgo = Math.round(ugK * 100) / 100; if (vgo !== vigO) { vigO = vgo; vigEl.style.opacity = vgo; }
+          fxT.value = now % 2000;
+          if (!sheolHide) for (var cf = 0; cf < cfog.length; cf++) {
+            var fsp = cfog[cf], fu = fsp.userData, fa = fu.a + now * fu.sp, fx0 = Math.cos(fa) * fu.r, fz0 = Math.sin(fa) * fu.r;
+            fsp.position.set(fx0, floorAt(fx0, fz0) + fu.h + 0.06 * Math.sin(now * 0.2 + fu.ph), fz0); fsp.scale.set(fu.w, fu.hh, 1);
+            fsp.material.opacity = fu.o * (0.8 + 0.2 * Math.sin(now * 0.13 + fu.ph)) * smooth(2.9, 3.7, Math.hypot(fx0 - MC.x, fz0 - MC.z)) * smooth(fu.hh * 0.5, fu.w * 0.9, cp.distanceTo(fsp.position));
+          }
+          for (var am = 0; am < amist.length; am++) {
+            var ams0 = amist[am], au = ams0.userData, at0 = (au.ph + now * au.sp / 1.6) % 1, aa0 = au.a + now * au.rot;
+            ams0.position.set(Math.cos(aa0) * au.r, au.y0 - at0 * 1.6, Math.sin(aa0) * au.r); ams0.scale.set(au.w, au.h, 1);
+            ams0.material.opacity = au.o * Math.pow(Math.sin(at0 * Math.PI), 2) * smooth(au.h * 0.4, au.w, cp.distanceTo(ams0.position));
+          }
+          shimOn = false;
+          for (var sq = 0; sq < shimQ.length; sq++) {
+            var sqm = shimQ[sq], sqd = Math.hypot(cp.x - sqm.position.x, cp.y - sqm.position.y, cp.z - sqm.position.z), sqa = 0.006 * (1 - smooth(4, 9, sqd)) * smooth(0.5, 1.5, sqd);
+            sqm.rotation.y = Math.atan2(cp.x - sqm.position.x, cp.z - sqm.position.z);
+            sqm.visible = sqa > 0.0002; sqm.material.uniforms.uAmp.value = sqa;
+            if (sqm.visible) shimOn = true;
+          }
           for (var gw = 0; gw < glows.length; gw++) { var gs0 = glows[gw][0]; gs0.material.opacity = glows[gw][1] * smooth(gs0.scale.x * 0.6, gs0.scale.x * 1.8, cp.distanceTo(gs0.position)); }
           for (i = 0; i < EN; i++) { ep[i * 3 + 1] += es[i] * dt * 0.5; ep[i * 3] += Math.sin(now * 0.5 + i) * dt * 0.03; if (ep[i * 3 + 1] > -0.05) ember(i, -3.95); } // born under the lava, faded out inside the rock ceiling: none pop
           eg.attributes.position.needsUpdate = true;
@@ -2001,6 +2219,15 @@
           var prW = Math.min(DPR, camChanged || now - prT < 0.3 ? PERF.prMove : PERF.prIdle);
           if (prW !== prNow) { prNow = prW; renderer.setPixelRatio(prW); renderer.setSize(innerWidth, innerHeight); ptScale.value = innerHeight * prW / 2; }
           renderer.render(scene, camera);
+          if (shimOn && shimS) { // heat shimmer near the fire columns (desktop only): copy the frame, redraw it displaced on the column billboards
+            renderer.getDrawingBufferSize(shimSz);
+            if (!shimTex.value || shimTex.value.image.width !== shimSz.x || shimTex.value.image.height !== shimSz.y) {
+              if (shimTex.value) shimTex.value.dispose();
+              shimTex.value = new THREE.FramebufferTexture(shimSz.x, shimSz.y, THREE.RGBAFormat); shimTex.value.minFilter = shimTex.value.magFilter = THREE.LinearFilter; shimRes.value.copy(shimSz);
+            }
+            renderer.copyFramebufferToTexture(shimV0, shimTex.value);
+            shimG.position.copy(world.position); renderer.autoClear = false; renderer.render(shimS, camera); renderer.autoClear = true;
+          }
           // keep running while anything moves; after 1 s of stillness the loop pauses until input or a load wakes it
           if (camChanged || busy || inertOn || mv || moving || zooming || zq || tlPlay || playing || pts.size || jid !== null || ud || Object.keys(keys).some(function (k) { return keys[k]; }) || now - prT < 0.35) lastAct = performance.now();
           if (performance.now() - lastAct > 1000) { running = false; lastTs = 0; return; }
