@@ -140,11 +140,11 @@
   </head>
   <body>
     <div class="page x-app" id="top">
-      <img class="x-tex" id="tex-today" src="earth_disc_today_4k.jpg" alt="" />
-      <img class="x-tex" id="h-today" src="height_today.png" alt="" />
-      <img class="x-tex" id="n-today" src="normal_today.jpg" alt="" />
-      <img class="x-tex" id="ice" src="ice_wall.jpg" alt="" />
-      <img class="x-tex" id="ids" src="country_ids.png" alt="" />
+      <img class="x-tex" id="tex-today" src="earth_disc_today_1k.webp" data-full="earth_disc_today_4k.webp" alt="" />
+      <img class="x-tex" id="h-today" src="height_today.webp" alt="" />
+      <img class="x-tex" id="n-today" src="normal_today_1k.webp" data-full="normal_today.webp" alt="" />
+      <img class="x-tex" id="ice" src="ice_wall.webp" alt="" />
+      <img class="x-tex" id="ids" src="country_ids.webp" alt="" />
       <script type="application/json" id="polities" src="polities.json"></script>
       <script type="application/json" id="cinfo" src="countries_info.json"></script>
       <div id="stage"></div>
@@ -259,7 +259,6 @@
     </div>
     <script src="hark.js"></script>
     <script src="three.min.js"></script>
-    <script src="borders_data.js"></script>
     <script>
       (function () {
         var EVENTS = [[-3382, "Enoch born", "Genesis 5:18"], [-3317, "Enoch begins walking with God; Methuselah born", "Genesis 5:21-22"], [-3017, "Enoch taken by God", "Genesis 5:24"], [-2348, "The Flood", "Genesis 7"],
@@ -477,14 +476,20 @@
           t.anisotropy = ANI;
           if (srgb) t.encoding = THREE.sRGBEncoding;
           if (rep) t.wrapS = t.wrapT = THREE.RepeatWrapping;
-          function up() {
-            if (MOB && id !== "ids" && img.naturalWidth > 2048) { // phones: a 4K disc texture is downscaled once to 2K
+          function up(im) {
+            if (t.version > 0 && t.image && (t.image.width || t.image.naturalWidth) !== im.naturalWidth) t.dispose(); // new size: GL storage is reallocated
+            t.image = im;
+            if (MOB && id !== "ids" && im.naturalWidth > 2048) { // phones: a 4K disc texture is downscaled once to 2K
               var c = document.createElement("canvas"); c.width = c.height = 2048;
-              c.getContext("2d").drawImage(img, 0, 0, 2048, 2048); t.image = c;
+              c.getContext("2d").drawImage(im, 0, 0, 2048, 2048); t.image = c;
             }
             t.needsUpdate = true; kick();
           }
-          if (img.complete && img.naturalWidth) up(); else img.addEventListener("load", up);
+          function first() { // progressive: a small preview first, the full-size image swapped in once the first frames are drawn
+            up(img);
+            if (img.dataset.full) setTimeout(function () { var f = new Image(); f.decoding = "async"; f.onload = function () { up(f); }; f.src = img.dataset.full; }, 300);
+          }
+          if (img.complete && img.naturalWidth) first(); else img.addEventListener("load", first, { once: true });
           return t;
         }
         function V(x, y, z) { return new THREE.Vector3(x, y, z); }
@@ -696,6 +701,7 @@
               " vUv = mix(ip, vec2(dot(ip, vec2(cos(ia), -sin(ia))), iw.y * 1.6), aK) / " + ICE_S.toFixed(6) + "; }")
             .replace("#include <project_vertex>", "#include <project_vertex>" + WVM);
           sh.fragmentShader = WFP + sh.fragmentShader
+            .replace("#include <bumpmap_pars_fragment>", THREE.ShaderChunk.bumpmap_pars_fragment.split("bumpScale *").join("bumpScale * iceBF *").replace("vec2 dHdxy_fwd", "#define iceBF (1.0 - smoothstep(0.0002, 0.0015, length(vViewPosition)))\nvec2 dHdxy_fwd"))
             .replace("#include <map_fragment>", "#include <map_fragment>\ndiffuseColor.rgb *= 0.85 + 0.3 * texture2D(map, vUv * 0.071).g;") // a second, larger scale breaks the repeat
             .replace("#include <output_fragment>", NIGHT);
         };
@@ -2627,6 +2633,7 @@
               L.vb = op;
             } else op = L.vb || 0;
             if (sheolHide && L.set === "hades") op = 0;
+            if (L === iceLabel) op *= cp.y > 0 ? smooth(40, 160, akm) : 1; // at the wall itself the sliding name would sit on the cliff face: it fades out
             if (op <= 0.01 && L.o === 0) continue;
             if (op > 0.01 && FADE[L.set]) op *= (cp.y > 0 ? 1 : 0) * (1 - smooth(altRef * 14, altRef * 30, cp.distanceTo(L.p)));
             if (op > 0.01) {
@@ -2670,6 +2677,12 @@
         frameFn = frame;
         running = true; lastAct = performance.now();
         requestAnimationFrame(frame);
+        // the 460 KB vector borders load after the first frames, so the earth shows at once
+        requestAnimationFrame(function () { setTimeout(function () {
+          var bs = document.createElement("script"); bs.src = "borders_data.js"; bs.async = true;
+          bs.onload = function () { if (sel.on && sel.id) bSel(sel.id); kick(); };
+          document.body.appendChild(bs);
+        }, 400); });
       })();
     </script>
     <script>

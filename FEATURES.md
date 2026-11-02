@@ -11,7 +11,7 @@ Last updated: 2026-11-02 03:05 EET.
 - [x] AWS Terrarium terrain, skirts, no tile duplication / olive band [R] - grep `skirt`
 - [~] Base disc noise, camera floor 20 m, horizon haze [A] - check on device
 - [~] Ice wall as real 3D cliff (~60 m edge rising to ~4 km plateau) - unverified
-- [ ] Ice wall texture/label glitch fix, webp assets, progressive fast load, lazy borders_data.js [Q]
+- [x] Ice wall texture/label glitch fix, webp assets, progressive fast load, lazy borders_data.js [Q] - grep `iceBF`, `data-full`, `bs.src`
 - [x] Floating origin + dynamic near/far (no jitter close up) - grep `ANC0`
 - [x] Mobile perf profile, build queue, culling, idle pause - grep `MOB`, `PERF`
 - [x] No box buildings anywhere (NEVER reintroduce) - grep `boxG` = 0
