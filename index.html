@@ -149,6 +149,7 @@
       <img class="x-tex" id="ids" src="country_ids.webp" alt="" />
       <script src="polities.js"></script>
       <script src="countries_info.js"></script>
+      <script src="airports_data.js"></script>
       <div id="stage"></div>
       <div class="x-vig" id="vig" aria-hidden="true"></div>
       <div class="x-labels" id="cities" aria-hidden="true"></div>
@@ -191,6 +192,8 @@
           <button class="x-tog" type="button" data-t="winds" aria-pressed="true">Wind portals</button>
           <button class="x-tog" type="button" data-t="cities" aria-pressed="true">Cities</button>
           <button class="x-tog" type="button" data-t="traffic" aria-pressed="true">Traffic</button>
+          <button class="x-tog" type="button" data-t="planes" aria-pressed="true">Aircraft</button>
+          <button class="x-tog" type="button" data-t="spray" aria-pressed="false" title="Project chemtrail account. Official explanation: persistent contrails from ice crystals in humid air">Spray trails (chemtrail account)</button>
         </div>
         <p class="x-h">Labels</p>
         <div>
@@ -293,7 +296,7 @@
         var $ = function (id) { return document.getElementById(id); };
 
         // UI first, so captions fill even if WebGL fails
-        var show = { dome: true, sky: true, borders: true, winds: true, cities: true, traffic: true }, playing = true;
+        var show = { dome: true, sky: true, borders: true, winds: true, cities: true, traffic: true, planes: true, spray: false }, playing = true;
         var lab = { reg: true, cty: true, bib: true, city: true, enoch: false, ev: true }, labSaved = null; // Countries and Cities on by default
         // timeline: one year per step, 3382 BC (AM 622, Ussher) to AD 2026
         var era = $("era"), Y0 = -3382, Y1 = 2026, yF = Y1, yearN = Y1, verseT = 0, tlPlay = false, tlSpeed = 10, tlBtn = $("tl-play");
@@ -469,7 +472,7 @@
         function kick() { lastAct = performance.now(); if (!running && frameFn) { running = true; requestAnimationFrame(frameFn); } }
         window.harkKick = kick;
         var dbgDT = 0;
-        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sunFor: function (d) { var sk = skyAt(skyNow() + d), rad = (90 - sk.sd) / 180 * R; return [rad * Math.sin(sk.sl), rad * Math.cos(sk.sl)]; }, sl: function () { var n = 0; SL.tiles.forEach(function (e) { if (e.mesh) n += e.mesh.userData.n; }); var nb = 0, bt = 0; OB.tiles.forEach(function (e) { if (e.mesh) { nb += e.mesh.userData.n; bt++; } }); var zm = 0, nv = 0, hz = {}; TC.forEach(function (t) { var k = t.z + ':' + t.st + (t.on === ST.t ? 'w' : ''); hz[k] = (hz[k] || 0) + 1; if (t.mesh && t.mesh.visible) { nv++; zm = Math.max(zm, t.z); } }); window.__hz = hz; hz.BQ = BQ.length; hz.TACT = TACT; return { tz: zm, tv: nv, st: ST.on, tq: TQ.length, tiles: SL.tiles.size, lamps: n, a: SL.U.uA.value, cars: (function () { var k = 0, t = 0; SL.tiles.forEach(function (e) { if (e.tr) { t++; e.tr.meshes.forEach(function (m) { if (m.visible) k += m.count; }); } }); return [k, t]; })(), carL: typeof TR !== "undefined" ? TR.lamp.opacity : 0, btiles: bt, bldg: nb }; }, scr: function (la, lo) { var p = ll(la, lo), w = new THREE.Vector3(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z).project(camera); return [(w.x + 1) / 2 * innerWidth, (1 - w.y) / 2 * innerHeight, w.z]; }, idt: function (la, lo) { var p = ll(la, lo); var i = idAt(p[0], p[1]); return [i, CI.length, i && CI[i - 1] ? CI[i - 1].n : null]; }, year: function (y) { setYear(y); kick(); }, cities: function () { return CTY.on.map(function (o) { return [o[0][0], Math.round(o[1]), Math.round(o[2]), o[0][3]]; }); }, sel: function () { return { id: sel.id, on: sel.on, name: sel.name, card: !card.hidden, info: !infoEl.hidden, txt: (card.hidden ? infoEl : card).innerText.slice(0, 200) }; }, lht: function (la, lo, y) { return leftHand(la, lo, y); }, roof: function () { var rc = new THREE.Raycaster(), ms = [], hit = 0, tot = 0, ex = []; OB.tiles.forEach(function (e) { if (e.mesh) { e.mesh.updateMatrixWorld(); ms.push(e.mesh); } }); SL.tiles.forEach(function (e) { if (!e.mesh) return; var p = e.mesh.geometry.attributes.position, N = e.mesh.userData.n; for (var i = 0; i < N; i += 7) { tot++; var o = new THREE.Vector3(p.getX(i) + e.c[0] - ANC0.x, p.getY(i) + 400 * M, p.getZ(i) + e.c[1] - ANC0.z); rc.set(o, new THREE.Vector3(0, -1, 0)); var h = rc.intersectObjects(ms, false)[0]; if (h && h.point.y > p.getY(i) - 1 * M) { hit++; if (ex.length < 5) ex.push([toLL(o.x + ANC0.x, o.z + ANC0.z), (h.point.y - p.getY(i)) / M]); } } }); return [hit, tot, ex]; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
+        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sunFor: function (d) { var sk = skyAt(skyNow() + d), rad = (90 - sk.sd) / 180 * R; return [rad * Math.sin(sk.sl), rad * Math.cos(sk.sl)]; }, sl: function () { var n = 0; SL.tiles.forEach(function (e) { if (e.mesh) n += e.mesh.userData.n; }); var nb = 0, bt = 0; OB.tiles.forEach(function (e) { if (e.mesh) { nb += e.mesh.userData.n; bt++; } }); var zm = 0, nv = 0, hz = {}; TC.forEach(function (t) { var k = t.z + ':' + t.st + (t.on === ST.t ? 'w' : ''); hz[k] = (hz[k] || 0) + 1; if (t.mesh && t.mesh.visible) { nv++; zm = Math.max(zm, t.z); } }); window.__hz = hz; hz.BQ = BQ.length; hz.TACT = TACT; return { tz: zm, tv: nv, st: ST.on, tq: TQ.length, tiles: SL.tiles.size, lamps: n, a: SL.U.uA.value, cars: (function () { var k = 0, t = 0; SL.tiles.forEach(function (e) { if (e.tr) { t++; e.tr.meshes.forEach(function (m) { if (m.visible) k += m.count; }); } }); return [k, t]; })(), carL: typeof TR !== "undefined" ? TR.lamp.opacity : 0, btiles: bt, bldg: nb }; }, scr: function (la, lo) { var p = ll(la, lo), w = new THREE.Vector3(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z).project(camera); return [(w.x + 1) / 2 * innerWidth, (1 - w.y) / 2 * innerHeight, w.z]; }, idt: function (la, lo) { var p = ll(la, lo); var i = idAt(p[0], p[1]); return [i, CI.length, i && CI[i - 1] ? CI[i - 1].n : null]; }, year: function (y) { setYear(y); kick(); }, cities: function () { return CTY.on.map(function (o) { return [o[0][0], Math.round(o[1]), Math.round(o[2]), o[0][3]]; }); }, sel: function () { return { id: sel.id, on: sel.on, name: sel.name, card: !card.hidden, info: !infoEl.hidden, txt: (card.hidden ? infoEl : card).innerText.slice(0, 200) }; }, lht: function (la, lo, y) { return leftHand(la, lo, y); }, roof: function () { var rc = new THREE.Raycaster(), ms = [], hit = 0, tot = 0, ex = []; OB.tiles.forEach(function (e) { if (e.mesh) { e.mesh.updateMatrixWorld(); ms.push(e.mesh); } }); SL.tiles.forEach(function (e) { if (!e.mesh) return; var p = e.mesh.geometry.attributes.position, N = e.mesh.userData.n; for (var i = 0; i < N; i += 7) { tot++; var o = new THREE.Vector3(p.getX(i) + e.c[0] - ANC0.x, p.getY(i) + 400 * M, p.getZ(i) + e.c[1] - ANC0.z); rc.set(o, new THREE.Vector3(0, -1, 0)); var h = rc.intersectObjects(ms, false)[0]; if (h && h.point.y > p.getY(i) - 1 * M) { hit++; if (ex.length < 5) ex.push([toLL(o.x + ANC0.x, o.z + ANC0.z), (h.point.y - p.getY(i)) / M]); } } }); return [hit, tot, ex]; }, ac: function () { return { F: AC.F ? AC.F.length : 0, A: acCount(AC.yr), near: acNear.length, mesh: AC_MESH.count, dots: AC_DOT.geometry.drawRange.count, nav: AC_NAV.geometry.drawRange.count, trl: AC_TRL.geometry.drawRange.count }; }, acLook: function (spr, back, up, night) { AC.tFix = dayT; var f = null; (AC.F || []).forEach(function (g) { acPos(g, AC.tFix, g); if (!f && g.on && g.alt > 9500 && (spr ? g.spr : g.con) && (Math.hypot(g.x - sun.position.x, g.z - sun.position.z) < 3.2) === !night) f = g; }); if (!f) return null; var sx = Math.sin(f.hd), sz = Math.cos(f.hd); hvA = null; mv = null; controls.target.set(f.x - ANC0.x, f.alt * M, f.z - ANC0.z); camera.position.set(f.x - ANC0.x + (sz * 0.8 - sx * 0.6) * (back || 300) * M, (f.alt + (up || 80)) * M, f.z - ANC0.z + (-sx * 0.8 - sz * 0.6) * (back || 300) * M); /* beside and behind: the trail is seen side-on */ controls.update(); kick(); return [f.a[1], f.b[1], toLL(f.x, f.z)]; }, acScr: function () { var f = acNear[0]; if (!f) return null; var w = new THREE.Vector3(f.x - ANC0.x, f.alt * M, f.z - ANC0.z).project(camera); return [(w.x + 1) / 2 * innerWidth, (1 - w.y) / 2 * innerHeight]; }, acTime: function (t) { AC.tFix = t; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
         setInterval(function () { if (skyI === 0 && !document.hidden) kick(); }, 20000); // live sky: refresh the sun and moon while idle
         ["pointerdown", "pointerup", "wheel", "keydown", "keyup", "touchstart", "touchmove", "click", "input", "resize"].forEach(function (t) { addEventListener(t, kick, { capture: true, passive: true }); });
         addEventListener("pointermove", function (e) { if (e.buttons || e.pointerType === "touch") kick(); }, { capture: true, passive: true });
@@ -1697,6 +1700,128 @@
           });
           return any;
         }
+        // ===== V3 aircraft: simulated from airports_data.js (OurAirports), never live data =====
+        // Airborne count A(y): 0 before 1903 (Wright Flyer); 1903-1918 a handful of short hops (5 + 2/yr);
+        // from 1919 (first scheduled airlines) a logistic 10500/(1+exp(-(y-1978)/12)) -> ~80 in 1919, ~1000 in 1950,
+        // ~2000 in 1960, ~8000 in 1995, ~10,000 today. Rendered sample capped (desktop 10k, mobile 2500).
+        // Routes: weighted random airport pairs, max range by era; straight lines in AE disc space; cruise 10-11 km
+        // (3-6 km before 1950), climb/descent over the first/last 180 km. Contrails only at cruise altitude.
+        var AC = { cap: MOB ? 2500 : 10000, near: MOB ? 60 : 160, F: null, yr: -1, built: false, spray: false };
+        function acCount(y) { return y < 1903 ? 0 : y < 1919 ? 5 + (y - 1903) * 2 : Math.round(10500 / (1 + Math.exp(-(y - 1978) / 12))); }
+        var AC_TYPES = [[1903, "Wright-type biplane", 60], [1919, "Fokker F.VII / Ford Trimotor", 180], [1936, "Douglas DC-3", 270], [1952, "Lockheed Constellation / DC-6", 480], [1958, "Boeing 707 / DC-8", 850], [1970, "Boeing 747", 900], [1988, "Airbus A320 / Boeing 737", 830], [2000, "Boeing 777 / A330", 900], [2012, "Boeing 787 / A350", 905]];
+        function acType(y, h) { var c = AC_TYPES.filter(function (t) { return t[0] <= y; }); return c[Math.max(0, c.length - 1 - (h < 0.4 && c.length > 1 ? 1 : 0))]; }
+        function acBuild(y) {
+          var A = window.AIRPORTS; if (!A || !A.length) return null;
+          var n = Math.min(AC.cap, acCount(y)), F = [], cw = [], s = 0, maxKm = y < 1930 ? 900 : y < 1950 ? 2500 : y < 1960 ? 6000 : 14000;
+          var big = A.filter(function (a) { return y >= 1950 || a[4] >= 3; }); if (!big.length) big = A;
+          big.forEach(function (a) { s += a[4] * a[4]; cw.push(s); });
+          function pick(r) { var t = r * s, lo = 0, hi = cw.length - 1; while (lo < hi) { var m = (lo + hi) >> 1; if (cw[m] < t) lo = m + 1; else hi = m; } return big[lo]; }
+          for (var i = 0; i < n * 40 + 400 && F.length < n; i++) {
+            var a = pick(hash1(i * 1.731 + 0.11)), b = pick(hash1(i * 2.917 + 0.53)); if (a === b) continue;
+            var pa = ll(a[2], a[3]), pb = ll(b[2], b[3]), dk = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) / R * 20015;
+            if (dk < 150 || dk > maxKm) continue;
+            var h = hash1(i * 7.77 + 3.3), ty = acType(y, h), sp = ty[2];
+            F.push({ a: a, b: b, ax: pa[0], az: pa[1], bx: pb[0], bz: pb[1], dk: dk, dur: dk / sp / 24 + 0.04, ph: hash1(i * 5.1 + 9.9), ty: ty,
+              cr: (y < 1950 ? 3 + 3 * h : 10 + h) * 1000, con: y >= 1942 && hash1(i * 3.3 + 1.7) < (y < 1960 ? 0.2 : 0.35), spr: y >= 1997 && hash1(i * 4.4 + 2.2) < 0.15, x: 0, y: 0, z: 0, hd: 0, alt: 0, on: false });
+          }
+          return F;
+        }
+        function acPos(f, t, o) { // t in days -> position along a there-and-back loop (with ground turnaround)
+          var c = ((t / (2 * f.dur) + f.ph) % 1 + 1) % 1, back = c >= 0.5, u = (c % 0.5) * 2, g = 0.04 / f.dur / 2; // ground share
+          u = (u - g) / (1 - 2 * g); if (u < 0 || u > 1) { o.on = false; return o; }
+          var sx = back ? f.bx : f.ax, sz = back ? f.bz : f.az, ex = back ? f.ax : f.bx, ez = back ? f.az : f.bz, dkm = u * f.dk, rk = f.dk - dkm, ramp = 180;
+          o.x = sx + (ex - sx) * u; o.z = sz + (ez - sz) * u; o.hd = Math.atan2(ex - sx, ez - sz);
+          o.alt = f.cr * Math.min(1, Math.min(dkm, rk) / ramp); o.on = true; return o;
+        }
+        var acTex = (function () { var cv = document.createElement("canvas"); cv.width = cv.height = 32; var x = cv.getContext("2d"), g = x.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.35, "rgba(255,255,255,0.5)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(cv); })();
+        var ACG = (function () { // airliner in metres, nose at +x: lathe fuselage, swept extruded wings and tailplanes, fin
+          function col(g, v) { g = g.index ? g.toNonIndexed() : g; if (g.attributes.uv) g.deleteAttribute("uv"); g.computeVertexNormals(); var n = g.attributes.position.count, c = new Float32Array(n * 3); for (var k = 0; k < n * 3; k++) c[k] = v; g.setAttribute("color", new THREE.BufferAttribute(c, 3)); return g; }
+          var pts = [[0, -19], [0.9, -18.4], [1.7, -16.5], [2.0, -13], [2.0, 12], [1.7, 15.5], [1.0, 17.5], [0.3, 19.2], [0, 19.4]].map(function (p) { return new THREE.Vector2(p[0], p[1]); });
+          var fus = new THREE.LatheGeometry(pts, 14); fus.rotateZ(-Math.PI / 2);
+          function wing(span, root, tip, sweep, th) { var s = new THREE.Shape(); s.moveTo(root / 2, 0); s.lineTo(root / 2 - sweep, span); s.lineTo(root / 2 - sweep - tip, span); s.lineTo(-root / 2, 0); s.closePath();
+            var g = new THREE.ExtrudeGeometry(s, { depth: th, bevelEnabled: false }); g.rotateX(Math.PI / 2); g.translate(0, th / 2, 0); return g; }
+          var wr = wing(17, 7, 1.6, 6, 0.5); wr.translate(0.5, -0.6, 0); var wl = wing(17, 7, 1.6, 6, 0.5); wl.scale(1, 1, -1); wl.translate(0.5, -0.6, 0);
+          var tr = wing(6, 3.4, 1.2, 2.6, 0.3); tr.translate(-16.5, 0.6, 0); var tl = wing(6, 3.4, 1.2, 2.6, 0.3); tl.scale(1, 1, -1); tl.translate(-16.5, 0.6, 0);
+          var fs = new THREE.Shape(); fs.moveTo(-13.5, 1.5); fs.lineTo(-19, 8.5); fs.lineTo(-20.6, 8.5); fs.lineTo(-19.4, 1.2); fs.closePath(); var fin = new THREE.ExtrudeGeometry(fs, { depth: 0.35, bevelEnabled: false }); fin.translate(0, 0, -0.17);
+          function eng(z) { var e = new THREE.LatheGeometry([[0, -2.4], [1.1, -2.2], [1.25, 0], [1.1, 2.0], [0, 2.1]].map(function (p) { return new THREE.Vector2(p[0], p[1]); }), 10); e.rotateZ(-Math.PI / 2); e.translate(2.5, -1.7, z); return e; }
+          var gs = [col(fus, 0.92), col(wr, 0.8), col(wl, 0.8), col(tr, 0.8), col(tl, 0.8), col(fin, 0.85), col(eng(6), 0.6), col(eng(-6), 0.6)];
+          var n = 0; gs.forEach(function (g) { n += g.attributes.position.count; }); var P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3), o = 0;
+          gs.forEach(function (g) { P.set(g.attributes.position.array, o); N.set(g.attributes.normal.array, o); C.set(g.attributes.color.array, o); o += g.attributes.position.count * 3; });
+          var m = new THREE.BufferGeometry(); m.setAttribute("position", new THREE.BufferAttribute(P, 3)); m.setAttribute("normal", new THREE.BufferAttribute(N, 3)); m.setAttribute("color", new THREE.BufferAttribute(C, 3)); return m;
+        })();
+        var acDotTex = (function () { var cv = document.createElement("canvas"); cv.width = cv.height = 16; var x = cv.getContext("2d"), g = x.createRadialGradient(8, 8, 0, 8, 8, 8); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.55, "rgba(255,255,255,0.9)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 16, 16); return new THREE.CanvasTexture(cv); })();
+        var AC_MESH = new THREE.InstancedMesh(ACG, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.45 }), AC.near); AC_MESH.count = 0; AC_MESH.frustumCulled = false; scene.add(AC_MESH);
+        function acPts(n, size, add) { var g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3)); g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 3), 3)); g.setDrawRange(0, 0);
+          var m = new THREE.PointsMaterial({ size: size, sizeAttenuation: false, map: acTex, vertexColors: true, transparent: true, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending });
+          var p = new THREE.Points(g, m); p.frustumCulled = false; p.renderOrder = 12; scene.add(p); return p; }
+        var AC_DOT = acPts(AC.cap, MOB ? 4 : 3, false), AC_NAV = acPts(AC.near * 3, MOB ? 9 : 7, true), AC_TRL = acPts(AC.near * 70 + AC.cap * 3, 1, false); window.__acO = { dot: AC_DOT, cam: camera };
+        AC_TRL.material = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uMap: { value: acTex }, uPx: { value: 1 } },
+          vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute float aS; attribute float aA; attribute vec3 color; varying vec3 vC; varying float vA; uniform float uPx; void main(){ vC=color; vA=aA; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=clamp(aS*uPx/max(-mv.z,1e-7),1.0,64.0);\n#include <logdepthbuf_vertex>\n}",
+          fragmentShader: "#include <logdepthbuf_pars_fragment>\nuniform sampler2D uMap; varying vec3 vC; varying float vA; void main(){\n#include <logdepthbuf_fragment>\nfloat a=texture2D(uMap,gl_PointCoord).a*vA; if(a<0.004) discard; gl_FragColor=vec4(vC,a); }" });
+        AC_TRL.geometry.setAttribute("aS", new THREE.BufferAttribute(new Float32Array(AC.near * 70 + AC.cap * 3), 1)); AC_TRL.geometry.setAttribute("aA", new THREE.BufferAttribute(new Float32Array(AC.near * 70 + AC.cap * 3), 1));
+        var acM = new THREE.Matrix4(), acQ = new THREE.Quaternion(), acS = new THREE.Vector3(M, M, M), acU = new THREE.Vector3(0, 1, 0), acV = new THREE.Vector3(), acTmp = {}, acNear = [];
+        function acSunCol(x, z, o) { // white by day, warm near the terminator, dim grey at night
+          var d = Math.hypot(x - sun.position.x, z - sun.position.z), k = smooth(3.0, 3.7, d), n = smooth(3.7, 4.1, d);
+          o[0] = 1 - 0.05 * k - 0.65 * n; o[1] = 0.97 - 0.3 * k - 0.45 * n; o[2] = 0.95 - 0.55 * k - 0.25 * n; return o; }
+        function aircraft(cp, akm, t) {
+          if (AC.tFix != null) t = AC.tFix;
+          var y = Math.round(cityU.uYear.value), on = show.planes !== false && y >= 1903;
+          [AC_MESH, AC_DOT, AC_NAV, AC_TRL].forEach(function (o) { o.visible = on; }); if (!on) { AC.F = null; acNear.length = 0; return false; }
+          if (AC.yr !== y || !AC.F) { AC.F = acBuild(y); AC.yr = y; } var F = AC.F; if (!F) return false;
+          var ox = cp.x, oz = cp.z; // anchor near the camera (absolute disc coords), keeps float32 precision up close
+          [AC_MESH, AC_DOT, AC_NAV, AC_TRL].forEach(function (o) { o.position.set(ox - ANC0.x, 0, oz - ANC0.z); });
+          var dp = AC_DOT.geometry.attributes.position.array, dc = AC_DOT.geometry.attributes.color.array, nd = 0, sc = [0, 0, 0];
+          var tp = AC_TRL.geometry.attributes.position.array, tc = AC_TRL.geometry.attributes.color.array, ts = AC_TRL.geometry.attributes.aS.array, ta = AC_TRL.geometry.attributes.aA.array, nt = 0;
+          var np = AC_NAV.geometry.attributes.position.array, nc = AC_NAV.geometry.attributes.color.array, nn = 0, nite = WU.uSunOn.value > 0, sprayOn = (show.spray === true);
+          var far = akm > 250, dotK = far ? 0.8 : 0.9, cand = [];
+          for (var i = 0; i < F.length; i++) {
+            var f = F[i], p = acPos(f, t, f); if (!p.on) continue;
+            var rx = f.x - ox, rz = f.z - oz, ry = f.alt * M;
+            acSunCol(f.x, f.z, sc); var lit = Math.hypot(f.x - sun.position.x, f.z - sun.position.z) < 3.75;
+            dp[nd * 3] = rx; dp[nd * 3 + 1] = ry; dp[nd * 3 + 2] = rz; var b = lit ? dotK : dotK * 0.8;
+            dc[nd * 3] = lit ? 1 : 1; dc[nd * 3 + 1] = lit ? 1 : 0.35; dc[nd * 3 + 2] = lit ? 0.98 : 0.3; /* day: white, night: red beacon */ nd++; // night: red beacon dots
+            if (far && f.alt > 7500 && (f.con || (sprayOn && f.spr)) && nt < AC_TRL.geometry.attributes.position.count - 3) { // faint contrail at disc scale
+              for (var k = 1; k <= 3; k++) { var q = acPos(f, t - k * 0.006, acTmp); if (!q.on) break; tp[nt * 3] = q.x - ox; tp[nt * 3 + 1] = q.alt * M; tp[nt * 3 + 2] = q.z - oz; tc[nt * 3] = sc[0]; tc[nt * 3 + 1] = sc[1]; tc[nt * 3 + 2] = sc[2]; ts[nt] = 9000 * M; ta[nt] = 0.18 / k; nt++; }
+            }
+            var dd = Math.hypot(rx, rz, ry - cp.y); if (dd < 400 * 1000 * M) cand.push([dd, f]);
+          }
+          cand.sort(function (a, b) { return a[0] - b[0]; }); acNear.length = 0;
+          var nm = 0, cap = AC_TRL.geometry.attributes.position.count, blink = ((performance.now() / 1000) % 1.2) < 0.08;
+          for (var j = 0; j < cand.length && nm < AC.near; j++) {
+            var f2 = cand[j][1], rx2 = f2.x - ox, rz2 = f2.z - oz, ry2 = f2.alt * M;
+            acQ.setFromAxisAngle(acU, f2.hd - Math.PI / 2); acV.set(rx2, ry2, rz2); acM.compose(acV, acQ, acS); AC_MESH.setMatrixAt(nm++, acM); acNear.push(f2);
+            var sx = Math.sin(f2.hd), sz = Math.cos(f2.hd), wx = sz, wz = -sx; // wing axis (right = starboard)
+            if (Math.hypot(f2.x - sun.position.x, f2.z - sun.position.z) > 3.6 && nn < AC.near * 3 - 3) { // nav lights where it is night for that aircraft
+              [[-17, 1, 0.1, 0.1], [17, 0.1, 1, 0.3], [0, blink ? 1 : 0, blink ? 1 : 0, blink ? 1 : 0]].forEach(function (L, li) { var off = li === 2 ? -20 : 0;
+                np[nn * 3] = rx2 + (wx * L[0] + sx * off) * M; np[nn * 3 + 1] = ry2 + (li === 2 ? 8 : 0) * M; np[nn * 3 + 2] = rz2 + (wz * L[0] + sz * off) * M; nc[nn * 3] = L[1]; nc[nn * 3 + 1] = L[2]; nc[nn * 3 + 2] = L[3]; nn++; });
+            }
+            var spr = sprayOn && f2.spr;
+            if (!far && j < (MOB ? 6 : 12) && f2.alt > 7500 && (f2.con || spr)) { // persistent trail: puffs behind the aircraft, spreading and fading with age
+              var Lkm = spr ? 80 : 30, life = Lkm / (f2.ty[2] * 24), segs = 160, gap = Lkm * 1000 / segs; /* trail as overlapping puffs, ~200-500 m apart */ acSunCol(f2.x, f2.z, sc);
+              for (var s = 1; s <= segs && nt < cap; s++) { var u = s / segs, uu = u, q2 = acPos(f2, t - u * life, acTmp); if (!q2.on || q2.alt < 7500) break;
+                tp[nt * 3] = q2.x - ox; tp[nt * 3 + 1] = q2.alt * M; tp[nt * 3 + 2] = q2.z - oz; tc[nt * 3] = sc[0]; tc[nt * 3 + 1] = sc[1]; tc[nt * 3 + 2] = sc[2];
+                ts[nt] = Math.max(gap * 1.5, spr ? 60 + 2200 * u : 40 + 500 * u) * M; ta[nt] = (spr ? 0.5 : 0.6) * (1 - Math.pow(u, spr ? 2.5 : 1.4)) * Math.min(1, s / 3) * (nite ? 0.25 : 1); nt++; }
+            }
+          }
+          AC_MESH.count = nm; AC_MESH.instanceMatrix.needsUpdate = true;
+          AC_DOT.geometry.setDrawRange(0, nd); AC_NAV.geometry.setDrawRange(0, nn); AC_TRL.geometry.setDrawRange(0, nt);
+          [AC_DOT, AC_NAV, AC_TRL].forEach(function (o) { var a = o.geometry.attributes; for (var key in a) a[key].needsUpdate = true; });
+          AC_TRL.material.uniforms.uPx.value = innerHeight * renderer.getPixelRatio() / (2 * Math.tan(camera.fov * Math.PI / 360));
+          AC_DOT.material.size = (far ? (MOB ? 4.5 : 4) : (MOB ? 5 : 4)) * Math.min(renderer.getPixelRatio(), 2); AC_DOT.material.map = acDotTex; AC_DOT.material.opacity = 0.9;
+          return acNear.length > 0;
+        }
+        function acTap(cx, cy) { // 44 px target (22 px radius) around each nearby aircraft
+          if (!AC_MESH.visible || !acNear.length) return null; var best = null, bd = 22;
+          acNear.forEach(function (f) { acV.set(f.x - ANC0.x, f.alt * M, f.z - ANC0.z).project(camera); if (acV.z > 1) return; var sx = (acV.x + 1) / 2 * innerWidth, sy = (1 - acV.y) / 2 * innerHeight, d = Math.hypot(sx - cx, sy - cy); if (d < bd) { bd = d; best = f; } });
+          return best;
+        }
+        function acOpen(f) {
+          var back = (((dayT / (2 * f.dur) + f.ph) % 1) + 1) % 1 >= 0.5, o = back ? f.b : f.a, d = back ? f.a : f.b;
+          var rows = [["Route", o[0] + " " + o[1] + " → " + d[0] + " " + d[1]], ["Type", f.ty[1]], ["Altitude", (f.alt / 1000).toFixed(1) + " km"], ["Distance", Math.round(f.dk) + " km"], ["Data", "Simulated from OurAirports airports"]];
+          if (f.spr && (show.spray === true)) rows.push(["Spray trail", "Project chemtrail account: persistent spray trail"], ["Official explanation", "persistent contrails from ice crystals in humid air"]);
+          else if (f.con && f.alt > 7500) rows.push(["Trail", "Persistent contrail (cruise altitude)"]);
+          showCard(o[1] + " → " + d[1], "Aircraft (simulated)", rows, null, null, "✈ ");
+        }
         function show_traffic() { return show.traffic !== false; }
         function slFetch(key, tx, ty) {
           SL.busy++;
@@ -2822,6 +2947,7 @@
         renderer.domElement.addEventListener("pointerup", function (ev) {
           if (!down || Math.hypot(ev.clientX - down[0], ev.clientY - down[1]) >= 8 || performance.now() - down[2] >= 250) return;
           down = null;
+          var af = acTap(ev.clientX, ev.clientY); if (af) { infoEl.hidden = true; return acOpen(af); }
           var tc = cityAt(ev.clientX, ev.clientY); if (tc) { infoEl.hidden = true; return openCity(tc); }
           for (var li = 0; li < labels.length; li++) { // labels ignore the pointer; hit test them here
             var L = labels[li];
@@ -3103,7 +3229,7 @@
           var nr0 = Math.max(nAlt * 0.05, 1e-7), fr0 = Math.min(4000, Math.max(nAlt * 6000, 100)); // far plane well past the horizon at every altitude
           if (Math.abs(nr0 / camera.near - 1) > 0.1 || Math.abs(fr0 / camera.far - 1) > 0.1) { camera.near = nr0; camera.far = fr0; camera.updateProjectionMatrix(); }
           var akm = (cp.y - g0) * KM;
-          WU.uNLk.value = 0.12 + 0.88 * smooth(3, 25, akm); streetLights(cp, akm, now); if (traffic(cp, akm, dt)) busy = true; buildings(cp, akm, now); // satellite glow gives way to street lamps
+          WU.uNLk.value = 0.12 + 0.88 * smooth(3, 25, akm); streetLights(cp, akm, now); if (traffic(cp, akm, dt)) busy = true; if (aircraft(cp, akm, dayT)) busy = true; buildings(cp, akm, now); // satellite glow gives way to street lamps
           WU.uNF.value = cp.y > 0 ? 1 - smooth(0.5, 2, akm) : 0; // moonlit floor raised below 2 km
           WU.uHz.value = Math.sqrt(2 * 6371 * Math.max(akm, 0.001) + akm * akm) / KM; WU.uHzK.value = cp.y > 0 ? 1 - smooth(50, 300, akm) : 0; // light haze at the true horizon, near the ground only
           altEl.textContent = (Math.abs(akm) < 10 ? akm.toFixed(3) : Math.abs(akm) < 1000 ? akm.toFixed(1) : Math.round(akm).toLocaleString()) + " km";

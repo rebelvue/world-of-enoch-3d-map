@@ -77,3 +77,18 @@ Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72
   alpha blending (renderOrder -50, no depth) so it always sits behind terrain. Sun elevation for the viewer comes from the
   distance to the sun subpoint: 90° at the subpoint, 0° at the 3.75-unit night edge used by terrain/lamps.
 - Fades out between 15 and 400 km altitude (firmament view takes over); stars dim by day (`starU.uDim`). Toggle: Sky.
+
+## V3 — aircraft, contrails, spray-trail variant
+- Simulated (never live) from `airports_data.js` (OurAirports, public domain): weighted airport pairs, max range by era
+  (900 km <1930, 2500 <1950, 6000 <1960, else 14000), straight lines in AE disc space, there-and-back loops.
+- Airborne curve `acCount(y)`: 0 before 1903; 5+2/yr 1903-1918; from 1919 `10500/(1+exp(-(y-1978)/12))` (~80 in 1919,
+  ~1000 in 1950, ~1900 in 1960, ~10,300 today). Rendered sample cap 10k desktop / 2.5k mobile; nearest 160/60 instanced.
+- Cruise 10-11 km (3-6 km before 1950), linear climb/descent over first/last 180 km. Types by era (`AC_TYPES`).
+- Disc scale: points (white by day, red beacon at night) + faint 3-puff contrails. Close: instanced airliner
+  (lathe fuselage, extruded swept wings/tail, nacelles), nav lights red port / green starboard / white tail strobe where
+  it is night for that aircraft. Persistent contrails only above 7.5 km, ~35% of flights from 1942 (20% before 1960):
+  overlapping puffs spreading and fading, sun-coloured (white, warm at the terminator, dim at night).
+- "Spray trails (chemtrail account)" toggle (off by default): from 1997, 15% of flights get long, wide, lingering
+  trails that cross into grids. Card: "Project chemtrail account: persistent spray trail" + "Official explanation:
+  persistent contrails from ice crystals in humid air". Tap: 44 px targets (22 px radius), checked before cities.
+- Debug: harkDbg.ac(), acLook(spray, back_m, up_m, night), acScr(), acTime(t). Tests: 1910 (19), 1960 (1915), 2026.
