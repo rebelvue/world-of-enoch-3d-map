@@ -92,3 +92,9 @@ Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72
   trails that cross into grids. Card: "Project chemtrail account: persistent spray trail" + "Official explanation:
   persistent contrails from ice crystals in humid air". Tap: 44 px targets (22 px radius), checked before cities.
 - Debug: harkDbg.ac(), acLook(spray, back_m, up_m, night), acScr(), acTime(t). Tests: 1910 (19), 1960 (1915), 2026.
+
+## M events (curated)
+- `EV` table in index.html (before `show_traffic`): [category, name, yearFrom, yearTo, lat|track, lon, radius km, fx, card text]. 66 events across 11 categories, each with its own toggle under "Events".
+- Sources: AM chronology (Flood 2348 BC), IBTrACS (cyclone tracks; spirals move along the track), NOAA NCEI (tsunamis; expanding fronts), USGS (earthquakes), Smithsonian GVP (eruptions), CTBTO/DOE (nuclear tests), launch records.
+- Effects are one shared ShaderMaterial (logdepth) on ground/dome quads: ring, glow, spiral, plume, dome, front, flood. Rockets are growing ascent lines; Apollo 11 curves into the Atlantic, and its card shows the flat-earth account alongside the official record. Starfish Prime/Argus light the dome.
+- Caps: 24 active on mobile, 80 on desktop. Tapping within 22 px opens a glass card. `window.__ev` is a debug hook.
