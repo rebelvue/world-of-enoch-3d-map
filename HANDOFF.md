@@ -53,3 +53,21 @@ Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72
 - Density curve: 0 before 1886; share(y) = 1/(1+exp(-(y-(ey+55))/10)) where ey = regional electrification year (proxy for development); x rushK(local solar hour): peaks 07-09 and 16-19, sparse 0-5. Caps 70 cars/tile desktop, 28 mobile; tiles in view under ~3 km only.
 - Night: white headlights + forward pool, red tails (additive points, depth-tested so buildings occlude). Toggle "Traffic" in the Show menu.
 - Fix: trNext counter T.k was uninitialised (NaN index crashed the frame loop on mobile).
+
+### L2 follow-up (2026-11-02)
+- Every building ring (outer and courtyard) of the same z14 tile now rejects a lamp (foot, head and a 3 m ring); service lanes get no lamps.
+- Verified with `harkDbg.roof()`: vertical rays from 400 m above every 7th lamp head against all loaded building meshes (all tiles, so neighbouring-tile footprints count) -> 0 / 1789 lamps under a roof (Paris 2026). Lamp base = `ground()` terrain height, never roof.
+- The "lamps on roofs" look in oblique night views came from oversized point sprites (cores up to 14 px, pools up to 90 px) painting across roofs from lamps just behind roof edges. Cores are now capped at 7 px and pools at 48 px (pool size 1.5), so glows stay street-sized.
+- OFM has no street_lamp nodes, so there are no private-ground OSM lamps; all lamps are placed by rule at road edges (within road half-width + 2 m of a centreline).
+- Day/night gate: JS > 3.6 subpoint units, same as the shader; `harkDbg.sunFor(dDays)` gives test sun positions.
+- Borders card updates in the same frame as the year (lastBI set in setYear).
+
+### V2 traffic (2026-11-02)
+- Cars drive the OFM z14 road graph of each street-lamp tile (same fetch). Lane offset by country: left-hand traffic boxes (UK/IE, JP, IN/PK/BD/LK, AU, NZ, ZA region, ID, TH, MY, KE/TZ/UG, ZM/ZW/MW, MZ), Sweden left before 1967; French Channel coast excluded from the UK box. `harkDbg.lht(la, lo, y)`.
+- One-way tags honoured; cars slow into line ends and turn onto a connected road; tunnels skipped.
+- Density curve: 0 before 1886 (Benz Patent-Motorwagen), then share(y) = 1/(1+exp(-(y-(ey+55))/10)) where ey is the region's electrification year from the city-lights table (London/US earliest). ~1% around 1900-1910 in early regions, ~10% by ~1925-35, half by ~1935-1960, near saturation today. Time of day `rushK(h)`: peaks 07-09 and 16-19 local solar time, sparse 00-05.
+- Only tiles in view under ~3 km; caps 28 cars/tile mobile, 70 desktop. Headlights (warm white, forward glow) and red tails at night, depth-tested so buildings occlude them.
+- Toggle: menu > Show > Traffic.
+
+### Polity data fix (2026-11-02)
+- polities.json held only the 40 largest polities per snapshot, so e.g. France was missing in 1492 and 1914 and a tap in central France returned the Holy Roman Empire. Rebuilt from aourednik/historical-basemaps (all named features, polylabel label points, sorted by area). Labels still draw the 40 largest per snapshot; selection and search use all.
