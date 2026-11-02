@@ -464,7 +464,7 @@
         function kick() { lastAct = performance.now(); if (!running && frameFn) { running = true; requestAnimationFrame(frameFn); } }
         window.harkKick = kick;
         var dbgDT = 0;
-        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sl: function () { var n = 0; SL.tiles.forEach(function (e) { if (e.mesh) n += e.mesh.userData.n; }); return { tiles: SL.tiles.size, lamps: n, a: SL.U.uA.value }; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
+        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sl: function () { var n = 0; SL.tiles.forEach(function (e) { if (e.mesh) n += e.mesh.userData.n; }); var nb = 0, bt = 0; OB.tiles.forEach(function (e) { if (e.mesh) { nb += e.mesh.userData.n; bt++; } }); var zm = 0, nv = 0, hz = {}; TC.forEach(function (t) { var k = t.z + ':' + t.st + (t.on === ST.t ? 'w' : ''); hz[k] = (hz[k] || 0) + 1; if (t.mesh && t.mesh.visible) { nv++; zm = Math.max(zm, t.z); } }); window.__hz = hz; hz.BQ = BQ.length; hz.TACT = TACT; return { tz: zm, tv: nv, st: ST.on, tq: TQ.length, tiles: SL.tiles.size, lamps: n, a: SL.U.uA.value, btiles: bt, bldg: nb }; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
         setInterval(function () { if (skyI === 0 && !document.hidden) kick(); }, 20000); // live sky: refresh the sun and moon while idle
         ["pointerdown", "pointerup", "wheel", "keydown", "keyup", "touchstart", "touchmove", "click", "input", "resize"].forEach(function (t) { addEventListener(t, kick, { capture: true, passive: true }); });
         addEventListener("pointermove", function (e) { if (e.buttons || e.pointerType === "touch") kick(); }, { capture: true, passive: true });
@@ -1419,8 +1419,8 @@
             "void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vec4 mv = viewMatrix * w;" +
             " float on = smoothstep(uEY + aK.y * 30.0, uEY + aK.y * 30.0 + 4.0, uYear);" + // streets get lamps one by one over ~30 years
             " float nite = uSunOn * smoothstep(3.6 + aK.y * 0.3, 3.75 + aK.y * 0.3, distance(w.xz, uSunW.xz));" +
-            " float px = 0.000005 * uPx / max(-mv.z, 1e-9); gl_PointSize = clamp(px, 1.3, 10.0);" +
-            " vA = on * nite * uA * min(1.0, px * 0.6 + 0.5) * (aK.x > 0.5 ? 1.0 : 0.75);" +
+            " float sz = 0.6 + 0.8 * fract(aK.y * 13.7), px = 0.000005 * uPx * sz / max(-mv.z, 1e-9); gl_PointSize = clamp(px, 1.3, 10.0);" +
+            " vA = on * nite * uA * min(1.0, px * 0.6 + 0.5) * (aK.x > 0.5 ? 1.0 : 0.7) * (0.5 + 0.7 * fract(aK.y * 29.3));" +
             " vC = aK.y > (aK.x > 0.5 ? 0.8 : 0.92) ? vec3(0.92, 0.94, 1.0) : vec3(1.0, 0.6, 0.25);" + // sodium amber, some white LED
             " gl_Position = projectionMatrix * mv; if (vA < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0); }",
           fragmentShader: "varying float vA; varying vec3 vC; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; if (d >= 1.0) discard;" +
@@ -1431,6 +1431,8 @@
           function vi() { var r = 0, m = 1, c; do { c = b[pos++]; r += (c & 127) * m; m *= 128; } while (c & 128); return r; }
           return { end: function () { return pos >= b.length; }, tag: function () { var t = vi(); return [t >>> 3, t & 7]; }, vi: vi,
             bytes: function () { var n = vi(), s = b.subarray(pos, pos + n); pos += n; return s; },
+            f32: function () { var v = new DataView(b.buffer, b.byteOffset + pos, 4).getFloat32(0, true); pos += 4; return v; },
+            f64: function () { var v = new DataView(b.buffer, b.byteOffset + pos, 8).getFloat64(0, true); pos += 8; return v; },
             skip: function (w) { if (w === 0) vi(); else if (w === 1) pos += 8; else if (w === 2) pos += vi(); else if (w === 5) pos += 4; } };
         }
         function str(u8) { return new TextDecoder().decode(u8); }
@@ -1508,14 +1510,7 @@
         }
         function slFetch(key, tx, ty) {
           SL.busy++;
-          (SL.url ? Promise.resolve(SL.url) : fetch("https://tiles.openfreemap.org/planet").then(function (r) { return r.json(); }).then(function (j) { return (SL.url = j.tiles[0]); }))
-            .then(function (u) { return fetch(u.replace("{z}", 14).replace("{x}", tx).replace("{y}", ty)); })
-            .then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })
-            .then(function (ab) {
-              var b = new Uint8Array(ab);
-              if (b[0] === 0x1f && b[1] === 0x8b && window.DecompressionStream) return new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer().then(function (x) { return new Uint8Array(x); });
-              return b;
-            })
+          ofmTile(tx, ty)
             .then(function (b) { slBuild(key, tx, ty, mvtRoads(b)); }, function () { var e = SL.tiles.get(key); if (e) e.fail = true; })
             .then(function () { SL.busy--; });
         }
@@ -1535,6 +1530,185 @@
             if (!SL.tiles.has(key) && SL.busy < 4) { SL.tiles.set(key, { mesh: null }); slFetch(key, tx, ty); }
           }
           if (SL.tiles.size > (MOB ? 40 : 70)) SL.tiles.forEach(function (e, k) { if (!want[k] && e.mesh) { world.remove(e.mesh); e.mesh.geometry.dispose(); SL.tiles.delete(k); } else if (!want[k] && e.fail) SL.tiles.delete(k); });
+        }
+        // B. OSM 3D buildings from the same OpenFreeMap z14 tiles (render_height / render_min_height), lazily for the tiles in view below ~6 km.
+        // Not plain boxes: lit by the scene sun, soft ground AO, roofs and facades tinted from the Esri imagery under each footprint,
+        // per-building facade colour, floors and windows in the shader (dark glass by day, warm lit windows at night), rising in with zoom.
+        var OFMC = new Map();
+        function ofmTile(tx, ty) { // shared by street lamps and buildings: one fetch per z14 tile
+          var k = tx + "/" + ty, p = OFMC.get(k);
+          if (p) return p;
+          p = (SL.url ? Promise.resolve(SL.url) : fetch("https://tiles.openfreemap.org/planet").then(function (r) { return r.json(); }).then(function (j) { return (SL.url = j.tiles[0]); }))
+            .then(function (u) { return fetch(u.replace("{z}", 14).replace("{x}", tx).replace("{y}", ty)); })
+            .then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })
+            .then(function (ab) {
+              var b = new Uint8Array(ab);
+              if (b[0] === 0x1f && b[1] === 0x8b && window.DecompressionStream) return new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer().then(function (x) { return new Uint8Array(x); });
+              return b;
+            });
+          p.catch(function () { OFMC.delete(k); });
+          OFMC.set(k, p);
+          if (OFMC.size > 60) OFMC.delete(OFMC.keys().next().value);
+          return p;
+        }
+        function mvtBuildings(b) { // [[ring, ring...], h, minh] in tile coords, exterior first
+          var r = pbf(b), out = [], ext = 4096;
+          while (!r.end()) {
+            var t = r.tag();
+            if (t[0] !== 3) { r.skip(t[1]); continue; }
+            var L = pbf(r.bytes()), name = "", keys = [], vals = [], feats = [];
+            while (!L.end()) {
+              var lt = L.tag();
+              if (lt[0] === 1) name = str(L.bytes());
+              else if (lt[0] === 2) feats.push(L.bytes());
+              else if (lt[0] === 3) keys.push(str(L.bytes()));
+              else if (lt[0] === 4) {
+                var V = pbf(L.bytes()), v = null;
+                while (!V.end()) {
+                  var vt = V.tag();
+                  if (vt[0] === 2) v = V.f32(); else if (vt[0] === 3) v = V.f64();
+                  else if (vt[0] === 4 || vt[0] === 5) v = V.vi();
+                  else if (vt[0] === 6) { var z = V.vi(); v = (z % 2) ? -(z + 1) / 2 : z / 2; }
+                  else if (vt[0] === 7) v = !!V.vi();
+                  else if (vt[0] === 1) { V.bytes(); v = null; }
+                  else V.skip(vt[1]);
+                }
+                vals.push(v);
+              }
+              else if (lt[0] === 5) ext = L.vi();
+              else L.skip(lt[1]);
+            }
+            if (name !== "building") continue;
+            var hi = keys.indexOf("render_height"), mi = keys.indexOf("render_min_height"), hid = keys.indexOf("hide_3d");
+            feats.forEach(function (fb) {
+              var F = pbf(fb), tags = null, geo = null, type = 0;
+              while (!F.end()) { var ft = F.tag(); if (ft[0] === 2) tags = F.bytes(); else if (ft[0] === 3) type = F.vi(); else if (ft[0] === 4) geo = F.bytes(); else F.skip(ft[1]); }
+              if (type !== 3 || !geo) return;
+              var h = 6, mh = 0, hide = false;
+              if (tags) { var T = pbf(tags); while (!T.end()) { var kk = T.vi(), vv = T.vi(); if (kk === hi && typeof vals[vv] === "number") h = vals[vv]; else if (kk === mi && typeof vals[vv] === "number") mh = vals[vv]; else if (kk === hid && vals[vv]) hide = true; } }
+              if (hide) return;
+              var G = pbf(geo), x = 0, y = 0, ring = null, polys = [], cur = null;
+              while (!G.end()) {
+                var cmd = G.vi(), id = cmd & 7, n = cmd >> 3;
+                if (id === 7) { // close: exterior rings start a new polygon (positive area in y-down tile coords)
+                  if (ring && ring.length >= 6) { var A = 0; for (var i = 0; i < ring.length; i += 2) { var j = (i + 2) % ring.length; A += ring[i] * ring[j + 1] - ring[j] * ring[i + 1]; } if (A > 0 || !cur) { cur = [ring]; polys.push(cur); } else cur.push(ring); }
+                  ring = null; continue;
+                }
+                for (var c = 0; c < n; c++) { var dx = G.vi(), dy = G.vi(); x += (dx >> 1) ^ -(dx & 1); y += (dy >> 1) ^ -(dy & 1); if (id === 1) ring = [x, y]; else ring.push(x, y); }
+              }
+              polys.forEach(function (p) { out.push([p, h, mh]); });
+            });
+          }
+          return { b: out, ext: ext };
+        }
+        var OB = { tiles: new Map(), Q: [], busy: 0, t: 0, U: { uSunW: WU.uSunW, uSunOn: WU.uSunOn, uGM: { value: 0 }, uEl: { value: 1 } } };
+        OB.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
+        OB.mat.onBeforeCompile = function (sh) {
+          Object.assign(sh.uniforms, OB.U);
+          sh.vertexShader = "attribute vec4 aF; uniform float uGM; varying vec4 vF; varying vec3 vBW;\n" + sh.vertexShader
+            .replace("#include <begin_vertex>", "#include <begin_vertex>\ntransformed.y -= uGM * aF.y; vF = aF;")
+            .replace("#include <project_vertex>", "#include <project_vertex>\nvBW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+          sh.fragmentShader = "uniform float uSunOn, uEl; uniform vec3 uSunW; varying vec4 vF; varying vec3 vBW; vec2 bCell; float bFar, bWin;\n" + sh.fragmentShader
+            .replace("#include <color_fragment>", "#include <color_fragment>\n" +
+              "bCell = vec2(vF.x / 3.4, vF.y / 3.15); bFar = clamp(max(fwidth(bCell.x), fwidth(bCell.y)) * 1.8 - 0.2, 0.0, 1.0); vec2 fc = fract(bCell);" +
+              " float up = vF.z * step(1.0, bCell.y);" + // ground floor kept solid (shopfronts read as a darker band)
+              " bWin = up * smoothstep(0.16, 0.24, fc.x) * smoothstep(0.84, 0.76, fc.x) * smoothstep(0.26, 0.34, fc.y) * smoothstep(0.88, 0.80, fc.y); bWin = mix(bWin, 0.3 * up, bFar);" +
+              " float ao = mix(1.0, mix(0.5, 1.0, smoothstep(0.0, 8.0, vF.y)), vF.z);" + // soft contact shadow where walls meet the street
+              " diffuseColor.rgb *= ao * (1.0 - 0.5 * bWin) * (1.0 - 0.12 * vF.z * (1.0 - bFar) * step(fc.y, 0.07)) * (1.0 - 0.25 * vF.z * (1.0 - step(1.0, bCell.y)));" +
+              " diffuseColor.rgb *= 1.0 + 0.06 * (fract(sin(vF.w * 311.7 + floor(bCell.y) * 7.1) * 4375.5) - 0.5) * vF.z;") // floor-to-floor variation
+            .replace("#include <output_fragment>",
+              "float nk = uSunOn * smoothstep(3.6, 3.9, distance(vBW.xz, uSunW.xz));" +
+              " outgoingLight = mix(outgoingLight, diffuseColor.rgb * vec3(0.05, 0.065, 0.11), nk * 0.92);" +
+              " float h1 = fract(sin(dot(floor(bCell) + vF.w * 91.0, vec2(12.9898, 78.233))) * 43758.5453);" +
+              " vec3 wc = mix(vec3(1.0, 0.6, 0.28), vec3(1.0, 0.84, 0.6), fract(h1 * 7.0));" +
+              " outgoingLight += nk * uEl * (wc * bWin * mix(step(0.6, h1) * (0.5 + h1), 0.45, bFar) * 0.8 + vF.z * vec3(1.0, 0.58, 0.26) * 0.12 * exp(-vF.y / 3.0));\n#include <output_fragment>");
+        };
+        function blImg(tx, ty) { // the Esri z16 imagery under a z14 tile, 4x4 tiles stitched into a 256 px colour grid for sampling
+          var cv = document.createElement("canvas"); cv.width = cv.height = 256; var cx = cv.getContext("2d", { willReadFrequently: true }), n = 0;
+          var ps = [];
+          for (var j = 0; j < 4; j++) for (var i = 0; i < 4; i++) (function (i, j) {
+            ps.push(new Promise(function (res) {
+              var im = new Image(); im.crossOrigin = "anonymous";
+              im.onload = function () { try { cx.drawImage(im, i * 64, j * 64, 64, 64); n++; } catch (e) {} res(); }; im.onerror = function () { res(); };
+              im.src = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/" + (ty * 4 + j) + "/" + (tx * 4 + i);
+            }));
+          })(i, j);
+          return Promise.all(ps).then(function () { try { return n ? cx.getImageData(0, 0, 256, 256).data : null; } catch (e) { return null; } });
+        }
+        var BPAL = [[0.80, 0.75, 0.66], [0.86, 0.83, 0.77], [0.64, 0.42, 0.33], [0.68, 0.67, 0.64], [0.76, 0.70, 0.58], [0.56, 0.60, 0.64]];
+        function lin(v) { return Math.pow(Math.max(0, Math.min(1, v)), 2.2); }
+        function blBuild(e, tx, ty, data, px) {
+          var n = 1 << 14, cl = function (mx, my) { var lon = mx * 360 - 180, lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * my))) / DEG; return ll(lat, lon); };
+          var c = cl((tx + 0.5) / n, (ty + 0.5) / n), ext = data.ext, P = [], C = [], F = [], minA = MOB ? 45 : 25, nb = 0;
+          function sample(u, v) { // average 3x3 imagery pixels around tile coords (u, v)
+            if (!px) return null; var r = 0, g = 0, b = 0, k = 0;
+            for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) { var X = Math.max(0, Math.min(255, Math.round(u / ext * 256) + dx)), Y = Math.max(0, Math.min(255, Math.round(v / ext * 256) + dy)), o = (Y * 256 + X) * 4; r += px[o]; g += px[o + 1]; b += px[o + 2]; k++; }
+            return [r / k / 255, g / k / 255, b / k / 255];
+          }
+          data.b.forEach(function (bd, bi) {
+            var rings = bd[0], ex = rings[0], cu = 0, cv = 0, m = ex.length / 2;
+            for (var i = 0; i < ex.length; i += 2) { cu += ex[i]; cv += ex[i + 1]; }
+            cu /= m; cv /= m;
+            if (cu < 0 || cv < 0 || cu >= ext || cv >= ext) return; // buffered copies belong to the neighbour tile
+            var W = rings.map(function (rg) { var o = []; for (var i = 0; i < rg.length; i += 2) { var p = cl((tx + rg[i] / ext) / n, (ty + rg[i + 1] / ext) / n); o.push(p[0], p[1]); } return o; });
+            var A = 0, w0 = W[0];
+            for (i = 0; i < w0.length; i += 2) { var j = (i + 2) % w0.length; A += w0[i] * w0[j + 1] - w0[j] * w0[i + 1]; }
+            A = Math.abs(A) / 2 / (M * M);
+            var h = bd[1], mh = bd[2];
+            if (A < minA || h - mh < 2) return;
+            var g0 = 1e9; for (i = 0; i < w0.length; i += Math.max(2, (w0.length >> 4) << 1)) g0 = Math.min(g0, ground(w0[i], w0[i + 1]));
+            var rnd = hash1(bi * 1.37 + tx * 0.11 + ty * 0.07), s = sample(cu, cv), pi = rnd < 0.4 ? 0 : rnd < 0.62 ? 1 : rnd < 0.75 ? 4 : rnd < 0.9 ? 3 : 2, pal = BPAL[pi];
+            if (h > 45 && rnd > 0.5) pal = BPAL[5]; // some towers glass and steel
+            var sl = s ? (s[0] + s[1] + s[2]) / 3 : 0.45, sk = Math.max(0.3, Math.min(0.62, sl)) / Math.max(0.05, sl), j2 = 0.94 + 0.12 * hash1(bi * 3.1 + 0.7);
+            var roof = s ? [0, 1, 2].map(function (q) { return lin((s[q] * 0.45 + sl * 0.55) * sk * j2); }) : [lin(0.48), lin(0.47), lin(0.46)]; // roof colour from the photo, muted (no tree-green roofs)
+            var fac = [0, 1, 2].map(function (q) { return lin((pal[q] * 0.82 + (s ? s[q] * sk : 0.45) * 0.18) * j2); }); // facade: local material, tinted by the imagery
+            var yb = mh > 0 ? g0 + mh * M : g0 - 3 * M, yt = g0 + h * M, vb = mh > 0 ? mh : -3;
+            function V(x, y, z, col, fu, fv, kind) { P.push(x - c[0], y, z - c[1]); C.push(col[0], col[1], col[2]); F.push(fu, fv, kind, rnd); }
+            W.forEach(function (rg) { // walls
+              var u = 0, L = rg.length;
+              for (var i = 0; i < L; i += 2) {
+                var j = (i + 2) % L, x0 = rg[i], z0 = rg[i + 1], x1 = rg[j], z1 = rg[j + 1], d = Math.hypot(x1 - x0, z1 - z0) / M, u1 = u + d;
+                if (d < 0.05) continue;
+                V(x0, yb, z0, fac, u, vb, 1); V(x1, yb, z1, fac, u1, vb, 1); V(x1, yt, z1, fac, u1, h, 1);
+                V(x0, yb, z0, fac, u, vb, 1); V(x1, yt, z1, fac, u1, h, 1); V(x0, yt, z0, fac, u, h, 1);
+                u = Math.ceil(u1 / 3.4) * 3.4; // each wall starts on a whole window bay
+              }
+            });
+            var toV = function (rg) { var o = []; for (var i = 0; i < rg.length; i += 2) o.push(new THREE.Vector2((rg[i] - c[0]) / M, (rg[i + 1] - c[1]) / M)); return o; };
+            var cont = toV(W[0]), holes = W.slice(1).map(toV), all = cont.concat.apply(cont, holes);
+            var tri = THREE.ShapeUtils.triangulateShape(cont, holes);
+            tri.forEach(function (t) { for (var q = 0; q < 3; q++) { var p = all[t[q]]; V(p.x * M + c[0], yt, p.y * M + c[1], roof, 0, h, 0); } });
+            nb++;
+          });
+          if (!P.length) { e.mesh = null; e.done = true; return; }
+          var g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(C, 3)); g.setAttribute("aF", new THREE.Float32BufferAttribute(F, 4));
+          g.computeVertexNormals(); g.computeBoundingSphere();
+          var ms = new THREE.Mesh(g, OB.mat), ll0 = toLL(c[0], c[1]), ey = elecYear(ll0[0], ll0[1]);
+          ms.position.set(c[0], 0, c[1]); ms.renderOrder = 7; ms.userData.n = nb;
+          ms.onBeforeRender = function () { OB.U.uEl.value = 0.25 + 0.75 * smooth(ey, ey + 25, cityU.uYear.value); OB.mat.uniformsNeedUpdate = true; };
+          e.mesh = ms; e.done = true; world.add(ms); kick();
+        }
+        function buildings(cp, akm, now) { // called each frame in absolute coords
+          var on = cp.y > 0 && akm < 6 && ST.on, gk = on ? 1 - smooth(3, 6, akm) : 0;
+          OB.U.uGM.value = (1 - gk) * M; // buildings rise out of the ground as you zoom in
+          OB.tiles.forEach(function (e) { if (e.mesh) e.mesh.visible = on && gk > 0.01; });
+          if (OB.Q.length) { var q = OB.Q.shift(), e0 = OB.tiles.get(q[0]); if (e0) blBuild(e0, q[1], q[2], q[3], q[4]); } // one tile built per frame
+          if (!on || now - OB.t < 0.5) return;
+          OB.t = now;
+          var L = toLL(cp.x, cp.z), m = merc(L[0], L[1]), n = 1 << 14, fx = m[0] * n, fy = m[1] * n, cx = Math.floor(fx), cy = Math.floor(fy);
+          var rr = akm < 2.5 || MOB ? 1 : 2, want = {};
+          for (var dy = -rr; dy <= rr; dy++) for (var dx = -rr; dx <= rr; dx++) {
+            var tx = ((cx + dx) % n + n) % n, ty = cy + dy; if (ty < 0 || ty >= n) continue;
+            var key = tx + "/" + ty; want[key] = 1;
+            if (!OB.tiles.has(key) && OB.busy < 2) (function (key, tx, ty) {
+              var e = { mesh: null }; OB.tiles.set(key, e); OB.busy++;
+              Promise.all([ofmTile(tx, ty).then(mvtBuildings), blImg(tx, ty)])
+                .then(function (r) { if (OB.tiles.get(key) === e) OB.Q.push([key, tx, ty, r[0], r[1]]); }, function () { e.fail = true; })
+                .then(function () { OB.busy--; kick(); });
+            })(key, tx, ty);
+          }
+          if (OB.tiles.size > (MOB ? 9 : 25)) OB.tiles.forEach(function (e, k) { if (!want[k] && (e.done || e.fail)) { if (e.mesh) { world.remove(e.mesh); e.mesh.geometry.dispose(); } OB.tiles.delete(k); } });
         }
         function heightsReady() {
           iceBuild(); lightsBuild();
@@ -1695,7 +1869,7 @@
             .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>" + WFR)
             .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + WFN)
             .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>" + SELE + WFE)
-            .replace("#include <output_fragment>", NIGHT.replace("float ey =", "if (uNTk > 0.5) { vec2 nu = vec2(vUv.x, mix(vUv.y, 1.0 - vUv.y, uNTo.w)); vec2 nq = uNTo.xy + nu * uNTo.z; float nd = 0.0025; vec3 nc = 0.25 * (texture2D(uNT, nq + vec2(nd, nd)).rgb + texture2D(uNT, nq + vec2(-nd, nd)).rgb + texture2D(uNT, nq + vec2(nd, -nd)).rgb + texture2D(uNT, nq + vec2(-nd, -nd)).rgb); nl.r = 0.8 * pow(clamp((nc.r - 0.6 * nc.b) * 1.5, 0.0, 1.0) * step(0.9 * nc.b, nc.r), 1.3); }\nfloat ey ="));
+            .replace("#include <output_fragment>", NIGHT.replace("float ey =", "if (uNTk > 0.5) { vec2 nu = vec2(vUv.x, mix(vUv.y, 1.0 - vUv.y, uNTo.w)); float nd = 0.0025; vec2 nq = clamp(uNTo.xy + nu * uNTo.z, vec2(nd + 0.002), vec2(0.998 - nd)); vec3 nc = 0.25 * (texture2D(uNT, nq + vec2(nd, nd)).rgb + texture2D(uNT, nq + vec2(-nd, nd)).rgb + texture2D(uNT, nq + vec2(nd, -nd)).rgb + texture2D(uNT, nq + vec2(-nd, -nd)).rgb); nl.r = 0.8 * pow(clamp((nc.r - 0.6 * nc.b) * 1.5, 0.0, 1.0) * step(0.9 * nc.b, nc.r), 1.3); }\nfloat ey ="));
         }
         // draw order with the stencil: detail tiles first (mark 1), then the zoom-2 backdrop where none drew (mark 1), then the base disc
         // verified: detail ref 1 Always/Replace at renderOrder z (3..19) < backdrop ref 1 NotEqual at 30 < base disc ref 1 NotEqual/Keep at 40,
@@ -1719,6 +1893,7 @@
         }
         function buildQueue() { // at most PERF.builds tile meshes per frame
           var b = 0;
+          if (BQ.length > 1) { BQ = BQ.filter(function (r) { var t = r.t; return t.g === r.g && t.st === 1 && TC.get(t.k) === t; }); BQ.sort(function (p, q) { return p.t.pr - q.t.pr; }); } // nearest first, stale dropped
           while (b < PERF.builds && BQ.length) {
             var r = BQ.shift(), t = r.t;
             if (t.g !== r.g || t.st !== 1 || !t.im || !t.el || TC.get(t.k) !== t) continue;
@@ -2671,7 +2846,7 @@
           var nr0 = Math.max(nAlt * 0.05, 1e-7), fr0 = Math.min(4000, Math.max(nAlt * 6000, 100)); // far plane well past the horizon at every altitude
           if (Math.abs(nr0 / camera.near - 1) > 0.1 || Math.abs(fr0 / camera.far - 1) > 0.1) { camera.near = nr0; camera.far = fr0; camera.updateProjectionMatrix(); }
           var akm = (cp.y - g0) * KM;
-          WU.uNLk.value = 0.12 + 0.88 * smooth(3, 25, akm); streetLights(cp, akm, now); // satellite glow gives way to street lamps
+          WU.uNLk.value = 0.12 + 0.88 * smooth(3, 25, akm); streetLights(cp, akm, now); buildings(cp, akm, now); // satellite glow gives way to street lamps
           WU.uNF.value = cp.y > 0 ? 1 - smooth(0.5, 2, akm) : 0; // moonlit floor raised below 2 km
           WU.uHz.value = Math.sqrt(2 * 6371 * Math.max(akm, 0.001) + akm * akm) / KM; WU.uHzK.value = cp.y > 0 ? 1 - smooth(50, 300, akm) : 0; // light haze at the true horizon, near the ground only
           altEl.textContent = (Math.abs(akm) < 10 ? akm.toFixed(3) : Math.abs(akm) < 1000 ? akm.toFixed(1) : Math.round(akm).toLocaleString()) + " km";
