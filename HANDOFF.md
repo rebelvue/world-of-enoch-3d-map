@@ -6,7 +6,8 @@ You are continuing work on **World of Enoch 3D Map** for Levi (David Daragiu). H
 A single-file interactive 3D web map (three.js r147, classic scripts, no build step) of the flat disc earth as described in 1 Enoch and Genesis. It works like Google Earth: photoreal, real scale, a timeline from 3382 BC to 2026.
 - Main file: `index.html` (~205 KB). Local libs: `three.min.js` and `OrbitControls.js`. Data: `borders_data.js` (window.BORDERS) and the countries files.
 - Live (Hark-hosted): https://hark.com/site/c38fa708-62d3-426e-b65f-e825840d47ac
-- To-do list with full specs: **`edit_queue.md`** (items A-V). Read it first.
+- Feature checklist (done / not done, how to verify each): **`FEATURES.md`**. Read it first.
+- Full specs per item: **`edit_queue.md`** (items A-X).
 
 ## How to take over
 1. Read `edit_queue.md`. Below you'll find the next item and the item order.
@@ -19,7 +20,7 @@ A single-file interactive 3D web map (three.js r147, classic scripts, no build s
 Done and pushed: vector historical borders, streaming Esri imagery + AWS Terrarium terrain (z19), floating origin, mobile perf profile, Sheol underworld, flame columns in the abyss, waters above the dome, seven prison stars, compass, side buttons, speed chips, selection spotlight (P).
 T3 gestures + reset + U search + fineprint removal: DONE (commit after 8115350).
 
-Next, in this order: **Q** ice wall + fast progressive load -> **D** city lights by era -> **M** wars, bombings, fires, nuclear -> **V** eclipses + Joshua 10 + Hezekiah's sundial -> **W** Creation cinematic + pre-Enoch events (4004-3382 BC) -> **C** landmarks rising and falling -> **L** ~300 historical events -> **S** OSM 3D buildings (Overpass: overpass.kumi.systems or overpass.private.coffee) -> **E-K** atmosphere, clouds, ocean, Milky Way, cinematic mode.
+Next, in this order: **Q** ice wall + fast progressive load -> **D** city lights by era -> **M** wars, bombings, fires, nuclear -> **V** eclipses + Joshua 10 + Hezekiah's sundial -> **W** Creation cinematic + pre-Enoch events (4004-3382 BC) -> **C** landmarks rising and falling -> **L** ~300 historical events -> **S** OSM 3D buildings (Overpass: overpass.kumi.systems or overpass.private.coffee) -> **E-K** + **X** (motion blur/shake) atmosphere, clouds, ocean, Milky Way, cinematic mode.
 
 ## Hard rules (Levi's)
 - **Real scale only.** R = 10 units = 20,015 km. No relief exaggeration.

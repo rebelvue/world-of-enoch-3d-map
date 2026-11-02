@@ -73,3 +73,6 @@ Cards cite the verse/source. Small separate edit after T3.
 
 ## M addendum (Levi 2026-11-02 02:51 "don't forget city lights, wars, bombings, fires")
 Great fires: Rome AD 64, London 2-6 Sep 1666, Chicago 8-10 Oct 1871, San Francisco 1906, Tokyo firebombing 9-10 Mar 1945, Hamburg 1943. Priority order after T3: Q, D (city lights), M (wars/bombings/fires/nuclear), V (eclipses), C, L, S.
+
+## X - Camera feel (Levi 2026-11-02 02:59)
+Motion blur (velocity-based screen-space, mobile-cheap) + subtle camera micro-jitter/shake scaled by pinch speed and zoom distance (Perlin noise, decays ~0.3 s, off when still; never on idle). Toggle in menu. Goes with E (atmosphere) and F (volumetric clouds you can fly through, haze layers, fog by altitude).
