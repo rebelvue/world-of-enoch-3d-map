@@ -56,8 +56,8 @@ Last updated: 2026-11-02 03:05 EET.
 - [x] "Interpretive model" fineprint removed; only "(c) Esri" in menu - grep = 0
 - [x] Minimal glass UI, no text selection on iOS
 - [x] Hide/show controls: eye button under reset, H key, menu entry - grep `uiHidden`
-- [ ] Fix: search icon overlapping menu icon (in progress, edit -10)
-- [ ] Default load view should be top-down, disc ~80% of screen (currently tilted/far) - check
+- [x] Fix: search icon overlapping menu icon (verified 320/390/1440 px)
+- [x] Default load view top-down, disc ~80% of screen; waters above thin when looking straight down - grep `wTop`
 
 ## Cinematic / look
 - [ ] Atmosphere scattering, soft terminator, AO [E]
