@@ -308,6 +308,7 @@
         }
         function setYear(y) {
           yF = y = Math.max(Y0, Math.min(Y1, y));
+          if (typeof SN !== 'undefined' && SN) { var bi0 = 0; while (bi0 < SN.length - 1 && SN[bi0 + 1] <= y) bi0++; lastBI = bi0; } // borders period follows the year at once, so a tap right after a year change reads the right snapshot
           var n = Math.round(y), hit = null;
           if (n === 0) n = yearN < 0 ? 1 : -1; // no year zero
           if (n === yearN) return;
@@ -467,7 +468,7 @@
         function kick() { lastAct = performance.now(); if (!running && frameFn) { running = true; requestAnimationFrame(frameFn); } }
         window.harkKick = kick;
         var dbgDT = 0;
-        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sl: function () { var n = 0; SL.tiles.forEach(function (e) { if (e.mesh) n += e.mesh.userData.n; }); var nb = 0, bt = 0; OB.tiles.forEach(function (e) { if (e.mesh) { nb += e.mesh.userData.n; bt++; } }); var zm = 0, nv = 0, hz = {}; TC.forEach(function (t) { var k = t.z + ':' + t.st + (t.on === ST.t ? 'w' : ''); hz[k] = (hz[k] || 0) + 1; if (t.mesh && t.mesh.visible) { nv++; zm = Math.max(zm, t.z); } }); window.__hz = hz; hz.BQ = BQ.length; hz.TACT = TACT; return { tz: zm, tv: nv, st: ST.on, tq: TQ.length, tiles: SL.tiles.size, lamps: n, a: SL.U.uA.value, btiles: bt, bldg: nb }; }, scr: function (la, lo) { var p = ll(la, lo), w = new THREE.Vector3(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z).project(camera); return [(w.x + 1) / 2 * innerWidth, (1 - w.y) / 2 * innerHeight, w.z]; }, idt: function (la, lo) { var p = ll(la, lo); var i = idAt(p[0], p[1]); return [i, CI.length, i && CI[i - 1] ? CI[i - 1].n : null]; }, year: function (y) { setYear(y); kick(); }, cities: function () { return CTY.on.map(function (o) { return [o[0][0], Math.round(o[1]), Math.round(o[2]), o[0][3]]; }); }, sel: function () { return { id: sel.id, on: sel.on, name: sel.name, card: !card.hidden, info: !infoEl.hidden, txt: (card.hidden ? infoEl : card).innerText.slice(0, 200) }; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
+        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sunFor: function (d) { var sk = skyAt(skyNow() + d), rad = (90 - sk.sd) / 180 * R; return [rad * Math.sin(sk.sl), rad * Math.cos(sk.sl)]; }, sl: function () { var n = 0; SL.tiles.forEach(function (e) { if (e.mesh) n += e.mesh.userData.n; }); var nb = 0, bt = 0; OB.tiles.forEach(function (e) { if (e.mesh) { nb += e.mesh.userData.n; bt++; } }); var zm = 0, nv = 0, hz = {}; TC.forEach(function (t) { var k = t.z + ':' + t.st + (t.on === ST.t ? 'w' : ''); hz[k] = (hz[k] || 0) + 1; if (t.mesh && t.mesh.visible) { nv++; zm = Math.max(zm, t.z); } }); window.__hz = hz; hz.BQ = BQ.length; hz.TACT = TACT; return { tz: zm, tv: nv, st: ST.on, tq: TQ.length, tiles: SL.tiles.size, lamps: n, a: SL.U.uA.value, cars: (function () { var k = 0, t = 0; SL.tiles.forEach(function (e) { if (e.tr) { t++; e.tr.meshes.forEach(function (m) { if (m.visible) k += m.count; }); } }); return [k, t]; })(), carL: typeof TR !== "undefined" ? TR.lamp.opacity : 0, btiles: bt, bldg: nb }; }, scr: function (la, lo) { var p = ll(la, lo), w = new THREE.Vector3(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z).project(camera); return [(w.x + 1) / 2 * innerWidth, (1 - w.y) / 2 * innerHeight, w.z]; }, idt: function (la, lo) { var p = ll(la, lo); var i = idAt(p[0], p[1]); return [i, CI.length, i && CI[i - 1] ? CI[i - 1].n : null]; }, year: function (y) { setYear(y); kick(); }, cities: function () { return CTY.on.map(function (o) { return [o[0][0], Math.round(o[1]), Math.round(o[2]), o[0][3]]; }); }, sel: function () { return { id: sel.id, on: sel.on, name: sel.name, card: !card.hidden, info: !infoEl.hidden, txt: (card.hidden ? infoEl : card).innerText.slice(0, 200) }; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
         setInterval(function () { if (skyI === 0 && !document.hidden) kick(); }, 20000); // live sky: refresh the sun and moon while idle
         ["pointerdown", "pointerup", "wheel", "keydown", "keyup", "touchstart", "touchmove", "click", "input", "resize"].forEach(function (t) { addEventListener(t, kick, { capture: true, passive: true }); });
         addEventListener("pointermove", function (e) { if (e.buttons || e.pointerType === "touch") kick(); }, { capture: true, passive: true });
@@ -1484,7 +1485,7 @@
         // deterministically along the road centreline (no randomness): spacing and width by road class, set back ~2 m past the
         // kerb, paired on major roads, alternating on minor ones, plus a lamp at every line end (junctions), never inside a
         // building footprint (the B footprints of the same tile), one lamp per ~9 m cell. Lights are depth-tested at the lamp head.
-        var SLR = { motorway: [40, 14, 1], trunk: [38, 12, 1], primary: [32, 10, 1], secondary: [30, 9, 1], tertiary: [30, 8, 0], minor: [27, 6, 0], service: [35, 4, 0] }; // spacing m, width m, paired
+        var SLR = { motorway: [40, 14, 1], trunk: [38, 12, 1], primary: [32, 10, 1], secondary: [30, 9, 1], tertiary: [30, 8, 0], minor: [27, 6, 0] }; // spacing (service lanes skipped: they run through courtyards and under buildings) m, width m, paired
         var POLE_H = 8, POLE = (function () { // tapered pole + curved arm + lamp head, 1 m units, base at origin, arm toward +x
           function lathe(pts, y0, sx) { return new THREE.LatheGeometry(pts.map(function (p) { return new THREE.Vector2(p[0], p[1]); }), 7).translate(sx || 0, y0 || 0, 0); }
           var g1 = lathe([[0.001, 0], [0.13, 0], [0.13, 0.5], [0.085, 0.65], [0.06, POLE_H - 0.2], [0.001, POLE_H]]);
@@ -1498,7 +1499,7 @@
           return out;
         })(), POLE_MAT = new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.55, metalness: 0.6 });
         function inPolys(B, x, y) { // B: grid-indexed building rings in tile coords
-          var cell = B.g[((y / B.s) | 0) * 64 + ((x / B.s) | 0)]; if (!cell) return false;
+          if (x < 0 || y < 0 || x >= B.s * 64 || y >= B.s * 64) return false; var cell = B.g[((y / B.s) | 0) * 64 + ((x / B.s) | 0)]; if (!cell) return false;
           for (var k = 0; k < cell.length; k++) {
             var r = cell[k], ins = false;
             for (var i = 0, j = r.length - 2; i < r.length; j = i, i += 2) if ((r[i + 1] > y) !== (r[j + 1] > y) && x < (r[j] - r[i]) * (y - r[i + 1]) / (r[j + 1] - r[i + 1]) + r[i]) ins = !ins;
@@ -1511,11 +1512,12 @@
           var n = 1 << 14, cl = function (mx, my) { var lon = mx * 360 - 180, lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * my))) / DEG; return ll(lat, lon); };
           var c = cl((tx + 0.5) / n, (ty + 0.5) / n), ext = data.ext, latC = toLL(c[0], c[1])[0], mpu = 40075016 * Math.cos(latC * DEG) / n / ext; // metres per tile unit
           var B = { s: ext / 64, g: [] };
-          if (bdat) bdat.b.forEach(function (bb) { var r = bb[0][0] || bb[0]; if (!r || !r.length) return; var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (var i = 0; i < r.length; i += 2) { x0 = Math.min(x0, r[i]); x1 = Math.max(x1, r[i]); y0 = Math.min(y0, r[i + 1]); y1 = Math.max(y1, r[i + 1]); }
-            for (var gy = Math.max(0, (y0 / B.s) | 0); gy <= Math.min(63, (y1 / B.s) | 0); gy++) for (var gx = Math.max(0, (x0 / B.s) | 0); gx <= Math.min(63, (x1 / B.s) | 0); gx++) (B.g[gy * 64 + gx] = B.g[gy * 64 + gx] || []).push(r); });
+          if (bdat) bdat.b.forEach(function (bb) { /* every ring: outer rings and courtyards both reject a lamp */ (typeof bb[0][0] === 'number' ? [bb[0]] : bb[0]).forEach(function (r) { if (!r || !r.length) return; var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (var i = 0; i < r.length; i += 2) { x0 = Math.min(x0, r[i]); x1 = Math.max(x1, r[i]); y0 = Math.min(y0, r[i + 1]); y1 = Math.max(y1, r[i + 1]); }
+            for (var gy = Math.max(0, (y0 / B.s) | 0); gy <= Math.min(63, (y1 / B.s) | 0); gy++) for (var gx = Math.max(0, (x0 / B.s) | 0); gx <= Math.min(63, (x1 / B.s) | 0); gx++) (B.g[gy * 64 + gx] = B.g[gy * 64 + gx] || []).push(r); }); });
           var L = [], seen = {}, cellM = 9 / mpu;
           function put(x, y, yaw, maj) {
-            if (x < 0 || y < 0 || x >= ext || y >= ext || inPolys(B, x, y)) return;
+            if (x < 0 || y < 0 || x >= ext || y >= ext) return; var cm = 3 / mpu, hx0 = x + Math.cos(yaw) * 1.6 / mpu, hy0 = y + Math.sin(yaw) * 1.6 / mpu; // foot, head and a 3 m ring must all be clear of every footprint
+            if (inPolys(B, x, y) || inPolys(B, hx0, hy0) || inPolys(B, x + cm, y) || inPolys(B, x - cm, y) || inPolys(B, x, y + cm) || inPolys(B, x, y - cm)) return;
             var h = Math.floor(x / cellM) + "," + Math.floor(y / cellM); if (seen[h]) return; seen[h] = 1;
             L.push(x, y, yaw, maj);
           }
@@ -1563,7 +1565,7 @@
             .then(function () { SL.busy--; });
         }
         function streetLights(cp, akm, now) { // called each frame in absolute coords
-          var night = WU.uSunOn.value > 0 && Math.hypot(cp.x - WU.uSunW.value.x - ANC0.x, cp.z - WU.uSunW.value.z - ANC0.z) > 3.4;
+          var night = WU.uSunOn.value > 0 && Math.hypot(cp.x - sun.position.x, cp.z - sun.position.z) > 3.6;
           var on = cp.y > 0 && akm < 60 && night && cityU.uYear.value > 1870;
           SL.U.uA.value = on ? 1 - smooth(25, 60, akm) : 0;
           SL.U.uPx.value = ptScale.value / Math.tan(camera.fov * DEG / 2);
@@ -3126,6 +3128,7 @@
             } else if (L.vis !== false) { L.el.style.visibility = "hidden"; L.vis = false; }
             if (L.o !== op) { if (Math.abs((L.o || 0) - op) > 0.001) busy = true; L.el.style.opacity = L.o = op; }
           }
+          WU.uSunW.value.set(sun.position.x - ANC0.x, sun.position.y, sun.position.z - ANC0.z); WU.uSunV.value.copy(sun.position).applyMatrix4(camera.matrixWorldInverse); // same frame as the sun move
 
           // back to render space: the world sits at -anchor, camera and target relative to it (all in doubles)
           lastAkm = cp.y > 0 ? akm : 1e9;
