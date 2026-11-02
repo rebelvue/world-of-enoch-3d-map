@@ -66,6 +66,7 @@ Last updated: 2026-11-02 03:05 EET.
 - [ ] Bloom, flare, DOF, grain, smooth fly-to, guided tours (Creation, Flood, Babel, Exodus) [I]
 - [ ] Motion blur + camera micro-jitter/shake scaled by pinch speed and distance, toggle [X]
 - [ ] Desktop high-quality vs mobile light mode [K]
+- [ ] Overall cinematic look [Y] (Levi 2026-11-02 03:22): film-style colour grade (filmic LUT, teal/amber split), soft vignette, anamorphic lens feel (subtle chromatic aberration at edges, horizontal flare on sun), golden-hour/blue-hour lighting emphasis, light god-rays through clouds, fine film grain, letterbox option for tours; tasteful, never glare; toggle + mobile-light fallback
 
 ## Known bugs fixed
 - [x] 2026-11-02 03:00 black screen: `var hv` overwrote heightmap `function hv()` -> renamed to `hvA` (edit -10). Test in headless Chromium: earth renders.

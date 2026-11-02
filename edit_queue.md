@@ -76,3 +76,6 @@ Great fires: Rome AD 64, London 2-6 Sep 1666, Chicago 8-10 Oct 1871, San Francis
 
 ## X - Camera feel (Levi 2026-11-02 02:59)
 Motion blur (velocity-based screen-space, mobile-cheap) + subtle camera micro-jitter/shake scaled by pinch speed and zoom distance (Perlin noise, decays ~0.3 s, off when still; never on idle). Toggle in menu. Goes with E (atmosphere) and F (volumetric clouds you can fly through, haze layers, fog by altitude).
+
+## Y - Overall cinematic look (Levi 03:22)
+Film colour grade/LUT, vignette, anamorphic flare + edge CA, golden/blue hour emphasis, god-rays, grain, letterbox for tours. Toggle, mobile fallback. Pair with E/I/X.
