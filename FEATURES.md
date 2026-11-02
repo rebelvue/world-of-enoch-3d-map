@@ -71,3 +71,7 @@ Last updated: 2026-11-02 03:05 EET.
 
 ## Known bugs fixed
 - [x] 2026-11-02 03:00 black screen: `var hv` overwrote heightmap `function hv()` -> renamed to `hvA` (edit -10). Test in headless Chromium: earth renders.
+
+## D: city lights by era (done)
+- About 150 hand-dated cities plus 7,300 Natural Earth towns (public domain, towns_data.js loaded lazily) light up the night side as additive points with soft halos.
+- Before electricity there are only faint lamps in old cities. Grids come on from each region's electrification year and spread into the suburbs until about 1970. Each light switches on at its own moment as dusk passes.

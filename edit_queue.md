@@ -2,7 +2,7 @@
 A (running): rendering fixes, lighting, sun/moon/stars, ice cliff, Sheol/pillars
 B: same photoreal map all years (drop supercontinent/Peleg morph); waters above dome + windows of heaven at Flood; stars only inside dome; 7 prison stars beyond abyss; Google-Earth-style touch controls (1-finger pan, pinch zoom, 2-finger rotate/tilt), joystick optional
 C: landmarks rise/fall with timeline, Civ VII oversized, build-up/destruction anims
-D: time controls: timeline speed chooser; sky sim speed: 24h cycle, real system time, faster options; city lights switch on progressively at dusk, off progressively at morning; lights by era: none before ~1880 (oil lamps/fires as faint warm dots only in cities before), electric from 1880s in early cities (London, NYC, Paris), spread by region/era through 20th c., full modern by ~1970
+D (city lights DONE; speed chooser was already there): time controls: timeline speed chooser; sky sim speed: 24h cycle, real system time, faster options; city lights switch on progressively at dusk, off progressively at morning; lights by era: none before ~1880 (oil lamps/fires as faint warm dots only in cities before), electric from 1880s in early cities (London, NYC, Paris), spread by region/era through 20th c., full modern by ~1970
 E: atmosphere scattering, volumetric clouds+shadows, soft terminator, moonlit blue night + water reflections, AO
 F: ocean depth colour/foam/waves, rivers sheen
 G: detail textures by slope/altitude, snow, seasons by sun gates, trees low altitude
