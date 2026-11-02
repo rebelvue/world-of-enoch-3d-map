@@ -51,3 +51,15 @@ T+. (Levi 02:01) Luminaries speed control (sun/moon/stars): fold into T. A compa
 ## P (updated 02:31, e76b1a20 + 250e0cd8) - next after T2
 - Selected country/polity: full colour + glowing border; everything else desaturated+dimmed. Must work at EVERY altitude and over streamed Esri tiles (apply in tile shader via id map / polity polygons, not only base disc), modern and historical polities.
 - Countries and Cities label switches ON by default.
+
+## T3 (f69a5bcf, 02:37) - replace T2 with the Google Earth / Apple Maps standard ("see what others do"). Dispatch after P.
+- Key: ground-anchored ("grab the earth"): at gesture start raycast the finger(s) to the ground (tiles/terrain, else y=0 plane); every frame solve the camera so that ground point stays exactly under the finger(s). No velocity-based truck.
+- 1 finger drag: pan (anchored). Fling = inertia, decays ~0.9s.
+- 2 finger pinch: zoom toward the pinch centroid ground point (point stays under fingers). Restores zoom.
+- 2 finger twist: rotate heading about the centroid ground point.
+- 2 finger parallel vertical drag: tilt (pitch) about the centroid ground point; up = more oblique, down = top-down.
+- Pinch/twist/tilt can combine in one gesture (Google Earth), with tilt gated by parallel-movement test.
+- Double-tap: zoom in 2x at tapped point (animated). Two-finger tap: zoom out 2x. One-finger double-tap-and-drag up/down: continuous zoom.
+- Desktop: left drag pan, wheel zoom to cursor, right drag / ctrl drag = rotate+tilt.
+- Compass tap: heading to north, keep tilt. NEW view reset button (glass, under compass): animate 1.2s to default view (top-down, north/lon0 down, whole disc ~80% screen).
+- Keep: max zoom-out clamp disc >=25% screen, 20 m floor with target lifted, side buttons, no text selection.

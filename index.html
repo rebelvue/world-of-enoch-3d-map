@@ -139,9 +139,9 @@
         <p class="x-h">Labels</p>
         <div>
           <button class="x-tog" type="button" data-l="reg" aria-pressed="true">Continents / regions</button>
-          <button class="x-tog" type="button" data-l="cty" aria-pressed="false">Countries</button>
+          <button class="x-tog" type="button" data-l="cty" aria-pressed="true">Countries</button>
           <button class="x-tog" type="button" data-l="bib" aria-pressed="true">Biblical places</button>
-          <button class="x-tog" type="button" data-l="city" aria-pressed="false">Cities</button>
+          <button class="x-tog" type="button" data-l="city" aria-pressed="true">Cities</button>
           <button class="x-tog" type="button" data-l="enoch" aria-pressed="false">Enoch markers</button>
           <button class="x-tog" type="button" data-l="ev" aria-pressed="true">Event captions</button>
         </div>
@@ -239,7 +239,7 @@
 
         // UI first, so captions fill even if WebGL fails
         var show = { dome: true, sky: true, borders: true, winds: true, cities: true }, playing = true;
-        var lab = { reg: true, cty: false, bib: true, city: false, enoch: false, ev: true }, labSaved = null;
+        var lab = { reg: true, cty: true, bib: true, city: true, enoch: false, ev: true }, labSaved = null; // Countries and Cities on by default
         // timeline: one year per step, 3382 BC (AM 622, Ussher) to AD 2026
         var era = $("era"), Y0 = -3382, Y1 = 2026, yF = Y0, yearN = Y0, verseT = 0, tlPlay = false, tlSpeed = 10, tlBtn = $("tl-play");
         function fmtY(n) { return n < 0 ? -n + " BC" : "AD " + n; }
@@ -497,7 +497,22 @@
         tg.boundingSphere = new THREE.Sphere(V(0, 0, 0), R + 0.1);
         var idT = tex("ids");
         idT.magFilter = idT.minFilter = THREE.NearestFilter; idT.generateMipmaps = false; idT.anisotropy = 1;
-        var uni = { uIds: { value: idT }, uSel: { value: -1 }, uSelK: { value: 0 }, uMix: { value: 1 } }; // one map for every year: today's imagery and relief
+        // selection mask: 2048² over the disc (u = 0.5 + x / 20, v = 0.5 + z / 20), red = share of the texel inside the selected country or polity
+        var SM = 2048, smD = new Uint8Array(SM * SM * 4), smT = new THREE.DataTexture(smD, SM, SM, THREE.RGBAFormat);
+        smT.magFilter = smT.minFilter = THREE.LinearFilter; smT.generateMipmaps = false; smT.flipY = false; smT.needsUpdate = true;
+        // the previous period's mask, cross-faded into smT over ~0.3 s (uSelF 0 -> 1) whenever the selection's snapshot changes
+        var smPD = new Uint8Array(SM * SM * 4), smP = new THREE.DataTexture(smPD, SM, SM, THREE.RGBAFormat);
+        smP.magFilter = smP.minFilter = THREE.LinearFilter; smP.generateMipmaps = false; smP.flipY = false; smP.needsUpdate = true;
+        var uni = { uIds: { value: idT }, uSel: { value: -1 }, uSelK: { value: 0 }, uSelM: { value: smT }, uSelP: { value: smP }, uSelF: { value: 1 }, uAnc: { value: new THREE.Vector2() }, uMix: { value: 1 } }; // one map for every year: today's imagery and relief
+        // selection spotlight, shared by the base disc and every streamed tile: sampled at the fragment's absolute disc x,z (render pos + anchor).
+        // inside: full colour, slightly brighter; outside: ~85% desaturated, ~45% dimmed; a 2-4 px screen-space warm-white glow on the edge
+        var SELP = "uniform float uSelK, uSelF; uniform sampler2D uSelM, uSelP; uniform vec2 uAnc;\n";
+        var SELF = "\nfloat selG = 0.0; if ( uSelK > 0.001 ) { vec2 sUv = ( vWP.xz + uAnc ) / 20.0 + 0.5; float sm = mix( texture2D( uSelP, sUv ).r, texture2D( uSelM, sUv ).r, uSelF );" + // the blended mask morphs the edge, and the glow follows it
+          " float sd = ( sm - 0.5 ) / max( fwidth( sm ), 1e-4 ); float inS = clamp( sd + 0.5, 0.0, 1.0 );" + // sd: signed distance to the edge, in screen pixels
+          " float lum = dot( diffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) ); vec3 dimC = mix( diffuseColor.rgb, vec3( lum ), 0.85 ) * 0.55;" +
+          " diffuseColor.rgb = mix( diffuseColor.rgb, mix( dimC, min( diffuseColor.rgb * 1.08, vec3( 1.0 ) ), inS ), uSelK );" +
+          " selG = exp( -sd * sd / 6.0 ) * uSelK; }";
+        var SELE = "\ntotalEmissiveRadiance += vec3( 1.0, 0.93, 0.8 ) * selG * 0.9;";
         // border snapshots; 2020 stands for BORDERS.modern. Vector lines are built on first use
         var SN = [-2000, -1500, -1000, -700, -500, -323, -200, -1, 200, 400, 600, 800, 1000, 1200, 1279, 1400, 1492, 1600, 1700, 1800, 1880, 1914, 1938, 1945, 1960, 1994, 2010, 2020], lastBI = -1;
         // animated water, shared by the base disc and streamed tiles
@@ -536,18 +551,15 @@
             "float dF = (1.0 - uFlat * (1.0 - smoothstep(uFR, 2.0 * uFR, distance(transformed.xz, uFC)))) * smoothstep(0.25, 0.4, 10.0 - length(transformed.xz));\n" +
             C.displacementmap_vertex.split("displacementScale").join("displacementScale * dF"))
             .replace("#include <project_vertex>", "#include <project_vertex>" + WVM);
-          sh.fragmentShader = "uniform float uSel, uSelK; uniform sampler2D uIds;\nfloat sid( vec2 uv ) { vec3 c = texture2D( uIds, uv ).rgb; return floor( c.r * 255.0 + 0.5 ) + floor( c.g * 255.0 + 0.5 ) * 256.0; }\n" + WFP + sh.fragmentShader
+          sh.fragmentShader = SELP + WFP + sh.fragmentShader
             .replace("#include <map_fragment>", "#include <map_fragment>" +
-              "\nwat = wmask(diffuseColor.rgb); float fo = 0.0; for (int i = 0; i < 4; i++) { vec2 o = vec2(i == 0 ? 1.0 : i == 1 ? -1.0 : 0.0, i == 2 ? 1.0 : i == 3 ? -1.0 : 0.0) * 0.0004; fo += wmask(texture2D(map, vUv + o).rgb); } foam = 0.5 * clamp(1.0 - fo / 4.0, 0.0, 1.0);" + WFC +
-              "\nfloat selG = 0.0; if ( uSelK > 0.001 ) { float inS = step( abs( sid( vUv ) - uSel ), 0.5 ), m1 = 0.0, m2 = 0.0; for ( int i = 0; i < 8; i++ ) { vec2 o = vec2( cos( float( i ) * 0.7854 ), sin( float( i ) * 0.7854 ) ) / 4096.0;" +
-              " m1 += step( abs( sid( vUv + o * 2.5 ) - uSel ), 0.5 ); m2 += step( abs( sid( vUv + o * 7.0 ) - uSel ), 0.5 ); }" +
-              " float lum = dot( diffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) ); diffuseColor.rgb = mix( diffuseColor.rgb, mix( diffuseColor.rgb, vec3( lum ), 0.75 ) * 0.35, ( 1.0 - inS ) * uSelK );" +
-              " selG = ( abs( inS - m1 / 8.0 ) * 0.65 + abs( inS - m2 / 8.0 ) * 0.35 ) * uSelK; }")
-            .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3( 1.0, 0.66, 0.3 ) * selG;" + WFE)
+              "\nwat = wmask(diffuseColor.rgb); float fo = 0.0; for (int i = 0; i < 4; i++) { vec2 o = vec2(i == 0 ? 1.0 : i == 1 ? -1.0 : 0.0, i == 2 ? 1.0 : i == 3 ? -1.0 : 0.0) * 0.0004; fo += wmask(texture2D(map, vUv + o).rgb); } foam = 0.5 * clamp(1.0 - fo / 4.0, 0.0, 1.0);" + WFC + SELF)
+            .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>" + SELE + WFE)
             .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>" + WFR)
             .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + WFN)
             .replace("#include <output_fragment>", NIGHT);
         };
+        if (terrMat.extensions) terrMat.extensions.derivatives = true; // fwidth() for the selection glow on WebGL1
         uni.uFlat = { value: 0 }; uni.uFC = { value: new THREE.Vector2() }; uni.uFR = { value: 1000 };
         // drawn after the streamed tiles and only where none drew (stencil), so the coarse disc never shows through imagery
         terrMat.stencilWrite = true; terrMat.stencilRef = 1; terrMat.stencilFunc = THREE.NotEqualStencilFunc;
@@ -1324,7 +1336,7 @@
         var POL = {}, CI = [];
         try { POL = JSON.parse($("polities").textContent || "{}"); } catch (err) {}
         try { CI = JSON.parse($("cinfo").textContent || "[]"); } catch (err) {}
-        // country names (today), historical polities (per border snapshot) and cities: off by default
+        // country names (today), historical polities (per border snapshot) and cities: on by default
         CI.forEach(function (c) { var p = ll(c.lat, c.lon); add(c.n, p[0], p[1], "K", "x-label--pol"); });
         Object.keys(POL).forEach(function (k) { POL[k].forEach(function (d) { var p = ll(d[1], d[2]); add(d[0], p[0], p[1], "P", "x-label--pol").yr = +k; }); });
         CITIES.forEach(function (c) { var p = ll(c[1], c[2]); add(c[0], p[0], p[1], "C", "x-label--city"); });
@@ -1432,12 +1444,13 @@
         function cancel(t) { if (t.st === 1) { kill(t.rq); t.g++; t.st = 0; if (isBM(t.im)) t.im.close(); t.im = t.el = null; } }
         function tileOBC(sh) {
           Object.assign(sh.uniforms, WU); sh.uniforms.uFoam = this.userData.f;
+          sh.uniforms.uSelK = uni.uSelK; sh.uniforms.uSelM = uni.uSelM; sh.uniforms.uSelP = uni.uSelP; sh.uniforms.uSelF = uni.uSelF; sh.uniforms.uAnc = uni.uAnc; // the same selection spotlight as the base disc
           sh.vertexShader = "attribute float aW; varying float vW;\n" + WVP + sh.vertexShader.replace("#include <project_vertex>", "#include <project_vertex>\nvW = aW;" + WVM);
-          sh.fragmentShader = "uniform float uFoam; varying float vW;\n" + WFP + sh.fragmentShader
-            .replace("#include <map_fragment>", "#include <map_fragment>\nwat = max(vW, wmask(diffuseColor.rgb)); foam = uFoam * smoothstep(0.15, 0.55, vW) * (1.0 - smoothstep(0.6, 0.98, vW));" + WFC)
+          sh.fragmentShader = "uniform float uFoam; varying float vW;\n" + SELP + WFP + sh.fragmentShader
+            .replace("#include <map_fragment>", "#include <map_fragment>\nwat = max(vW, wmask(diffuseColor.rgb)); foam = uFoam * smoothstep(0.15, 0.55, vW) * (1.0 - smoothstep(0.6, 0.98, vW));" + WFC + SELF)
             .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>" + WFR)
             .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + WFN)
-            .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>" + WFE)
+            .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>" + SELE + WFE)
             .replace("#include <output_fragment>", NIGHT);
         }
         // draw order with the stencil: detail tiles first (mark 1), then the zoom-2 backdrop where none drew (mark 1), then the base disc
@@ -1506,6 +1519,7 @@
           // double-sided so skirts seen from either side seal LOD cracks: no black slivers of void at the horizon
           var mat = new THREE.MeshStandardMaterial({ map: tx, roughness: 1, metalness: 0, side: THREE.DoubleSide, transparent: false, opacity: 1, depthWrite: true }); // opaque: nothing beneath the disc shows through
           mat.userData.f = { value: smooth(11, 14, t.z) }; mat.onBeforeCompile = tileOBC;
+          if (mat.extensions) mat.extensions.derivatives = true; // fwidth() for the selection glow on WebGL1
           tStencil(mat, false);
           // tile centre in absolute coords; the world group's -anchor makes its render position (c - anchor), computed in doubles.
           // a fixed, altitude-independent lift (~1 m) replaces polygonOffset against the base disc
@@ -1932,9 +1946,10 @@
         function flag(iso) { return /^[A-Z]{2}$/.test(iso || "") ? String.fromCodePoint(127397 + iso.charCodeAt(0), 127397 + iso.charCodeAt(1)) + " " : ""; }
         function showCard(name, formal, rows, x, z, fl) {
           $("card-name").textContent = (fl || "") + name; $("card-formal").textContent = formal;
-          var dl = $("card-dl"); dl.textContent = "";
-          rows.forEach(function (r) { var t = document.createElement("dt"), d = document.createElement("dd"); t.textContent = r[0]; d.textContent = r[1]; dl.append(t, d); });
+          var dl = $("card-dl"); dl.textContent = ""; sel.ys = null; sel.yr = yearN;
+          rows.forEach(function (r) { var t = document.createElement("dt"), d = document.createElement("dd"); t.textContent = r[0]; d.textContent = r[1]; dl.append(t, d); if (r[0] === "Year shown") sel.ys = d; });
           infoEl.hidden = true; card.hidden = false;
+          if (x == null) return; // "Not yet established": no label, the name of the last polity is kept for the next period
           selLabel.el.textContent = name;
           selLabel.p.set(x, 0.003, z); sel.on = true; sel.name = name;
         }
@@ -1943,24 +1958,76 @@
           if (L.pk !== sel.key) { L.pk = sel.key; L.pn = nearPol(sel.key, L.p.x, L.p.z); }
           return L.pn === sel.name;
         }
-        function clearSel() { sel.on = false; card.hidden = true; }
-        $("card-x").addEventListener("click", clearSel);
-        window.onInfo = clearSel;
-        function selectAt(x, z) {
-          var id = idAt(x, z);
-          if (!id) return clearSel();
-          if (yearN >= 1945) {
-            var c = CI[id - 1]; if (!c) return clearSel();
-            var p = ll(c.lat, c.lon);
-            sel.id = id; uni.uSel.value = id; bSel(id);
-            showCard(c.n, c.f || c.n, [["Region", c.c + " / " + c.s], ["Population", fmtN(c.pop) + " (" + c.py + ")"], ["GDP", "$" + (c.gdp / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 }) + " billion (" + c.gy + ")"]], p[0], p[1], flag(c.iso));
-          } else {
-            var key = SN[Math.max(0, lastBI)], list = POL[key === 2020 ? 2010 : key] || [], best = null, bd = 1e9;
-            list.forEach(function (d) { var q = ll(d[1], d[2]), dd = Math.hypot(q[0] - x, q[1] - z); if (dd < bd) { bd = dd; best = [d[0], q]; } });
-            if (!best) return clearSel();
-            sel.id = 0; bSel(0); sel.key = key === 2020 ? 2010 : key;
-            showCard(best[0], "Historical polity", [["Borders as of", fmtY(key === 2020 ? 2010 : key)], ["Year shown", fmtY(yearN)]], best[1][0], best[1][1]);
+        // selection masks, rasterised once per selection into smT (the spotlight's uSelM)
+        function selMaskId(id) { // a modern country: its texels of the id texture, 2x2 box-filtered down to 2048²
+          idAt(0, 0); if (!idCtx) return false;
+          for (var r = 0; r < SM; r++) for (var c = 0; c < SM; c++) {
+            var a = r * 2 * 4096 + c * 2;
+            smD[(r * SM + c) * 4] = ((idCtx[a] === id) + (idCtx[a + 1] === id) + (idCtx[a + 4096] === id) + (idCtx[a + 4097] === id)) * 63.75 | 0;
           }
+          smT.needsUpdate = true; return true;
+        }
+        function selMaskPol(bk, x, z) { // a historical polity: the snapshot's border lines and the coast as walls, flood-filled from the tapped point
+          idAt(0, 0); if (!idCtx) return false;
+          var N = SM * SM, B = new Uint8Array(N), M = new Uint8Array(N), st = new Int32Array(N), sp = 0, i, r, c;
+          for (r = 0; r < SM; r++) for (c = 0; c < SM; c++) if (!idCtx[(r * 2 + 1) * 4096 + c * 2 + 1]) B[r * SM + c] = 1; // sea
+          bSegs(bk).forEach(function (s) { // borders: 2 = wall that the fill may touch, but not cross
+            var x0 = (0.5 + s[0] / 20) * SM, y0 = (0.5 + s[1] / 20) * SM, x1 = (0.5 + s[2] / 20) * SM, y1 = (0.5 + s[3] / 20) * SM, n = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * 2) + 1;
+            for (var k = 0; k <= n; k++) { var px = Math.floor(x0 + (x1 - x0) * k / n), py = Math.floor(y0 + (y1 - y0) * k / n); if (px >= 0 && py >= 0 && px < SM && py < SM && !B[py * SM + px]) B[py * SM + px] = 2; }
+          });
+          var sx = Math.floor((0.5 + x / 20) * SM), sy = Math.floor((0.5 + z / 20) * SM), seed = -1;
+          for (var d = 0; d <= 4 && seed < 0; d++) for (var dy = -d; dy <= d && seed < 0; dy++) for (var dx = -d; dx <= d; dx++) {
+            var qx = sx + dx, qy = sy + dy; if (qx >= 0 && qy >= 0 && qx < SM && qy < SM && !B[qy * SM + qx]) { seed = qy * SM + qx; break; }
+          }
+          if (seed < 0) return false;
+          M[seed] = 1; st[sp++] = seed;
+          while (sp) { // 4-connected, so one-pixel diagonal border lines still hold
+            i = st[--sp]; c = i % SM;
+            for (var e = 0; e < 4; e++) {
+              var j = e === 0 ? (c > 0 ? i - 1 : -1) : e === 1 ? (c < SM - 1 ? i + 1 : -1) : e === 2 ? i - SM : i + SM;
+              if (j < 0 || j >= N || M[j]) continue;
+              if (B[j] === 2) M[j] = 1; else if (!B[j]) { M[j] = 1; st[sp++] = j; }
+            }
+          }
+          for (i = 0; i < N; i++) smD[i * 4] = M[i] ? 255 : 0;
+          smT.needsUpdate = true; return M; // the filled region: the polygon of the snapshot's borders that holds the point
+        }
+        function clearSel() { sel.on = false; sel.mk = false; card.hidden = true; } // the spotlight eases back out (uSelK -> 0): full colour again
+        $("card-x").addEventListener("click", clearSel);
+        window.onInfo = function () { card.hidden = true; }; // an info panel covers the card; the selection stays armed
+        // persistent selection: the tapped point (absolute disc x,z) plus the name, resolved again for every border period
+        function selKey() { if (yearN >= 1945) return "M"; var k = SN[Math.max(0, lastBI)]; return k === 2020 ? 2010 : k; }
+        function resolveSel() {
+          var k = selKey(), x = sel.x, z = sel.z, had = sel.mk && uni.uSelK.value > 0.01, id = 0, mk = false;
+          if (had) { smPD.set(smD); smP.needsUpdate = true; } // the outgoing period's mask, for the cross-fade
+          sel.key = k;
+          if (k === "M") { // from 1945 onward: the country id at the point
+            id = idAt(x, z); var c = id ? CI[id - 1] : null;
+            if (c && selMaskId(id)) {
+              mk = true; var p = ll(c.lat, c.lon); uni.uSel.value = id;
+              showCard(c.n, c.f || c.n, [["Region", c.c + " / " + c.s], ["Population", fmtN(c.pop) + " (" + c.py + ")"], ["GDP", "$" + (c.gdp / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 }) + " billion (" + c.gy + ")"], ["Borders as of", "Today"], ["Year shown", fmtY(yearN)]], p[0], p[1], flag(c.iso));
+            } else id = 0;
+          } else { // before 1945: the historical polity whose region (point-in-polygon on the snapshot's borders) holds the point
+            var M = selMaskPol(k, x, z), same = null, best = null, bd = 1e9;
+            if (M) (POL[k] || []).forEach(function (d) {
+              var q = ll(d[1], d[2]), qi = Math.floor((0.5 + q[1] / 20) * SM) * SM + Math.floor((0.5 + q[0] / 20) * SM);
+              if (!M[qi]) return; // this polity's label lies outside the region: it does not cover the point
+              if (d[0] === sel.name) same = [d[0], q]; // a polity with the same name: preferred
+              var dd = Math.hypot(q[0] - x, q[1] - z); if (dd < bd) { bd = dd; best = [d[0], q]; }
+            });
+            best = same || best;
+            if (best) { mk = true; showCard(best[0], "Historical polity", [["Borders as of", fmtY(k)], ["Year shown", fmtY(yearN)]], best[1][0], best[1][1]); }
+          }
+          if (sel.bId !== id) { bSel(id); sel.bId = id; }
+          sel.id = id; sel.mk = mk; sel.on = true;
+          if (mk && had) uni.uSelF.value = 0; // morph from the old shape to the new over ~0.3 s
+          else { if (mk) { smPD.set(smD); smP.needsUpdate = true; } else if (had) { smD.set(smPD); smT.needsUpdate = true; } uni.uSelF.value = 1; }
+          if (!mk) showCard("Not yet established", "No named polity covers this point", [["Borders as of", k === "M" ? "Today" : fmtY(k)], ["Year shown", fmtY(yearN)]]); // everything at normal colour (uSelK -> 0); stays armed
+        }
+        function selectAt(x, z) {
+          if (!idAt(x, z)) return clearSel(); // empty sea clears
+          sel.x = x; sel.z = z; sel.name = null; sel.t = tNow;
+          resolveSel(); // land with no named polity in this period arms the selection as "Not yet established"
         }
         renderer.domElement.addEventListener("pointerdown", function (ev) { down = [ev.clientX, ev.clientY, performance.now()]; });
         renderer.domElement.addEventListener("pointerup", function (ev) {
@@ -1997,7 +2064,7 @@
           }
           if (best) { openInfo(best); return; }
           infoEl.hidden = true;
-          if (gHit && Math.hypot(gHit.x + ANC0.x, gHit.z + ANC0.z) < R) selectAt(gHit.x + ANC0.x, gHit.z + ANC0.z); else clearSel(); // hit point is anchor-relative
+          if (gHit && Math.hypot(gHit.x + ANC0.x, gHit.z + ANC0.z) < R) selectAt(gHit.x + ANC0.x, gHit.z + ANC0.z); // hit point is anchor-relative; only empty sea (in selectAt) or the X clears
         });
 
         var opA = 1, opB = 0, polF = 0, cityF = 0;
@@ -2007,7 +2074,7 @@
           if (set === "B") return opB;
           if (set === "R") return cy > 0 ? smooth(0.01, 0.15, altRef) : 0;
           if (set === "prison") return 1;
-          if (set === "sel") return sel.on && cy > 0 ? 1 : 0;
+          if (set === "sel") return sel.on && sel.mk && cy > 0 ? 1 : 0; // hidden while "Not yet established"
           if (set === "K") return cy > 0 && yearN >= 1945 ? 1 : 0;
           if (set === "P") { var pk = SN[Math.max(0, lastBI)]; return cy > 0 && yearN < 1945 && L.yr === (pk === 2020 ? 2010 : pk) ? polF : 0; }
           if (set === "C") return cy > 0 ? cityF : 0;
@@ -2193,14 +2260,19 @@
           if (span > 0 && y > SN[bi]) bk = SN[bi] === 2010 ? clamp01((y - 2010) / 10) : clamp01((y - SN[nx] + span * 0.15) / (span * 0.15));
           lastBI = bi;
           bordDraw(bi, nx, bk, show.borders && cp.y > 0 ? 0.55 * polF : 0, akm);
-          if (sel.on && sel.id && yearN < 1945) clearSel();
-          uni.uSelK.value += ((sel.on && sel.id && akm > 1500 ? 1 : 0) - uni.uSelK.value) * (1 - Math.exp(-dt / 0.13)); // ~0.4 s fade; below 1500 km the gold outline alone marks it
+          if (sel.on) { // the selection persists through history: re-resolve and re-rasterise when the period changes (slider, play, scrub)
+            if (selKey() !== sel.key) { busy = true; if (tNow - (sel.t || 0) > 0.12) { sel.t = tNow; resolveSel(); } }
+            else if (sel.ys && sel.yr !== yearN) { sel.yr = yearN; sel.ys.textContent = fmtY(yearN); }
+          }
+          if (uni.uSelF.value < 1) { uni.uSelF.value = Math.min(1, uni.uSelF.value + dt / 0.3); busy = true; } // ~0.3 s cross-fade
+          uni.uSelK.value += ((sel.on && sel.mk ? 1 : 0) - uni.uSelK.value) * (1 - Math.exp(-dt / 0.13)); // ~0.4 s ease, at every altitude, on tiles and the base disc
+          uni.uAnc.value.set(ANC0.x, ANC0.z); // fragments add it to their render pos for absolute disc x,z
           cityF = show.cities ? clamp01((y - 1800) / 20) : 0;
           // decorative culling: skip glow markers outside the view, or over 1000 km away below 100 km altitude
           PM.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); frus.setFromProjectionMatrix(PM);
           var lowAlt = cp.y > 0 && akm < 100, farU = 1000 / KM;
           function cull(x, y0, z, r) { return (lowAlt && Math.hypot(x - cp.x, z - cp.z) > farU + r) || !frus.intersectsSphere(bsph.set(tmp.set(x, y0, z), r)); }
-          if (Math.abs((sel.on && sel.id && akm > 1500 ? 1 : 0) - uni.uSelK.value) > 0.002) busy = true;
+          if (Math.abs((sel.on && sel.mk ? 1 : 0) - uni.uSelK.value) > 0.002) busy = true;
 
           // sky, season, gates
           domeStars.visible = dome.visible = show.dome;
@@ -2317,7 +2389,7 @@
             if (labCheck) {
               op = (L.cat ? lab[L.cat] : L.set !== "sel" || anyLab) ? clamp01(opacityFor(L, cp.y, altRef)) : 0;
               // place names: continents far out; inside the selection when one is picked; near the center below 800 km
-              if (op > 0.01 && PLACE[L.set] && sel.on) { if (!inSel(L) || ((L.set === "K" || L.set === "P") && L.el.textContent === sel.name)) op = 0; }
+              if (op > 0.01 && PLACE[L.set] && sel.on && sel.mk) { if (!inSel(L) || ((L.set === "K" || L.set === "P") && L.el.textContent === sel.name)) op = 0; }
               else if (op > 0.01 && PLACE[L.set] && !(akm < 800) && L.set !== "R") op = 0;
               L.vb = op;
             } else op = L.vb || 0;
@@ -2327,7 +2399,7 @@
             if (op > 0.01) {
               v.copy(L.p).project(camera);
               if (v.z > 1 || v.z < -1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) op = 0;
-              else if (PLACE[L.set] && !sel.on && akm < 800 && Math.hypot(v.x * hw, v.y * hh) > nearR) op = 0;
+              else if (PLACE[L.set] && !(sel.on && sel.mk) && akm < 800 && Math.hypot(v.x * hw, v.y * hh) > nearR) op = 0;
             } else op = 0;
             if (op > 0) {
               L.el.style.transform = "translate(" + (v.x * hw + hw).toFixed(1) + "px," + (-v.y * hh + hh).toFixed(1) + "px)";
