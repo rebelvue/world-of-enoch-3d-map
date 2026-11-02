@@ -17,9 +17,9 @@ A single-file interactive 3D web map (three.js r147, classic scripts, no build s
 
 ## Status (2026-11-02 02:52 EET)
 Done and pushed: vector historical borders, streaming Esri imagery + AWS Terrarium terrain (z19), floating origin, mobile perf profile, Sheol underworld, flame columns in the abyss, waters above the dome, seven prison stars, compass, side buttons, speed chips, selection spotlight (P).
-In progress at handoff: **T3** (Google Earth gestures + reset button under compass), **U** (search: countries/cities/continents/polities, fly-to), and removal of the "Interpretive model" fineprint. If `index.html` lacks these (grep `Interpretive model` should be 0; grep for a search button), redo them first.
+T3 gestures + reset + U search + fineprint removal: DONE (commit after 8115350).
 
-Next, in this order: **Q** ice wall + fast progressive load -> **D** city lights by era -> **M** wars, bombings, fires, nuclear -> **V** eclipses + Joshua 10 + Hezekiah's sundial -> **C** landmarks rising and falling -> **L** ~300 historical events -> **S** OSM 3D buildings (Overpass: overpass.kumi.systems or overpass.private.coffee) -> **E-K** atmosphere, clouds, ocean, Milky Way, cinematic mode.
+Next, in this order: **Q** ice wall + fast progressive load -> **D** city lights by era -> **M** wars, bombings, fires, nuclear -> **V** eclipses + Joshua 10 + Hezekiah's sundial -> **W** Creation cinematic + pre-Enoch events (4004-3382 BC) -> **C** landmarks rising and falling -> **L** ~300 historical events -> **S** OSM 3D buildings (Overpass: overpass.kumi.systems or overpass.private.coffee) -> **E-K** atmosphere, clouds, ocean, Milky Way, cinematic mode.
 
 ## Hard rules (Levi's)
 - **Real scale only.** R = 10 units = 20,015 km. No relief exaggeration.
