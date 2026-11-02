@@ -1407,20 +1407,43 @@
           req("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/" + k + ".png", { pr: t.pr - 0.5 }, function (im) { e.d = dec(im); e.w.forEach(function (f) { f(e.d); }); e.w = []; });
           if (EC.size > 120) for (var q of EC) if (q[1].d) { EC.delete(q[0]); break; }
         }
-        function elevAt(x, z) { // meters -> units, from the finest loaded elevation tile
-          var L = toLL(x, z), m = merc(L[0], L[1]);
+        function elevAtM(mx, my) { // raw meters at a Web Mercator point, from the finest loaded elevation tile (shared by elevAt and every tile vertex)
           for (var q = 15; q >= 3; q--) {
-            var n = 1 << q, tx = Math.min(n - 1, Math.floor(m[0] * n)), ty = Math.min(n - 1, Math.max(0, Math.floor(m[1] * n))), e = EC.get(q + "/" + tx + "/" + ty);
-            if (e && e.d) return Math.max(0, bil(e.d, (m[0] * n - tx) * 256 - 0.5, (m[1] * n - ty) * 256 - 0.5)) * M;
+            var n = 1 << q, tx = Math.min(n - 1, Math.max(0, Math.floor(mx * n))), ty = Math.min(n - 1, Math.max(0, Math.floor(my * n))), e = EC.get(q + "/" + tx + "/" + ty);
+            if (e && e.d) return bil(e.d, (mx * n - tx) * 256 - 0.5, (my * n - ty) * 256 - 0.5);
           }
           return null;
+        }
+        function elevAt(x, z) { // meters -> units, from the finest loaded elevation tile
+          var L = toLL(x, z), m = merc(L[0], L[1]), e = elevAtM(m[0], m[1]);
+          return e === null ? null : Math.max(0, e) * M;
+        }
+        // Esri answers z18/19 tiles it has no imagery for with a grey "Map data not yet available" placeholder: detect it (near-uniform grey)
+        var gcx = null;
+        function greyTile(im) {
+          try {
+            if (!gcx) { var c = document.createElement("canvas"); c.width = c.height = 32; gcx = c.getContext("2d", { willReadFrequently: true }); }
+            gcx.clearRect(0, 0, 32, 32); gcx.drawImage(im, 0, 0, 32, 32);
+            var d = gcx.getImageData(0, 0, 32, 32).data, s = 0, s2 = 0, neu = 0;
+            for (var i = 0; i < d.length; i += 4) {
+              var l = (d[i] + d[i + 1] + d[i + 2]) / 3; s += l; s2 += l * l;
+              if (Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]) < 8) neu++;
+            }
+            var N = d.length / 4, mu = s / N, sd = Math.sqrt(Math.max(0, s2 / N - mu * mu));
+            return neu > N * 0.97 && sd < 18 && mu > 120;
+          } catch (err) { return false; }
         }
         function getT(z, x, y) { var k = z + "/" + x + "/" + y, t = TC.get(k); if (!t) { t = { k: k, z: z, x: x, y: y, st: 0, f: 0, g: 0, pr: 0 }; TC.set(k, t); } return t; }
         function load(t) {
           var g = ++t.g, n = 2, ze = Math.min(t.z, 15), s = 1 << (t.z - ze);
           t.st = 1;
           function done() { if (--n === 0 && t.g === g) BQ.push({ t: t, g: g }); } // built from the queue, a few per frame
-          t.rq = req("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/" + t.z + "/" + t.y + "/" + t.x, t, function (im) { if (t.g !== g) return; if (!im) { t.st = 3; return; } t.im = im; done(); });
+          t.rq = req("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/" + t.z + "/" + t.y + "/" + t.x, t, function (im) {
+            if (t.g !== g) return;
+            if (!im) { t.st = 3; return; }
+            if (t.z >= 18 && greyTile(im)) { if (isBM(im)) im.close(); t.st = 3; return; } // placeholder: mark failed, its parent stays
+            t.im = im; done();
+          });
           elev(ze + "/" + Math.floor(t.x / s) + "/" + Math.floor(t.y / s), t, function (d) { if (t.g === g) { t.el = d; done(); } });
         }
         function cancel(t) { if (t.st === 1) { kill(t.rq); t.g++; t.st = 0; if (isBM(t.im)) t.im.close(); t.im = t.el = null; } }
@@ -1435,6 +1458,8 @@
             .replace("#include <output_fragment>", NIGHT);
         }
         // draw order with the stencil: detail tiles first (mark 1), then the zoom-2 backdrop where none drew (mark 1), then the base disc
+        // verified: detail ref 1 Always/Replace at renderOrder z (3..19) < backdrop ref 1 NotEqual at 30 < base disc ref 1 NotEqual/Keep at 40,
+        // so the base disc and zoom-2 backdrop never draw where any detail tile covers
         function tStencil(mt, back) {
           mt.stencilWrite = true; mt.stencilRef = 1;
           mt.stencilFunc = back ? THREE.NotEqualStencilFunc : THREE.AlwaysStencilFunc;
@@ -1465,7 +1490,9 @@
           var G = PERF.G, n = 1 << t.z, ze = Math.min(t.z, 15), s = 1 << (t.z - ze), ex = Math.floor(t.x / s), ey = Math.floor(t.y / s), NV = G * G + 4 * G;
           var pos = new Float32Array(NV * 3), uv = new Float32Array(NV * 2), aw = new Float32Array(NV), nr = new Float32Array(NV * 3), c = ll(mlat((t.y + 0.5) / n), (t.x + 0.5) / n * 360 - 180);
           for (var j = 0; j < G; j++) for (var i = 0; i < G; i++) {
-            var u = i / (G - 1), w = j / (G - 1), p = ll(mlat((t.y + w) / n), (t.x + u) / n * 360 - 180), e = bil(t.el, ((t.x + u) / s - ex) * 256 - 0.5, ((t.y + w) / s - ey) * 256 - 0.5), v = j * G + i;
+            // every vertex samples the same finest loaded elevation tile (elevAtM, as elevAt), so shared edges of tiles of different zoom match
+            var u = i / (G - 1), w = j / (G - 1), p = ll(mlat((t.y + w) / n), (t.x + u) / n * 360 - 180), e = elevAtM((t.x + u) / n, (t.y + w) / n), v = j * G + i;
+            if (e === null) e = bil(t.el, ((t.x + u) / s - ex) * 256 - 0.5, ((t.y + w) / s - ey) * 256 - 0.5);
             pos[v * 3] = p[0] - c[0]; pos[v * 3 + 1] = Math.max(0, e) * M; pos[v * 3 + 2] = p[1] - c[1];
             uv[v * 2] = u; uv[v * 2 + 1] = 1 - w; aw[v] = e <= 0 ? 1 : 0;
           }
@@ -1478,7 +1505,8 @@
             if (ny < 0) nl = -nl;
             nr[v0 * 3] = nx / nl; nr[v0 * 3 + 1] = ny / nl; nr[v0 * 3 + 2] = nz / nl;
           }
-          var sk = Math.min(0.01, 2 * R / n * 0.05), q = G * G;
+          // skirt depth = max(50 m, tile width * 0.05) in true-scale units; skirt uvs repeat the edge uv, so they take the edge texel's colour
+          var tw = Math.hypot(pos[(G - 1) * 3] - pos[0], pos[(G - 1) * 3 + 2] - pos[2]), sk = Math.max(50 * M, tw * 0.05), q = G * G;
           [[0, 1], [G - 1, G], [G * G - 1, -1], [G * (G - 1), -G]].forEach(function (E) { // skirts hang from each edge
             for (var k = 0; k < G; k++) {
               var a = E[0] + E[1] * k, d = q + k;
@@ -1511,15 +1539,22 @@
           // tiles are always opaque; a parent fully covered by its four loaded children is skipped instead of drawn under them
           m.visible = !under; mt.opacity = 1; mt.transparent = false; mt.depthWrite = true; m.renderOrder = under ? 0 : t.z;
         }
-        function tdraw(t, dt) { // a parent stays until all four children load, and under them while they fade in
-          if (t.st === 2) { if (t.f < 1) tFading = true; t.f = t.root && BK.ok ? 1 : Math.min(1, t.f + dt / 0.4); } // roots over the backdrop need no fade
+        function tdraw(t, dt) { // only one LOD visible per area: never draw parent and child together
+          if (t.st === 2) t.f = 1; // no cross-fade at zoom >= 12 (or any zoom): tiles are opaque and swap at once
           var k = t.kids;
-          if (k && k.every(function (c) { return c.st === 2; })) {
-            var fad = false;
-            k.forEach(function (c) { tdraw(c, dt); if (c.f < 1) fad = true; });
-            if (fad && t.st === 2) tshow(t, 1);
-          } else if (t.st === 2) tshow(t, 0);
+          if (k && k.every(function (c) { return c.st === 2; })) { // hide a parent as soon as all 4 kids are built (st 2)
+            if (t.st === 2) tshow(t, 1);
+            k.forEach(function (c) { tdraw(c, dt); });
+          } else if (t.st === 2) tshow(t, 0); // kids not all built (or a kid failed): the parent alone covers the area
+          else if (k) k.forEach(function (c) { if (c.st === 2) tdraw(c, dt); }); // parent not built yet: its built kids, no overlap
         }
+        var ZMAX = 19, LODK = MOB ? 2 : 3; // max imagery zoom; split while camera distance < tile diagonal * LODK
+        function tlod(t, cp, alt) { // distance from the camera to the tile, in tile diagonals (works when tilted)
+          var n = 1 << t.z, a = ll(mlat(t.y / n), t.x / n * 360 - 180), b = ll(mlat((t.y + 1) / n), (t.x + 1) / n * 360 - 180);
+          var dg = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1e-9, h = Math.max(0, Math.hypot((a[0] + b[0]) / 2 - cp.x, (a[1] + b[1]) / 2 - cp.z) - dg / 2);
+          return Math.hypot(h, alt) / dg;
+        }
+        function kidFail(t) { for (var q = 0; q < 4; q++) { var c = TC.get((t.z + 1) + "/" + (t.x * 2 + (q & 1)) + "/" + (t.y * 2 + (q >> 1))); if (c && c.st === 3) return true; } return false; }
         function tdist(t, m) { var s = 1 << t.z, px = m[0] * s, py = m[1] * s; return Math.hypot(Math.max(t.x - px, 0, px - t.x - 1), Math.max(t.y - py, 0, py - t.y - 1)); }
         var tdir = new THREE.Vector3();
         function tupdate(cp, idle) {
@@ -1537,7 +1572,7 @@
             if (hd > lim) { hx = cp.x + (hx - cp.x) * lim / hd; hz = cp.z + (hz - cp.z) * lim / hd; }
             fx = hx; fz = hz;
           }
-          var L = toLL(fx, fz), m = merc(L[0], L[1]), zc = Math.max(3, Math.min(17, Math.round(Math.log2(40000 / Math.max(alt * KM, 0.05))) + 1)), zr = Math.max(3, zc - 2), n = 1 << zr, stamp = ++ST.t, Qd = [];
+          var L = toLL(fx, fz), m = merc(L[0], L[1]), zc = Math.max(3, Math.min(ZMAX, Math.round(Math.log2(40000 / Math.max(alt * KM, 0.05))) + 1)), zr = Math.max(3, Math.min(15, zc - 2)), n = 1 << zr, stamp = ++ST.t, Qd = [];
           var RG = PERF.ring; // 7x7 roots on desktop, 5x5 on phones
           for (var dy = -RG; dy <= RG; dy++) for (var dx = -RG; dx <= RG; dx++) {
             var ty = Math.floor(m[1] * n) + dy;
@@ -1546,14 +1581,34 @@
           Qd.forEach(function (t) { t.root = true; });
           Qd.sort(function (a, b) { return tdist(a, m) - tdist(b, m); });
           ROOTS = Qd.slice();
-          var cnt = Qd.length;
-          for (var i = 0; i < Qd.length; i++) {
-            var t = Qd[i], d = tdist(t, m);
-            t.kids = null; t.on = stamp; t.pr = (t.z - zr) * 4 + d;
-            if (t.z < zc && d < 1 && cnt + 3 <= PERF.tiles) {
-              t.kids = [0, 1, 2, 3].map(function (q) { var c = getT(t.z + 1, t.x * 2 + (q & 1), t.y * 2 + (q >> 1)); c.root = false; return c; });
-              cnt += 3; Qd.push.apply(Qd, t.kids);
-            }
+          var cnt = Qd.length, TB = PERF.tiles + (MOB ? 30 : 60), cand = [];
+          function tin(t) { t.kids = null; t.on = stamp; t.pr = (t.z - zr) * 4 + tdist(t, m); t.lr = tlod(t, cp, alt); }
+          function tsplit(t) {
+            t.kids = [0, 1, 2, 3].map(function (q) { var c = getT(t.z + 1, t.x * 2 + (q & 1), t.y * 2 + (q >> 1)); c.root = false; tin(c); return c; });
+            cnt += 3; Qd.push.apply(Qd, t.kids); return t.kids;
+          }
+          Qd.forEach(function (t) { tin(t); cand.push(t); });
+          // LOD by distance from the camera to each tile: split the nearest (in tile diagonals) first, up to ZMAX
+          while (cand.length && cnt + 3 <= TB) {
+            var bi = 0;
+            for (var ci = 1; ci < cand.length; ci++) if (cand[ci].lr < cand[bi].lr) bi = ci;
+            var t = cand[bi];
+            if (t.lr >= LODK) break;
+            cand.splice(bi, 1);
+            if (t.z < ZMAX && !kidFail(t)) cand.push.apply(cand, tsplit(t));
+          }
+          // neighbouring tiles differ by at most 1 zoom level: every tile's same-zoom neighbours must exist, so split coarse neighbours
+          var WL = Qd.slice();
+          function tinT(z, x, y) { var q = TC.get(z + "/" + x + "/" + y); return q && q.on === stamp && q.z >= zr ? q : null; }
+          while (WL.length) {
+            var w = WL.pop();
+            if (w.z <= zr) continue;
+            var nn = 1 << w.z;
+            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (D) {
+              var ny = w.y + D[1]; if (ny < 0 || ny >= nn) return;
+              var nx = ((w.x + D[0]) % nn + nn) % nn, p = tinT(w.z - 1, nx >> 1, ny >> 1);
+              if (p && !p.kids) WL.push.apply(WL, tsplit(p));
+            });
           }
           // the backdrop: all 16 zoom-2 tiles, so imagery reaches the horizon at every altitude
           if (!BK.t.length) for (var by = 0; by < 4; by++) for (var bx = 0; bx < 4; bx++) BK.t.push(getT(2, bx, by));
