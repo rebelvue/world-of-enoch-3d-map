@@ -20,7 +20,7 @@
       .x-labels, .x-label, .fineprint { pointer-events: none !important; }
       /* search: the input is the only place text can be selected */
       .x-app .x-q__in { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
-      .x-srch { right: calc(max(10px, env(safe-area-inset-right)) + var(--tap) + 8px); }
+      .x-menu.x-srch { right: calc(max(10px, env(safe-area-inset-right)) + var(--tap) + 8px); }
       .x-srch svg { width: 18px; height: 18px; }
       .x-q { position: fixed; top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: min(340px, calc(100vw - 20px)); box-sizing: border-box; border-radius: var(--r-s); z-index: 5; overflow: hidden; }
       .x-q[hidden] { display: none; }
@@ -1766,7 +1766,7 @@
         // wheel zooms to the cursor: the ground under the cursor stays under it (queued, eased in zoomStep)
         var fq = null, pts = new Map();
         stage.addEventListener("wheel", function (e) {
-          e.preventDefault(); e.stopPropagation(); mv = null; hv = null; za = null;
+          e.preventDefault(); e.stopPropagation(); mv = null; hvA = null; za = null;
           fq = { f: (fq ? fq.f : 0) + Math.max(-1, Math.min(1, e.deltaY * (e.deltaMode ? 0.05 : 0.0015))), x: e.clientX, y: e.clientY };
         }, { capture: true, passive: false });
         function altNow() { // height above the ground (or distance to it below), never under the 20 m floor
@@ -1801,20 +1801,20 @@
             if (za.t >= 1) za = null;
             on = true;
           }
-          if (hv) { // compass (north, tilt kept) and reset (default view) animations, heading/tilt/distance interpolated
-            if (hv.need) {
-              hv.need = 0; var ho = orient(), T = controls.target;
-              hv.T0 = T.clone(); hv.r0 = ho.r; hv.th0 = ho.th; hv.ph0 = ho.ph; hv.t = 0;
-              if (hv.to) { hv.T1 = hv.to.T.clone(); hv.r1 = hv.to.r; hv.ph1 = 0.002; var tq = Math.hypot(hv.T1.x, hv.T1.z); hv.th1 = tq > 1e-6 ? Math.atan2(hv.T1.x, hv.T1.z) : 0; } // search: fly to a place, top-down, north up
-              else if (hv.home) { hv.T1 = V(0, 0, 0); hv.r1 = homeDist(); hv.th1 = 0; hv.ph1 = 0.002; } // top-down, lon 0 down, disc ~80% of the screen
-              else { var tr = Math.hypot(T.x, T.z); hv.T1 = T.clone(); hv.r1 = ho.r; hv.ph1 = ho.ph; hv.th1 = tr > 1e-6 ? Math.atan2(T.x, T.z) : 0; } // north = toward the center; tilt kept
-              hv.th1 = hv.th0 + wrapA(hv.th1 - hv.th0);
+          if (hvA) { // compass (north, tilt kept) and reset (default view) animations, heading/tilt/distance interpolated
+            if (hvA.need) {
+              hvA.need = 0; var ho = orient(), T = controls.target;
+              hvA.T0 = T.clone(); hvA.r0 = ho.r; hvA.th0 = ho.th; hvA.ph0 = ho.ph; hvA.t = 0;
+              if (hvA.to) { hvA.T1 = hvA.to.T.clone(); hvA.r1 = hvA.to.r; hvA.ph1 = 0.002; var tq = Math.hypot(hvA.T1.x, hvA.T1.z); hvA.th1 = tq > 1e-6 ? Math.atan2(hvA.T1.x, hvA.T1.z) : 0; } // search: fly to a place, top-down, north up
+              else if (hvA.home) { hvA.T1 = V(0, 0, 0); hvA.r1 = homeDist(); hvA.th1 = 0; hvA.ph1 = 0.002; } // top-down, lon 0 down, disc ~80% of the screen
+              else { var tr = Math.hypot(T.x, T.z); hvA.T1 = T.clone(); hvA.r1 = ho.r; hvA.ph1 = ho.ph; hvA.th1 = tr > 1e-6 ? Math.atan2(T.x, T.z) : 0; } // north = toward the center; tilt kept
+              hvA.th1 = hvA.th0 + wrapA(hvA.th1 - hvA.th0);
             }
-            hv.t = Math.min(1, hv.t + dt / hv.dur);
-            var he = ease(hv.t);
-            controls.target.lerpVectors(hv.T0, hv.T1, he);
-            place(hv.r0 * Math.pow(hv.r1 / hv.r0, he), hv.th0 + (hv.th1 - hv.th0) * he, hv.ph0 + (hv.ph1 - hv.ph0) * he);
-            if (hv.t >= 1) hv = null;
+            hvA.t = Math.min(1, hvA.t + dt / hvA.dur);
+            var he = ease(hvA.t);
+            controls.target.lerpVectors(hvA.T0, hvA.T1, he);
+            place(hvA.r0 * Math.pow(hvA.r1 / hvA.r0, he), hvA.th0 + (hvA.th1 - hvA.th0) * he, hvA.ph0 + (hvA.ph1 - hvA.ph0) * he);
+            if (hvA.t >= 1) hvA = null;
             on = true;
           }
           return on;
@@ -1848,7 +1848,7 @@
         var gRay = new THREE.Raycaster(), gV = new THREE.Vector2(), gA = new THREE.Vector3(), gB = new THREE.Vector3(), gR = new THREE.Vector3(), gF = new THREE.Vector3();
         var gH = new THREE.Vector3(), gP = new THREE.Vector3(), gO = new THREE.Vector3(), gS0 = new THREE.Vector3(), gS1 = new THREE.Vector3();
         var ivel = { x: 0, z: 0, h: 0, t: 0, z2: 0, a: 0, hd: false }, lastMoveT = 0, inertOn = false;
-        var G1 = null, za = null, hv = null, tap = { t: 0, x: 0, y: 0 }, twoTap = null, multi = false, R_MIN = 25 * M;
+        var G1 = null, za = null, hvA = null, tap = { t: 0, x: 0, y: 0 }, twoTap = null, multi = false, R_MIN = 25 * M;
         function discX() { return camAbs ? 0 : -ANC0.x; } // the disc's center (0,0) in render coords
         function discZ() { return camAbs ? 0 : -ANC0.z; }
         function shift(dx, dz) { camera.position.x += dx; camera.position.z += dz; controls.target.x += dx; controls.target.z += dz; }
@@ -1964,13 +1964,13 @@
             solve(g.P, cx + g.ox, (g.tilt ? g.ty0 : cy) + g.oy, g.r0 * g.d0 / dd, g.th0 + g.rot, ph);
           }
         }
-        function zoomAnim(sx, sy, f) { mv = null; hv = null; za = { need: 1, sx: sx, sy: sy, f: f }; kick(); } // f 0.5 = 2x in, 2 = 2x out
+        function zoomAnim(sx, sy, f) { mv = null; hvA = null; za = { need: 1, sx: sx, sy: sy, f: f }; kick(); } // f 0.5 = 2x in, 2 = 2x out
         cvs.addEventListener("pointerdown", function (e) {
           try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
           var now = performance.now();
           if (!pts.size) { multi = false; twoTap = null; }
           pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: now, rot: e.button === 2 || e.ctrlKey });
-          mv = null; fq = null; za = null; hv = null; ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; ivel.hd = true; lastMoveT = now;
+          mv = null; fq = null; za = null; hvA = null; ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; ivel.hd = true; lastMoveT = now;
           if (pts.size > 2) twoTap = null;
           gBegin(now); kick();
         });
@@ -2001,7 +2001,7 @@
         }
         ["pointerup", "pointercancel"].forEach(function (t) { cvs.addEventListener(t, ptrEnd); });
         function inertia(dt) { // smooth exponential glide after release (never during a drag), in absolute coords inside frame()
-          if (pts.size || mv || hv || za) return false;
+          if (pts.size || mv || hvA || za) return false;
           var k = Math.exp(-dt * 3.3), on = false, dist = camera.position.distanceTo(controls.target); // fling decays in about 0.9 s
           if (Math.hypot(ivel.x, ivel.z) > dist * 0.01) { shift(ivel.x * dt, ivel.z * dt); ivel.x *= k; ivel.z *= k; on = true; } else ivel.x = ivel.z = 0;
           if (Math.abs(ivel.h) > 0.005) { if (ivel.hd) spin(ivel.h * dt, discX(), discZ()); else spin(ivel.h * dt, controls.target.x, controls.target.z); ivel.h *= k; on = true; } else ivel.h = 0;
@@ -2014,14 +2014,14 @@
         var needle = $("needle"), lastNd = 1e9;
         function northReset() {
           ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; mv = null; za = null; fq = null;
-          hv = { need: 1, dur: 0.9, home: false };
+          hvA = { need: 1, dur: 0.9, home: false };
           kick();
         }
         $("compass").addEventListener("click", northReset);
         // 7. view reset: animates over 1.2 s (ease-in-out) to the default view: top-down, lon 0 down, whole disc ~80% of the screen
         function viewReset() {
           ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; mv = null; za = null; fq = null;
-          hv = { need: 1, dur: 1.2, home: true };
+          hvA = { need: 1, dur: 1.2, home: true };
           kick();
         }
         $("home").addEventListener("click", viewReset);
@@ -2172,10 +2172,10 @@
           out.sort(function (a, b) { return a[0] - b[0] || TORD[a[1].t] - TORD[b[1].t] || a[1].n.length - b[1].n.length || (a[1].n < b[1].n ? -1 : 1); });
           return out.slice(0, Q_MAX).map(function (o) { return o[1]; });
         }
-        // the same camera path as the reset button (hv: target, distance, heading and tilt eased together), 1.5 s
+        // the same camera path as the reset button (hvA: target, distance, heading and tilt eased together), 1.5 s
         function flyTo(T, r) {
           ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; mv = null; za = null; fq = null;
-          hv = { need: 1, dur: FLY_S, to: { T: T, r: r } };
+          hvA = { need: 1, dur: FLY_S, to: { T: T, r: r } };
           kick();
         }
         function fitR(b) { // distance that fits a box of disc units in about 80% of the screen
