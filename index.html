@@ -389,7 +389,8 @@
         var stage = $("stage");
         // device profile: touch or narrow screens get a lighter pipeline
         var MOB = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window || innerWidth < 900;
-        var PERF = MOB ? { prIdle: 1.25, prMove: 1.25, tiles: 61, cache: 120, G: 24, builds: 3, net: 6, ring: 2 } : { prIdle: 2, prMove: 1.5, tiles: 121, cache: 240, G: 32, builds: 5, net: 8, ring: 3 };
+        // phones: full sharpness when idle (min(devicePixelRatio, 2.5)), 1.5 while moving; tile budget and requests raised for close range
+        var PERF = MOB ? { prIdle: 2.5, prMove: 1.5, tiles: 200, cache: 300, G: 24, builds: 3, net: 12, ring: 2 } : { prIdle: 2, prMove: 1.5, tiles: 360, cache: 520, G: 32, builds: 5, net: 16, ring: 3 };
         var DPR = window.devicePixelRatio || 1, prNow = Math.min(DPR, PERF.prIdle);
         if (THREE.ColorManagement) THREE.ColorManagement.legacyMode = false; // hex colors are sRGB
         var renderer = new THREE.WebGLRenderer({ antialias: !MOB, logarithmicDepthBuffer: true, stencil: true });
@@ -512,24 +513,27 @@
           t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = ANI; t.needsUpdate = true;
           return t;
         }
-        var WU = { uWave: { value: waveTex() }, uWO: { value: new THREE.Vector2() }, uTime: { value: 0 }, uSunV: { value: new THREE.Vector3() }, uSunW: { value: new THREE.Vector3() }, uSunOn: { value: 1 }, uSky: { value: new THREE.Color(0.32, 0.47, 0.68) } };
+        var WU = { uWave: { value: waveTex() }, uWO: { value: new THREE.Vector2() }, uTime: { value: 0 }, uSunV: { value: new THREE.Vector3() }, uSunW: { value: new THREE.Vector3() }, uSunOn: { value: 1 }, uSky: { value: new THREE.Color(0.32, 0.47, 0.68) }, uNF: { value: 0 }, uHz: { value: 1 }, uHzK: { value: 0 } };
         var WVP = "varying vec3 vWP;\n", WVM = "\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;";
-        var WFP = "uniform sampler2D uWave; uniform vec2 uWO; uniform float uTime, uSunOn; uniform vec3 uSunV, uSunW, uSky; varying vec3 vWP; float wat = 0.0, foam = 0.0;\nfloat wmask(vec3 c) { c = sqrt(max(c, 0.0)); return smoothstep(0.03, 0.09, c.b - max(c.r, c.g)) * (1.0 - smoothstep(0.45, 0.6, dot(c, vec3(0.333)))); }\n";
-        // night side: dark, cool blue (#0b1530), never black
-        var NIGHT = "\nfloat nightK = uSunOn * smoothstep(3.0, 7.0, distance(vWP.xz, uSunW.xz)) * 0.85; outgoingLight = mix(outgoingLight, diffuseColor.rgb * vec3(0.09, 0.12, 0.2) + vec3(0.0034, 0.0075, 0.03), nightK);\n#include <output_fragment>";
-        var WFC = "\nvec2 wp = vWP.xz - uWO; vec4 wa = texture2D(uWave, wp / 0.00007 + vec2(uTime * 0.03, uTime * 0.015)), wb = texture2D(uWave, wp / 0.00021 - vec2(uTime * 0.01, uTime * 0.02));" +
-          "\nfoam *= smoothstep(0.35, 0.7, wa.a * 0.6 + wb.a * 0.4); diffuseColor.rgb = mix(diffuseColor.rgb * mix(vec3(1.0), vec3(0.78, 0.88, 1.0), wat), vec3(0.9), foam * wat);\n";
+        var WFP = "uniform sampler2D uWave; uniform vec2 uWO; uniform float uTime, uSunOn, uNF, uHz, uHzK; uniform vec3 uSunV, uSunW, uSky; varying vec3 vWP; float wat = 0.0, foam = 0.0;\nfloat wmask(vec3 c) { c = sqrt(max(c, 0.0)); return smoothstep(0.03, 0.09, c.b - max(c.r, c.g)) * (1.0 - smoothstep(0.45, 0.6, dot(c, vec3(0.333)))); }\n";
+        // night side: dark, cool blue (#0b1530), never black; below 2 km (uNF) a brighter moonlit floor keeps the ground readable, still slightly blue
+        // then a light haze, only around the true horizon distance (uHz) and only near the ground (uHzK)
+        var NIGHT = "\nfloat nightK = uSunOn * smoothstep(3.0, 7.0, distance(vWP.xz, uSunW.xz)) * 0.85; outgoingLight = mix(outgoingLight, diffuseColor.rgb * mix(vec3(0.09, 0.12, 0.2), vec3(0.27, 0.32, 0.44), uNF) + mix(vec3(0.0034, 0.0075, 0.03), vec3(0.012, 0.018, 0.042), uNF), nightK);" +
+          "\nfloat hzK = uHzK * 0.3 * smoothstep(0.7, 1.3, length(vViewPosition) / uHz); outgoingLight = mix(outgoingLight, uSky * mix(0.9, 0.06, nightK / 0.85), hzK);\n#include <output_fragment>";
+        // water keeps the imagery's own colours: no blue tint, no foam line at the coast; only the wave normals below
+        var WFC = "\nvec2 wp = vWP.xz - uWO; vec4 wa = texture2D(uWave, wp / 0.00007 + vec2(uTime * 0.03, uTime * 0.015)), wb = texture2D(uWave, wp / 0.00021 - vec2(uTime * 0.01, uTime * 0.02));\n";
         var WFR = "\nroughnessFactor = mix(1.0, 0.8, wat);";
         var WFN = "\nif (wat > 0.001) { float wk = mix(0.3, 0.9, 1.0 - smoothstep(0.003, 0.06, length(vViewPosition))); vec2 wg = (wa.xy + wb.xy - 1.0) * wk; normal = normalize(mix(normal, normalize((viewMatrix * vec4(wg.x, 1.0, wg.y, 0.0)).xyz), wat)); }";
         var WFE = "\nif (wat > 0.001) { vec3 wV = normalize(vViewPosition), wL = normalize(uSunV + vViewPosition), wH = normalize(wL + wV); float fr = pow(1.0 - clamp(dot(normal, wV), 0.0, 1.0), 5.0);" +
-          " totalEmissiveRadiance += wat * uSky * (0.01 + 0.06 * fr); }"; // very subtle sky sheen, no sun glint
+          " totalEmissiveRadiance += wat * diffuseColor.rgb * 0.25 * fr; }"; // a faint grazing sheen in the water's own colour, no sun glint
         var terrMat = new THREE.MeshStandardMaterial({ map: tex("tex-today", false, true), displacementMap: tex("h-today"), displacementScale: DISP, normalMap: tex("n-today"), roughness: 1, metalness: 0, side: THREE.FrontSide });
         terrMat.onBeforeCompile = function (sh) {
           var C = THREE.ShaderChunk;
           Object.assign(sh.uniforms, uni, WU);
           // relief fades out under the ice sheet and while streamed tiles cover the view (uFlat), so no coarse facets show
-          sh.vertexShader = "uniform float uFlat;\n" + WVP + sh.vertexShader.replace("#include <displacementmap_vertex>",
-            "float dF = (1.0 - uFlat) * smoothstep(0.25, 0.4, 10.0 - length(transformed.xz));\n" +
+          // only inside the tiled area (uFC, radius uFR): beyond it, and on the rim, the base disc keeps its relief
+          sh.vertexShader = "uniform float uFlat, uFR; uniform vec2 uFC;\n" + WVP + sh.vertexShader.replace("#include <displacementmap_vertex>",
+            "float dF = (1.0 - uFlat * (1.0 - smoothstep(uFR, 2.0 * uFR, distance(transformed.xz, uFC)))) * smoothstep(0.25, 0.4, 10.0 - length(transformed.xz));\n" +
             C.displacementmap_vertex.split("displacementScale").join("displacementScale * dF"))
             .replace("#include <project_vertex>", "#include <project_vertex>" + WVM);
           sh.fragmentShader = "uniform float uSel, uSelK; uniform sampler2D uIds;\nfloat sid( vec2 uv ) { vec3 c = texture2D( uIds, uv ).rgb; return floor( c.r * 255.0 + 0.5 ) + floor( c.g * 255.0 + 0.5 ) * 256.0; }\n" + WFP + sh.fragmentShader
@@ -544,7 +548,7 @@
             .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + WFN)
             .replace("#include <output_fragment>", NIGHT);
         };
-        uni.uFlat = { value: 0 };
+        uni.uFlat = { value: 0 }; uni.uFC = { value: new THREE.Vector2() }; uni.uFR = { value: 1000 };
         // drawn after the streamed tiles and only where none drew (stencil), so the coarse disc never shows through imagery
         terrMat.stencilWrite = true; terrMat.stencilRef = 1; terrMat.stencilFunc = THREE.NotEqualStencilFunc;
         terrMat.stencilFail = terrMat.stencilZFail = terrMat.stencilZPass = THREE.KeepStencilOp;
@@ -571,10 +575,21 @@
         function hAt(x, z, m) {
           return hGrid(HT, x, z);
         }
+        function tileH(x, z) { // height of the finest tile actually drawn at (x, z), read from its own mesh; null if none
+          var L = toLL(x, z), m = merc(L[0], L[1]), G = PERF.G;
+          for (var q = ZMAX; q >= 2; q--) {
+            var n = 1 << q, tx = Math.min(n - 1, Math.max(0, Math.floor(m[0] * n))), ty = Math.min(n - 1, Math.max(0, Math.floor(m[1] * n))), t = TC.get(q + "/" + tx + "/" + ty);
+            if (!t || !t.mesh || !t.mesh.visible) continue;
+            var a = t.mesh.geometry.attributes.position.array, u = Math.min(G - 1, Math.max(0, (m[0] * n - tx) * (G - 1))), w = Math.min(G - 1, Math.max(0, (m[1] * n - ty) * (G - 1)));
+            var i = Math.min(G - 2, Math.floor(u)), j = Math.min(G - 2, Math.floor(w)), fu = u - i, fw = w - j, k = j * G + i;
+            return (a[k * 3 + 1] * (1 - fu) + a[(k + 1) * 3 + 1] * fu) * (1 - fw) + (a[(k + G) * 3 + 1] * (1 - fu) + a[(k + G + 1) * 3 + 1] * fu) * fw + t.mesh.position.y;
+          }
+          return null;
+        }
         function ground(x, z) {
           var g = null, r = Math.hypot(x, z);
-          if (ST.on) g = elevAt(x, z);
-          if (g == null) g = r < R ? hAt(x, z) * (1 - uni.uFlat.value) : 0;
+          if (ST.on) { g = tileH(x, z); if (g == null) g = elevAt(x, z); }
+          if (g == null) g = r < R ? hAt(x, z) * (1 - uni.uFlat.value * (1 - smooth(uni.uFR.value, 2 * uni.uFR.value, Math.hypot(x - uni.uFC.value.x, z - uni.uFC.value.y)))) : 0;
           if (r < R + 0.0001 && r > R - 0.41 && typeof iceAt === "function") g = Math.max(g, iceAt(x, z)); // the ice sheet
           return g;
         }
@@ -1491,7 +1506,7 @@
           // double-sided so skirts seen from either side seal LOD cracks: no black slivers of void at the horizon
           var mat = new THREE.MeshStandardMaterial({ map: tx, roughness: 1, metalness: 0, side: THREE.DoubleSide, transparent: false, opacity: 1, depthWrite: true }); // opaque: nothing beneath the disc shows through
           mat.userData.f = { value: smooth(11, 14, t.z) }; mat.onBeforeCompile = tileOBC;
-          tStencil(mat, t.z === 2);
+          tStencil(mat, false);
           // tile centre in absolute coords; the world group's -anchor makes its render position (c - anchor), computed in doubles.
           // a fixed, altitude-independent lift (~1 m) replaces polygonOffset against the base disc
           t.mesh = new THREE.Mesh(geo, mat); t.mesh.position.set(c[0], 0.0000005, c[1]); t.mesh.visible = false;
@@ -1502,35 +1517,61 @@
           if (t.mesh) { tileRoot.remove(t.mesh); t.mesh.geometry.index = null; /* keep the shared index buffer alive */ t.mesh.geometry.dispose(); var mi = t.mesh.material.map.image; t.mesh.material.map.dispose(); if (isBM(mi)) mi.close(); t.mesh.material.dispose(); }
           TC.delete(t.k);
         }
-        function tshow(t, under) {
-          var m = t.mesh, mt = m.material;
-          // tiles are always opaque; a parent fully covered by its four loaded children is skipped instead of drawn under them
-          m.visible = !under; mt.opacity = 1; mt.transparent = false; mt.depthWrite = true; m.renderOrder = under ? 0 : t.z;
+        var TFADE = 0.35; // s: a new tile fades in over the base disc or over its parent
+        function tshow(t, mode) { // 0 hidden, 1 opaque, 2 fading in (transparent, drawn after the opaque tiles and the base disc)
+          var m = t.mesh, mt = m.material, tr = mode === 2;
+          m.visible = mode > 0;
+          if (!mode) return;
+          if (mt.transparent !== tr) { mt.transparent = tr; mt.depthWrite = !tr; mt.stencilWrite = !tr; mt.needsUpdate = true; }
+          mt.opacity = tr ? t.f * t.f * (3 - 2 * t.f) : 1; m.renderOrder = tr ? 41 + t.z : t.z;
         }
-        function tdraw(t, dt) { // only one LOD visible per area: never draw parent and child together
-          if (t.st === 2) t.f = 1; // no cross-fade at zoom >= 12 (or any zoom): tiles are opaque and swap at once
-          var k = t.kids;
-          if (k && k.every(function (c) { return c.st === 2; })) { // hide a parent as soon as all 4 kids are built (st 2)
-            if (t.st === 2) tshow(t, 1);
+        function tfade(t, dt) { if (t.f < 1) { t.f = Math.min(1, t.f + dt / TFADE); tFading = true; } }
+        function tdraw(t, dt) { // the parent stays drawn until all four children are decoded and built, and while they fade in over it
+          var k = t.kids, kb = k && k.every(function (c) { return c.st === 2; });
+          if (t.st === 2) tfade(t, dt);
+          if (kb && t.st === 2 && k.some(function (c) { return c.f < 1; })) { // children fading in over their parent
+            tshow(t, t.f < 1 ? 2 : 1);
+            k.forEach(function (c) { tfade(c, dt); tshow(c, 2); });
+          } else if (kb) { // all children in: the parent steps aside
+            if (t.st === 2) tshow(t, 0);
             k.forEach(function (c) { tdraw(c, dt); });
-          } else if (t.st === 2) tshow(t, 0); // kids not all built (or a kid failed): the parent alone covers the area
-          else if (k) k.forEach(function (c) { if (c.st === 2) tdraw(c, dt); }); // parent not built yet: its built kids, no overlap
+          } else if (t.st === 2) tshow(t, t.f < 1 ? 2 : 1); // kids not all built (or a kid failed): the parent alone covers the area
+          else if (k) k.forEach(function (c) { if (c.st === 2) tdraw(c, dt); }); // parent not built yet: its built kids fade in over the base disc
         }
-        var ZMAX = 19, LODK = MOB ? 2 : 3; // max imagery zoom; split while camera distance < tile diagonal * LODK
-        function tlod(t, cp, alt) { // distance from the camera to the tile, in tile diagonals (works when tilted)
-          var n = 1 << t.z, a = ll(mlat(t.y / n), t.x / n * 360 - 180), b = ll(mlat((t.y + 1) / n), (t.x + 1) / n * 360 - 180);
-          var dg = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1e-9, h = Math.max(0, Math.hypot((a[0] + b[0]) / 2 - cp.x, (a[1] + b[1]) / 2 - cp.z) - dg / 2);
-          return Math.hypot(h, alt) / dg;
+        // screen-space LOD: split a tile while one of its imagery texels covers more than TPX screen pixels
+        var ZMAX = 19, TPX = 1.5, tfr = new THREE.Frustum(), tpm = new THREE.Matrix4(), tsph = new THREE.Sphere(), tv3 = new THREE.Vector3();
+        function tgeo(t) { // tile centre and horizontal bounding radius on the disc (cached)
+          if (t.rd) return;
+          var n = 1 << t.z, c = ll(mlat((t.y + 0.5) / n), (t.x + 0.5) / n * 360 - 180), rd = 0;
+          for (var q = 0; q < 9; q++) { var p = ll(mlat((t.y + ((q / 3) | 0) / 2) / n), (t.x + (q % 3) / 2) / n * 360 - 180); rd = Math.max(rd, Math.hypot(p[0] - c[0], p[1] - c[1])); }
+          t.cx = c[0]; t.cz = c[1]; t.rd = rd || 1e-9;
         }
         function kidFail(t) { for (var q = 0; q < 4; q++) { var c = TC.get((t.z + 1) + "/" + (t.x * 2 + (q & 1)) + "/" + (t.y * 2 + (q >> 1))); if (c && c.st === 3) return true; } return false; }
         function tdist(t, m) { var s = 1 << t.z, px = m[0] * s, py = m[1] * s; return Math.hypot(Math.max(t.x - px, 0, px - t.x - 1), Math.max(t.y - py, 0, py - t.y - 1)); }
         var tdir = new THREE.Vector3();
+        // ground low-pass for the camera floor (gLP) and the orbit target (tLP): holds within 2 m, then eases over ~0.3 s
+        var gLP = { v: null, on: false }, tLP = { v: null, on: false };
+        function gEase(s, raw, dt, snap) {
+          if (s.v === null || (snap && Math.abs(raw - s.v) > 2000 * M)) { s.v = raw; s.on = false; return raw; } // a flight or jump: no lag
+          if (!s.on && Math.abs(raw - s.v) > 2 * M) s.on = true;
+          if (s.on) { s.v += (raw - s.v) * (1 - Math.exp(-dt * 10)); if (Math.abs(raw - s.v) < 0.1 * M) s.on = false; }
+          return s.v;
+        }
         function tupdate(cp, idle) {
-          var alt = cp.y - ground(cp.x, cp.z), gy = cp.y - alt, inD = cp.y > 0 && Math.hypot(cp.x, cp.z) < R - 0.01, on = alt * KM < 3000 && inD; // streaming tiles in every year
+          var alt = cp.y - ground(cp.x, cp.z), gy = cp.y - alt, inD = cp.y > 0 && Math.hypot(cp.x, cp.z) < R - 0.01, on = cp.y > 0; // imagery tiles stream at every altitude above the disc
           camera.getWorldDirection(tdir);
           if (inD && idle && alt * KM < 3000 && tdir.y < -1e-4) { // anywhere on the disc: orbit around the surface under screen center
-            var t0 = (gy - cp.y) / tdir.y, ax = cp.x + tdir.x * t0, az = cp.z + tdir.z * t0, ay = Math.hypot(ax, az) < R ? ground(ax, az) : gy;
-            if (t0 < alt * 8 && controls.target.distanceTo(tmp.set(ax, ay, az)) > alt * 0.02) { controls.target.set(ax, ay, az); zP = 0; }
+            // the surface point is found on the view ray itself (a few plane steps), so re-centering never changes the pitch
+            var ay = gy, ax = cp.x, az = cp.z, t0 = 0, ok = true;
+            for (var it = 0; it < 4; it++) {
+              if (ay >= cp.y) { ok = false; break; }
+              t0 = (ay - cp.y) / tdir.y; ax = cp.x + tdir.x * t0; az = cp.z + tdir.z * t0;
+              var ay2 = Math.hypot(ax, az) < R ? ground(ax, az) : gy;
+              if (Math.abs(ay2 - ay) < 0.5 * M) break;
+              ay = ay2;
+            }
+            if (ok && ay < cp.y) { t0 = (ay - cp.y) / tdir.y; ax = cp.x + tdir.x * t0; az = cp.z + tdir.z * t0; }
+            if (ok && ay < cp.y && t0 < alt * 8 && controls.target.distanceTo(tmp.set(ax, ay, az)) > alt * 0.02) { controls.target.set(ax, ay, az); zP = 0; tLP.on = false; }
           }
           if (!on) { if (ST.on) TC.forEach(cancel); ST.on = false; ROOTS = []; return; }
           ST.on = true;
@@ -1540,56 +1581,52 @@
             if (hd > lim) { hx = cp.x + (hx - cp.x) * lim / hd; hz = cp.z + (hz - cp.z) * lim / hd; }
             fx = hx; fz = hz;
           }
-          var L = toLL(fx, fz), m = merc(L[0], L[1]), zc = Math.max(3, Math.min(ZMAX, Math.round(Math.log2(40000 / Math.max(alt * KM, 0.05))) + 1)), zr = Math.max(3, Math.min(15, zc - 2)), n = 1 << zr, stamp = ++ST.t, Qd = [];
-          var RG = PERF.ring; // 7x7 roots on desktop, 5x5 on phones
+          // the tiled area reaches past the true horizon (sqrt(2Rh + h^2), Earth radius), hundreds of km near the ground;
+          // root tiles are sized so a (2 RG + 1)^2 grid around the focus covers it (all 16 zoom-2 tiles from far out)
+          var akm = Math.max(alt * KM, 0.001), Dh = Math.sqrt(2 * 6371 * akm + akm * akm), Dmax = Math.max(60, Dh * 1.3), Dhu = Dh / KM;
+          var L = toLL(fx, fz), m = merc(L[0], L[1]), la = Math.max(-85, Math.min(85, L[0])), RG = PERF.ring; // 7x7 roots on desktop, 5x5 on phones
+          var nr = Math.min(360 * Math.cos(la * DEG), 2 * Math.PI * Math.max(90 - la, 1)) * 111.2 * (RG + 0.5) / Dmax;
+          var zr = Math.max(2, Math.min(15, Math.floor(Math.log2(Math.max(nr, 1))))), n = 1 << zr, stamp = ++ST.t, Qd = [], seen = {};
           for (var dy = -RG; dy <= RG; dy++) for (var dx = -RG; dx <= RG; dx++) {
-            var ty = Math.floor(m[1] * n) + dy;
-            if (ty >= 0 && ty < n) Qd.push(getT(zr, ((Math.floor(m[0] * n) + dx) % n + n) % n, ty));
+            var ty = Math.floor(m[1] * n) + dy, tx = ((Math.floor(m[0] * n) + dx) % n + n) % n;
+            if (ty >= 0 && ty < n && !seen[tx + "/" + ty]) { seen[tx + "/" + ty] = 1; Qd.push(getT(zr, tx, ty)); }
           }
           Qd.forEach(function (t) { t.root = true; });
           Qd.sort(function (a, b) { return tdist(a, m) - tdist(b, m); });
           ROOTS = Qd.slice();
           var cnt = Qd.length, TB = PERF.tiles + (MOB ? 30 : 60), cand = [];
-          function tin(t) { t.kids = null; t.on = stamp; t.pr = (t.z - zr) * 4 + tdist(t, m); t.lr = tlod(t, cp, alt); }
+          // screen px per imagery texel (tile diagonal / 256 sqrt 2), seen from the tile's nearest point, at the idle pixel ratio;
+          // tiles off screen or past the true horizon refine less, so detail goes to the foreground: z18-19 near, falling to ~z8 far
+          var PXR = innerHeight * Math.min(DPR, PERF.prIdle) / (2 * Math.tan(camera.fov * DEG / 2)), ah = Math.max(alt, 1e-7);
+          camera.updateMatrixWorld(); tpm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); tfr.setFromProjectionMatrix(tpm);
+          function tin(t) {
+            t.kids = null; t.on = stamp; tgeo(t);
+            var hd = Math.max(0, Math.hypot(t.cx - cp.x, t.cz - cp.z) - t.rd);
+            t.vis = tfr.intersectsSphere(tsph.set(tv3.set(t.cx, 0.002, t.cz), t.rd + 0.005));
+            t.sc = (t.rd / 181) * PXR / Math.hypot(hd, ah) * (t.vis ? 1 : 0.15) * (hd > Dhu ? 0.25 : 1);
+            t.pr = (t.z - zr) * 4 + tdist(t, m) + (t.vis ? 0 : 40);
+          }
           function tsplit(t) {
             t.kids = [0, 1, 2, 3].map(function (q) { var c = getT(t.z + 1, t.x * 2 + (q & 1), t.y * 2 + (q >> 1)); c.root = false; tin(c); return c; });
             cnt += 3; Qd.push.apply(Qd, t.kids); return t.kids;
           }
           Qd.forEach(function (t) { tin(t); cand.push(t); });
-          // LOD by distance from the camera to each tile: split the nearest (in tile diagonals) first, up to ZMAX
+          // split the tile with the most screen px per texel first, until every tile is at <= TPX px per texel, ZMAX, or the budget
           while (cand.length && cnt + 3 <= TB) {
             var bi = 0;
-            for (var ci = 1; ci < cand.length; ci++) if (cand[ci].lr < cand[bi].lr) bi = ci;
+            for (var ci = 1; ci < cand.length; ci++) if (cand[ci].sc > cand[bi].sc) bi = ci;
             var t = cand[bi];
-            if (t.lr >= LODK) break;
+            if (t.sc <= TPX) break;
             cand.splice(bi, 1);
             if (t.z < ZMAX && !kidFail(t)) cand.push.apply(cand, tsplit(t));
           }
-          // neighbouring tiles differ by at most 1 zoom level: every tile's same-zoom neighbours must exist, so split coarse neighbours
-          var WL = Qd.slice();
-          function tinT(z, x, y) { var q = TC.get(z + "/" + x + "/" + y); return q && q.on === stamp && q.z >= zr ? q : null; }
-          while (WL.length) {
-            var w = WL.pop();
-            if (w.z <= zr) continue;
-            var nn = 1 << w.z;
-            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (D) {
-              var ny = w.y + D[1]; if (ny < 0 || ny >= nn) return;
-              var nx = ((w.x + D[0]) % nn + nn) % nn, p = tinT(w.z - 1, nx >> 1, ny >> 1);
-              if (p && !p.kids) WL.push.apply(WL, tsplit(p));
-            });
-          }
-          // the backdrop: all 16 zoom-2 tiles, so imagery reaches the horizon at every altitude
-          if (!BK.t.length) for (var by = 0; by < 4; by++) for (var bx = 0; bx < 4; bx++) BK.t.push(getT(2, bx, by));
-          var bok = true;
-          BK.t.forEach(function (t) { t.on = stamp; t.kids = null; t.root = false; t.pr = 0.5; if (t.st !== 2 && t.st !== 3) bok = false; });
-          BK.ok = bok;
           var nl = 0;
           TC.forEach(function (t) { if (t.on === stamp) { if (!t.st) load(t); } else cancel(t); });
           ROOTS.forEach(function (t) { if (t.st === 2) nl++; });
           if (TC.size > PERF.cache) Array.from(TC.values()).filter(function (t) { return t.on !== stamp; }).sort(function (a, b) { return a.on - b.on; }).slice(0, TC.size - PERF.cache).forEach(drop);
           pump();
-          var tkm = 40075 * Math.cos(L[0] * DEG) / n; // root tile width; base disc sinks inside the ring once it is loaded
-          ST.c = [fx, fz]; ST.rad = (RG - 0.2) * tkm / KM; ST.n = nl / ROOTS.length;
+          ST.c = [fx, fz]; ST.rad = Dmax / KM; ST.n = nl / ROOTS.length;
+          uni.uFC.value.set(fx, fz); uni.uFR.value = ST.rad; // base disc relief flattens only under the tiled area
         }
 
         // vector borders from window.BORDERS: one LineSegments set per snapshot, built on first use, in 2.5-unit chunks drawn relative to their centers
@@ -1822,7 +1859,7 @@
           var k = Math.exp(-dt * 3.2), on = false, dist = camera.position.distanceTo(controls.target);
           if (Math.hypot(ivel.x, ivel.z) > dist * 0.01) { shift(ivel.x * dt, ivel.z * dt); ivel.x *= k; ivel.z *= k; on = true; } else ivel.x = ivel.z = 0;
           if (Math.abs(ivel.h) > 0.005) { spin(ivel.h * dt, controls.target.x, controls.target.z); ivel.h *= k; on = true; } else ivel.h = 0;
-          if (Math.abs(ivel.t) > 0.005) { tilt(ivel.t * dt); ivel.t *= k; on = true; } else ivel.t = 0;
+          if (Math.abs(ivel.t) > 0.03) { tilt(ivel.t * dt); ivel.t *= k; on = true; } else ivel.t = 0; // tilt inertia zeroed below 0.03 rad/s: it comes to rest
           if (Math.abs(ivel.z2) > 0.02) { zoomAt(innerWidth / 2, innerHeight / 2, ivel.z2 * dt); ivel.z2 *= k; on = true; } else ivel.z2 = 0;
           return on;
         }
@@ -2070,8 +2107,18 @@
           if (rr < R + 0.1 && cp.y > -0.25) {
             var gS = ground(cp.x, cp.z), gq = 0.00002; // also check ~40 m around, so coarse mesh triangles never clip the camera
             gS = Math.max(gS, ground(cp.x + gq, cp.z), ground(cp.x - gq, cp.z), ground(cp.x, cp.z + gq), ground(cp.x, cp.z - gq));
-            var fl = gS + 20 * M;
-            if (cp.y < fl) cp.y = fl;
+            // the floor follows the low-passed ground (tile LOD swaps no longer jolt it); a hard 2 m stop on the raw ground
+            var fl = Math.max(gEase(gLP, gS, dt, true) + 20 * M, gS + 2 * M);
+            // lift the target by the same dy, so the floor never changes the pitch
+            if (cp.y < fl) { var dyF = fl - cp.y; cp.y = fl; controls.target.y += dyF; }
+            // the target's ground height eases the same way (only a target resting on the ground, low down, outside flights and fly mode)
+            var tgv = controls.target;
+            if (!mv && !moving && Math.hypot(tgv.x, tgv.z) < R && tgv.y > -0.01 && (cp.y - gS) * KM < 50) {
+              var gT = ground(tgv.x, tgv.z);
+              if (Math.abs(gT - tgv.y) < 300 * M) { tLP.v = tgv.y; tgv.y = gEase(tLP, gT, dt, false); if (tLP.on) busy = true; }
+              else tLP.on = false;
+            }
+            if (gLP.on) busy = true;
           } else if (rr < R && cp.y <= -0.25 && cp.y > -0.53) cp.y = -0.53;
           zP = cp.distanceTo(controls.target);
           controls.update(); compassDraw();
@@ -2082,14 +2129,7 @@
           TC.forEach(function (t) { if (t.mesh) t.mesh.visible = false; });
           tFading = false;
           if (ST.on) {
-            ROOTS.forEach(function (t) { tdraw(t, dt); });
-            BK.t.forEach(function (t) {
-              if (t.st !== 2 || !t.mesh) return;
-              if (t.f < 1) tFading = true;
-              t.f = Math.min(1, t.f + dt / 0.6);
-              var mt = t.mesh.material; t.mesh.visible = true; t.mesh.renderOrder = 30;
-              mt.opacity = 1; mt.transparent = false; mt.depthWrite = true;
-            });
+            ROOTS.forEach(function (t) { tdraw(t, dt); }); // no zoom-2 backdrop: past the tiled area the base disc shows, with relief
           }
           if (tFading) busy = true;
           var stK = ST.on ? clamp01((ST.n - 0.6) / 0.3) : 0;
@@ -2109,9 +2149,11 @@
           g0 = ground(cp.x, cp.z);
           // near/far follow altitude in units (Hades: a fixed 0.1-unit reference); reprojected only when either moves by >10%
           var nAlt = cp.y < -0.25 ? 0.1 : Math.max(Math.abs(cp.y - g0), 0.000002);
-          var nr0 = Math.max(nAlt * 0.05, 1e-7), fr0 = Math.min(2000, Math.max(nAlt * 3000, 50));
+          var nr0 = Math.max(nAlt * 0.05, 1e-7), fr0 = Math.min(4000, Math.max(nAlt * 6000, 100)); // far plane well past the horizon at every altitude
           if (Math.abs(nr0 / camera.near - 1) > 0.1 || Math.abs(fr0 / camera.far - 1) > 0.1) { camera.near = nr0; camera.far = fr0; camera.updateProjectionMatrix(); }
           var akm = (cp.y - g0) * KM;
+          WU.uNF.value = cp.y > 0 ? 1 - smooth(0.5, 2, akm) : 0; // moonlit floor raised below 2 km
+          WU.uHz.value = Math.sqrt(2 * 6371 * Math.max(akm, 0.001) + akm * akm) / KM; WU.uHzK.value = cp.y > 0 ? 1 - smooth(50, 300, akm) : 0; // light haze at the true horizon, near the ground only
           altEl.textContent = (Math.abs(akm) < 10 ? akm.toFixed(3) : Math.abs(akm) < 1000 ? akm.toFixed(1) : Math.round(akm).toLocaleString()) + " km";
 
           // year -> world

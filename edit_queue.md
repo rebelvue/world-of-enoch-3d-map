@@ -37,3 +37,13 @@ T+. (Levi 02:01) Luminaries speed control (sun/moon/stars): fold into T. A compa
 - (ad6a0757, 02:09) Draw distance far, far longer: at low altitude terrain ends a few km out in a flat grey-brown band. Stream tiles out to the true horizon / hundreds of km with coarser LOD rings (z18 near, falling to z8-10 far), push camera far plane, thin fog to a light atmospheric haze only at the real horizon, base disc must show terrain relief beyond the tiled area (no flat band).
 - (7a5b11bd, 02:11) Auto stutter tilt at close zoom. Cause in the frame loop (~line 2117): the 20 m floor clamps only cp.y and leaves controls.target alone, so each push changes the pitch. ground() also jumps as tiles of different LOD load, so the camera bobs every frame. Fix: (1) when the floor lifts the camera, lift controls.target by the same dy (pitch preserved); (2) low-pass the ground estimate (ease over ~0.3 s, plus a 2 m hysteresis), using the height of the currently drawn tile only; (3) keep the target on the surface by ground(target) eased the same way; (4) zero ivel.t / tilt inertia below a small threshold so it always comes to rest.
 - (e010cf02, 02:13) At 3,238 km the view is the 4k Blue Marble base disc (~10 km/px, cloud blotches, saturated painted-blue ocean, halo coast glow) = horrible. Fix: Esri tiles stream at EVERY altitude (screen-space LOD, z3-z7 at continent range), so base disc only shows while tiles load; no clouds baked in; ocean shader must not repaint water flat blue or draw the coastline halo over imagery (keep imagery colour, subtle waves/specular-free only when close).
+
+## T2 (24ae2212, 02:27) - new touch scheme, replaces the current gesture set. Dispatch right after R2.
+- Remove orbit zoom (dolly-to-target / double-tap zoom / scroll zoom as zoom); it fights forward/back.
+- 1 finger slide down = tilt the earth up (camera pitches toward horizon); slide up = tilt earth down (toward top-down). Vertical drag = tilt only.
+- 1 finger slide left/right = truck the earth left/right (lateral camera move, speed scaled to altitude). Horizontal drag = truck only. Lock axis after 18 px by dominant direction.
+- 2 finger twist left/right = rotate the earth left/right about ONE axis only: the disc's vertical central axis (circumnavigating the flat earth). Pitch unchanged.
+- 2 finger pinch out = move forwards along view direction; pinch in = move backwards. Speed scaled to altitude. Mouse wheel = same.
+- Twist vs pinch classifier: keep scoring, lock mode per gesture.
+- Max zoom-out clamp: the whole disc model must stay >= 25% of screen size (compute from fov and disc radius R incl. ice ring); camera can't go farther.
+- Keep inertia, the 20 m floor, side buttons, compass.
