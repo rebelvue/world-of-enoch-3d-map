@@ -218,7 +218,7 @@
         <p class="x-h">Move</p>
         <p class="fineprint">Drag to pan; scroll to zoom to the cursor; right- or Ctrl-drag to turn and tilt. Touch: one finger pans, pinch zooms, twist turns, two fingers up or down tilt; double-tap zooms in, two-finger tap zooms out, double-tap and drag to zoom. WASD/arrows and Q/E fly, Shift for speed.</p>
         <p class="fineprint" style="margin-top: 12px">Biblical dates: Ussher chronology. Historical borders: aourednik/historical-basemaps (approximate).</p>
-        <p class="x-attr">© Esri</p>
+        <p class="x-attr">© Esri · NASA Black Marble · <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>
       </aside>
       <aside class="x-info x-glass" id="info" hidden aria-live="polite">
         <h3 id="info-name"></h3>
@@ -463,7 +463,8 @@
         var lastAct = 0, running = false, frameFn = null;
         function kick() { lastAct = performance.now(); if (!running && frameFn) { running = true; requestAnimationFrame(frameFn); } }
         window.harkKick = kick;
-        window.harkDbg = { fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
+        var dbgDT = 0;
+        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sl: function () { var n = 0; SL.tiles.forEach(function (e) { if (e.mesh) n += e.mesh.userData.n; }); return { tiles: SL.tiles.size, lamps: n, a: SL.U.uA.value }; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
         setInterval(function () { if (skyI === 0 && !document.hidden) kick(); }, 20000); // live sky: refresh the sun and moon while idle
         ["pointerdown", "pointerup", "wheel", "keydown", "keyup", "touchstart", "touchmove", "click", "input", "resize"].forEach(function (t) { addEventListener(t, kick, { capture: true, passive: true }); });
         addEventListener("pointermove", function (e) { if (e.buttons || e.pointerType === "touch") kick(); }, { capture: true, passive: true });
@@ -586,12 +587,16 @@
           t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = ANI; t.needsUpdate = true;
           return t;
         }
-        var WU = { uWave: { value: waveTex() }, uWO: { value: new THREE.Vector2() }, uTime: { value: 0 }, uSunV: { value: new THREE.Vector3() }, uSunW: { value: new THREE.Vector3() }, uSunOn: { value: 1 }, uSky: { value: new THREE.Color(0.32, 0.47, 0.68) }, uNF: { value: 0 }, uHz: { value: 1 }, uHzK: { value: 0 } };
+        var WU = { uWave: { value: waveTex() }, uWO: { value: new THREE.Vector2() }, uTime: { value: 0 }, uSunV: { value: new THREE.Vector3() }, uSunW: { value: new THREE.Vector3() }, uSunOn: { value: 1 }, uSky: { value: new THREE.Color(0.32, 0.47, 0.68) }, uNF: { value: 0 }, uHz: { value: 1 }, uHzK: { value: 0 }, uNL: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1) }, uNLY: { value: 2026 }, uNLk: { value: 1 }, uNLA: { value: new THREE.Vector2() } };
+        WU.uNL.value.needsUpdate = true;
         var WVP = "varying vec3 vWP;\n", WVM = "\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;";
-        var WFP = "uniform sampler2D uWave; uniform vec2 uWO; uniform float uTime, uSunOn, uNF, uHz, uHzK; uniform vec3 uSunV, uSunW, uSky; varying vec3 vWP; float wat = 0.0, foam = 0.0;\nfloat wmask(vec3 c) { c = sqrt(max(c, 0.0)); return smoothstep(0.03, 0.09, c.b - max(c.r, c.g)) * (1.0 - smoothstep(0.45, 0.6, dot(c, vec3(0.333)))); }\n";
+        var WFP = "uniform sampler2D uWave; uniform vec2 uWO; uniform float uTime, uSunOn, uNF, uHz, uHzK, uNLY, uNLk; uniform vec2 uNLA; uniform sampler2D uNL; uniform vec3 uSunV, uSunW, uSky; varying vec3 vWP; float wat = 0.0, foam = 0.0;\nfloat wmask(vec3 c) { c = sqrt(max(c, 0.0)); return smoothstep(0.03, 0.09, c.b - max(c.r, c.g)) * (1.0 - smoothstep(0.45, 0.6, dot(c, vec3(0.333)))); }\n";
         // night side: dark, cool blue (#0b1530), never black; below 2 km (uNF) a brighter moonlit floor keeps the ground readable, still slightly blue
         // then a light haze, only around the true horizon distance (uHz) and only near the ground (uHzK)
         var NIGHT = "\nfloat nightK = uSunOn * smoothstep(3.0, 7.0, distance(vWP.xz, uSunW.xz)) * 0.85; outgoingLight = mix(outgoingLight, diffuseColor.rgb * mix(vec3(0.09, 0.12, 0.2), vec3(0.27, 0.32, 0.44), uNF) + mix(vec3(0.0034, 0.0075, 0.03), vec3(0.012, 0.018, 0.042), uNF), nightK);" +
+          // D2. observed night lights (NASA Black Marble, reprojected to this disc): r = light, g = year the region got electric light
+          "\nvec4 nl = texture2D(uNL, (vWP.xz + uNLA) / 20.0 + 0.5); float ey = 1870.0 + nl.g * 120.0; float nlE = smoothstep(ey, ey + 12.0, uNLY) * mix(0.3, 1.0, smoothstep(ey, 1985.0, uNLY));" +
+          "\noutgoingLight += mix(vec3(1.0, 0.55, 0.22), vec3(1.0, 0.86, 0.66), nl.r * nl.r) * pow(nl.r, 2.4) * 1.25 * nlE * uNLk * nightK / 0.85;" +
           "\nfloat hzK = uHzK * 0.3 * smoothstep(0.7, 1.3, length(vViewPosition) / uHz); outgoingLight = mix(outgoingLight, uSky * mix(0.9, 0.06, nightK / 0.85), hzK);\n#include <output_fragment>";
         // water keeps the imagery's own colours: no blue tint, no foam line at the coast; only the wave normals below
         var WFC = "\nvec2 wp = vWP.xz - uWO; vec4 wa = texture2D(uWave, wp / 0.00007 + vec2(uTime * 0.03, uTime * 0.015)), wb = texture2D(uWave, wp / 0.00021 - vec2(uTime * 0.01, uTime * 0.02));\n";
@@ -1367,56 +1372,169 @@
             if (img.complete && img.naturalWidth) go(); else { img.addEventListener("load", go); img.addEventListener("error", rej); }
           });
         }
-        // D. city lights by era: thousands of tiny additive street-light points scattered around real cities (no geometry).
-        // Before ~1880 only faint warm lamp/fire glows in cities that already existed; electric light spreads from the 1880s
-        // (London, New York, Paris first), region by region, outward from each core; full modern spread by ~1970.
-        // Each light switches on at its own moment as dusk passes over it and off again at dawn.
+        // D2. city lights. Electric light comes from NASA Black Marble (observed VIIRS night lights, public domain), drawn in the
+        // ground shaders (NIGHT); street level adds one point per street lamp along real OpenStreetMap roads (streetLights below).
+        // Before electricity only the old cores of real cities glow faintly (lamps and fires): one soft point per city, no scatter.
         // [name, lat, lon, founded (year), electric light (year), size]
         var LIGHTS = [["London", 51.5, -0.13, 47, 1881, 3], ["Paris", 48.86, 2.35, -250, 1882, 2.6], ["New York", 40.71, -74.0, 1624, 1882, 3], ["Berlin", 52.52, 13.4, 1237, 1884, 2.2], ["Chicago", 41.88, -87.63, 1833, 1887, 2.4], ["Vienna", 48.21, 16.37, -15, 1886, 1.8], ["Milan", 45.46, 9.19, -590, 1883, 1.7], ["Rome", 41.9, 12.5, -753, 1890, 2], ["Madrid", 40.42, -3.7, 860, 1890, 1.9], ["Lisbon", 38.72, -9.14, -1000, 1895, 1.3], ["Barcelona", 41.39, 2.17, -15, 1890, 1.6], ["Amsterdam", 52.37, 4.9, 1275, 1890, 1.4], ["Brussels", 50.85, 4.35, 979, 1890, 1.4], ["Manchester", 53.48, -2.24, 79, 1890, 1.7], ["Hamburg", 53.55, 10.0, 808, 1890, 1.6], ["Munich", 48.14, 11.58, 1158, 1890, 1.4], ["Stockholm", 59.33, 18.07, 1252, 1893, 1.2], ["Copenhagen", 55.68, 12.57, 1167, 1892, 1.1], ["Oslo", 59.91, 10.75, 1040, 1895, 0.9], ["Helsinki", 60.17, 24.94, 1550, 1900, 0.9], ["Warsaw", 52.23, 21.01, 1300, 1900, 1.6], ["Prague", 50.08, 14.44, 880, 1895, 1.3], ["Budapest", 47.5, 19.04, 89, 1893, 1.5], ["Bucharest", 44.43, 26.1, 1459, 1882, 1.4], ["Timisoara", 45.75, 21.23, 1212, 1884, 0.8], ["Belgrade", 44.79, 20.45, -279, 1900, 1.1], ["Sofia", 42.7, 23.32, -500, 1900, 1.0], ["Athens", 37.98, 23.73, -1400, 1903, 1.6], ["Istanbul", 41.0, 28.98, -660, 1914, 2.5], ["Kyiv", 50.45, 30.52, 482, 1892, 1.5], ["Moscow", 55.75, 37.6, 1147, 1895, 2.7], ["St Petersburg", 59.94, 30.31, 1703, 1884, 1.9], ["Minsk", 53.9, 27.56, 1067, 1910, 1.1], ["Dublin", 53.35, -6.26, 841, 1892, 1.1], ["Glasgow", 55.86, -4.25, 550, 1893, 1.3], ["Boston", 42.36, -71.06, 1630, 1885, 1.8], ["Philadelphia", 39.95, -75.17, 1682, 1885, 1.9], ["Washington", 38.9, -77.04, 1790, 1890, 1.6], ["Detroit", 42.33, -83.05, 1701, 1890, 1.7], ["Toronto", 43.65, -79.38, 1793, 1890, 1.8], ["Montreal", 45.5, -73.57, 1642, 1890, 1.5], ["Los Angeles", 34.05, -118.24, 1781, 1900, 2.8], ["San Francisco", 37.77, -122.42, 1776, 1890, 1.7], ["Seattle", 47.61, -122.33, 1851, 1905, 1.4], ["Houston", 29.76, -95.37, 1836, 1910, 2.1], ["Dallas", 32.78, -96.8, 1841, 1910, 2.0], ["Atlanta", 33.75, -84.39, 1837, 1905, 1.7], ["Miami", 25.76, -80.19, 1896, 1915, 1.7], ["Denver", 39.74, -104.99, 1858, 1905, 1.3], ["Phoenix", 33.45, -112.07, 1868, 1920, 1.6], ["Vancouver", 49.28, -123.12, 1886, 1905, 1.2], ["Mexico City", 19.43, -99.13, 1325, 1900, 2.8], ["Guadalajara", 20.67, -103.35, 1542, 1920, 1.4], ["Havana", 23.11, -82.37, 1519, 1905, 1.2], ["Bogota", 4.71, -74.07, 1538, 1910, 1.8], ["Caracas", 10.48, -66.9, 1567, 1910, 1.5], ["Lima", -12.05, -77.04, 1535, 1910, 1.9], ["Quito", -0.18, -78.47, 1534, 1920, 1.1], ["Santiago", -33.45, -70.67, 1541, 1905, 1.8], ["Buenos Aires", -34.6, -58.38, 1580, 1890, 2.6], ["Montevideo", -34.9, -56.16, 1724, 1900, 1.1], ["Sao Paulo", -23.55, -46.63, 1554, 1905, 3], ["Rio de Janeiro", -22.91, -43.17, 1565, 1905, 2.3], ["Belo Horizonte", -19.92, -43.94, 1897, 1925, 1.4], ["Brasilia", -15.79, -47.88, 1960, 1960, 1.2], ["Recife", -8.05, -34.88, 1537, 1920, 1.2], ["Cairo", 30.04, 31.24, -3000, 1905, 2.6], ["Alexandria", 31.2, 29.92, -331, 1905, 1.5], ["Casablanca", 33.57, -7.59, -700, 1925, 1.4], ["Algiers", 36.75, 3.06, -1200, 1920, 1.3], ["Tunis", 36.81, 10.18, -800, 1920, 1.0], ["Tripoli", 32.89, 13.19, -700, 1930, 0.9], ["Khartoum", 15.5, 32.56, 1821, 1940, 1.3], ["Addis Ababa", 9.03, 38.74, 1886, 1940, 1.3], ["Nairobi", -1.29, 36.82, 1899, 1930, 1.3], ["Dar es Salaam", -6.79, 39.21, 1862, 1935, 1.3], ["Kinshasa", -4.44, 15.27, 1881, 1935, 1.8], ["Luanda", -8.84, 13.23, 1576, 1940, 1.4], ["Lagos", 6.52, 3.38, 1472, 1925, 2.2], ["Accra", 5.6, -0.19, 1650, 1930, 1.2], ["Abidjan", 5.36, -4.01, 1898, 1940, 1.3], ["Dakar", 14.72, -17.47, 1857, 1925, 1.1], ["Johannesburg", -26.2, 28.05, 1886, 1900, 2.0], ["Cape Town", -33.92, 18.42, 1652, 1895, 1.4], ["Durban", -29.86, 31.02, 1835, 1905, 1.2], ["Harare", -17.83, 31.05, 1890, 1930, 0.9], ["Jerusalem", 31.78, 35.22, -3000, 1920, 0.9], ["Damascus", 33.51, 36.29, -3000, 1910, 1.3], ["Beirut", 33.89, 35.5, -3000, 1910, 1.0], ["Baghdad", 33.3, 44.4, 762, 1920, 1.8], ["Babylon", 32.54, 44.42, -2300, 99999, 0.9], ["Nineveh", 36.36, 43.15, -3000, 99999, 0.7], ["Tehran", 35.7, 51.4, 1200, 1925, 2.2], ["Riyadh", 24.71, 46.68, 1745, 1950, 1.8], ["Jeddah", 21.49, 39.19, 600, 1945, 1.3], ["Dubai", 25.2, 55.27, 1833, 1960, 1.5], ["Karachi", 24.86, 67.0, 1729, 1915, 2.2], ["Lahore", 31.55, 74.34, 1000, 1915, 1.7], ["Delhi", 28.6, 77.2, -300, 1905, 2.8], ["Mumbai", 19.08, 72.88, 1507, 1905, 2.6], ["Kolkata", 22.57, 88.36, 1690, 1899, 2.3], ["Chennai", 13.08, 80.27, 1639, 1910, 1.8], ["Bangalore", 12.97, 77.59, 1537, 1906, 1.8], ["Dhaka", 23.81, 90.41, 1608, 1920, 2.1], ["Kathmandu", 27.72, 85.32, -300, 1940, 0.8], ["Colombo", 6.93, 79.86, 1505, 1920, 0.9], ["Bangkok", 13.76, 100.5, 1782, 1915, 2.1], ["Yangon", 16.87, 96.2, 1755, 1920, 1.2], ["Hanoi", 21.03, 105.85, 1010, 1925, 1.4], ["Ho Chi Minh City", 10.82, 106.63, 1698, 1920, 1.8], ["Kuala Lumpur", 3.14, 101.69, 1857, 1925, 1.6], ["Singapore", 1.35, 103.82, 1819, 1910, 1.3], ["Jakarta", -6.2, 106.85, 1527, 1920, 2.6], ["Surabaya", -7.25, 112.75, 1293, 1925, 1.3], ["Manila", 14.6, 120.98, 1571, 1910, 2.2], ["Beijing", 39.9, 116.4, -1045, 1905, 2.7], ["Shanghai", 31.23, 121.47, 751, 1882, 2.9], ["Guangzhou", 23.13, 113.26, -214, 1890, 2.4], ["Hong Kong", 22.32, 114.17, 1841, 1890, 1.6], ["Shenzhen", 22.54, 114.06, 1979, 1980, 2.0], ["Chongqing", 29.56, 106.55, -316, 1930, 2.0], ["Chengdu", 30.66, 104.07, -311, 1930, 1.9], ["Wuhan", 30.59, 114.31, -1500, 1910, 1.9], ["Xi'an", 34.34, 108.94, -1100, 1935, 1.7], ["Harbin", 45.8, 126.53, 1898, 1910, 1.4], ["Seoul", 37.57, 126.98, -18, 1900, 2.5], ["Pyongyang", 39.03, 125.75, -1122, 1910, 0.8], ["Tokyo", 35.68, 139.69, 1457, 1887, 3], ["Osaka", 34.69, 135.5, 645, 1889, 2.3], ["Nagoya", 35.18, 136.91, 1610, 1895, 1.6], ["Taipei", 25.03, 121.57, 1709, 1905, 1.6], ["Ulaanbaatar", 47.89, 106.91, 1639, 1950, 0.8], ["Tashkent", 41.3, 69.24, -200, 1925, 1.3], ["Almaty", 43.24, 76.89, 1854, 1930, 1.1], ["Novosibirsk", 55.0, 82.93, 1893, 1930, 1.3], ["Yekaterinburg", 56.84, 60.6, 1723, 1920, 1.2], ["Sydney", -33.87, 151.2, 1788, 1904, 2.0], ["Melbourne", -37.81, 144.96, 1835, 1894, 2.0], ["Brisbane", -27.47, 153.03, 1825, 1910, 1.3], ["Perth", -31.95, 115.86, 1829, 1912, 1.2], ["Auckland", -36.85, 174.76, 1840, 1910, 1.1]];
         var cityL = null, cityU = { uYear: { value: 2026 }, uScale: ptScale, uSunW: WU.uSunW, uSunOn: WU.uSunOn, uFade: { value: 1 } };
         function lightsBuild() {
-          if (cityL || !HT || !window.TOWNS) return;
-          var N = 0, P = [], A = [], LT = LIGHTS.slice(), T = window.TOWNS;
-          for (var t = 0; t < T.length; t += 4) { // Natural Earth towns not already in the hand list
-            var la = T[t] / 10, lo = T[t + 1] / 10, q = ll(la, lo), dup = false;
-            for (var k = 0; k < LIGHTS.length && !dup; k++) { var o = ll(LIGHTS[k][1], LIGHTS[k][2]); dup = Math.hypot(o[0] - q[0], o[1] - q[1]) < 0.02; }
-            if (!dup) LT.push(["", la, lo, 1800, 1900 + T[t + 3], Math.max(0.03, Math.min(2.5, Math.sqrt(T[t + 2] / 1000)))]);
-          }
-          LT.forEach(function (c, ci) { c[6] = Math.max(2, Math.round((MOB ? 35 : 70) * c[5])); });
-          LT.forEach(function (c, ci) {
-            var n = ci < LIGHTS.length ? Math.round((MOB ? 70 : 150) * c[5]) : c[6], rad = 0.0045 * Math.sqrt(c[5]), p0 = ll(c[1], c[2]); // city radius ~9 km x sqrt(size)
-            for (var i = 0; i < n; i++) {
-              var r1 = hash(ci * 13.1 + i, i * 0.37 + 1.7), r2 = hash(i * 1.93 + ci, ci * 7.7 + 3.1), r3 = hash(i * 5.1, ci * 2.3 + i);
-              var rr = Math.sqrt(-2 * Math.log(Math.max(1e-4, r1))) * 0.45; // gaussian density: a bright core, thin suburbs
-              var a = r2 * Math.PI * 2, x = p0[0] + Math.cos(a) * rr * rad, z = p0[1] + Math.sin(a) * rr * rad;
-              P.push(x, (HT ? hAt(x, z) : 0) + 0.000004, z);
-              A.push(c[3], c[4], Math.min(1, rr / 1.2), r3);
-            }
-            for (var h = 0; h < 2; h++) { P.push(p0[0], (HT ? hAt(p0[0], p0[1]) : 0) + 0.000004, p0[1]); A.push(c[3], c[4], -rad * (h ? 1.2 : 3), 0.5); } // two soft halos: the city glow seen from orbit
-            N += n + 2;
-          });
+          if (cityL || !HT) return;
+          var P = [], A = [];
+          LIGHTS.forEach(function (c) { var p0 = ll(c[1], c[2]); P.push(p0[0], hAt(p0[0], p0[1]) + 0.000004, p0[1]); A.push(c[3], c[4], 0.0016 * Math.sqrt(c[5]), 0); });
           var g = new THREE.BufferGeometry();
           g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
-          g.setAttribute("aC", new THREE.Float32BufferAttribute(A, 4)); // founded, electric, distance from core 0-1, random
+          g.setAttribute("aC", new THREE.Float32BufferAttribute(A, 4)); // founded, electric, glow radius
           cityL = new THREE.Points(g, new THREE.ShaderMaterial({
             transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, uniforms: cityU,
-            vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute vec4 aC; uniform float uYear, uScale, uSunOn, uFade; uniform vec3 uSunW; varying float vA; varying vec3 vC;\n" +
+            vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute vec4 aC; uniform float uYear, uScale, uSunOn, uFade; uniform vec3 uSunW; varying float vA;\n" +
               "void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vec4 mv = viewMatrix * w;" +
-              " float y = uYear, hz = max(0.0, -aC.z), cz = max(0.0, aC.z), el = aC.y + cz * max(0.0, 1970.0 - aC.y) * 0.75 + aC.w * 8.0;" + // each light comes on when the grid reaches its suburb
-              " float lamp = step(aC.x, y) * step(aC.w, 0.12) * 0.22;" + // before electricity: a few faint lamps and fires in the old core
-              " float ele = smoothstep(el, el + 6.0, y) * mix(0.45, 1.0, smoothstep(aC.y, 1975.0, y));" +
-              " float d = distance(w.xz, uSunW.xz), dusk = 3.7 + aC.w * 1.4;" + // lights switch on one by one as dusk passes
-              " float nite = uSunOn * smoothstep(dusk, dusk + 0.25, d);" +
-              " vA = max(lamp, ele) * nite * uFade;" +
-              " vC = ele > lamp ? mix(vec3(1.0, 0.6, 0.26), vec3(0.95, 0.9, 0.78), step(0.85, aC.w)) : vec3(1.0, 0.55, 0.22);" + // sodium amber with some white LED
-              " float px = 0.0016 * uScale / max(-mv.z, 1e-6); gl_PointSize = clamp(px, 2.2, 6.0); vA *= min(1.0, px * 1.5 + 0.85);" +
-              " if (hz > 0.0) { float hp = hz * 4.0 * uScale / max(-mv.z, 1e-6); gl_PointSize = clamp(hp, 3.0, 96.0); vA *= 0.5 * smoothstep(2.0, 8.0, hp) * (1.0 - smoothstep(60.0, 140.0, hp)); vC = vec3(1.0, 0.68, 0.35); }" +
+              " float lamp = step(aC.x, uYear) * (1.0 - smoothstep(aC.y, aC.y + 10.0, uYear));" +
+              " float nite = uSunOn * smoothstep(3.7, 4.0, distance(w.xz, uSunW.xz));" +
+              " float hp = aC.z * uScale / max(-mv.z, 1e-6); gl_PointSize = clamp(hp, 2.0, 48.0);" +
+              " vA = lamp * nite * uFade * 0.3 * (1.0 - smoothstep(30.0, 48.0, hp));" +
               " gl_Position = projectionMatrix * mv; if (vA < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);\n#include <logdepthbuf_vertex>\n}",
-            fragmentShader: "#include <logdepthbuf_pars_fragment>\nvarying float vA; varying vec3 vC; void main(){\n#include <logdepthbuf_fragment>\n" +
-              "float d = length(gl_PointCoord - 0.5) * 2.0; if (d >= 1.0) discard; float a = exp(-d * d * 4.0); gl_FragColor = vec4(vC * a * vA * 1.45, 1.0); }"
+            fragmentShader: "#include <logdepthbuf_pars_fragment>\nvarying float vA; void main(){\n#include <logdepthbuf_fragment>\n" +
+              "float d = length(gl_PointCoord - 0.5) * 2.0; if (d >= 1.0) discard; float a = exp(-d * d * 5.0); gl_FragColor = vec4(vec3(1.0, 0.5, 0.18) * a * vA, 1.0); }"
           }));
           cityL.frustumCulled = false; cityL.renderOrder = 8;
           world.add(cityL);
+        }
+        new THREE.TextureLoader().load(MOB || renderer.capabilities.maxTextureSize < 8192 ? "night_lights_4k.webp" : "night_lights_8k.webp", function (t) {
+          t.flipY = false; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = ANI;
+          WU.uNL.value = t; kick();
+        });
+        // electric-light year of the nearest real city or town (hand list, then Natural Earth places)
+        function elecYear(la, lo) {
+          var q = ll(la, lo), best = 1960, bd = 1e9, k, o, T = window.TOWNS || [];
+          for (k = 0; k < LIGHTS.length; k++) { o = ll(LIGHTS[k][1], LIGHTS[k][2]); var d = Math.hypot(o[0] - q[0], o[1] - q[1]); if (d < bd && LIGHTS[k][4] < 5000) { bd = d; best = LIGHTS[k][4]; } }
+          for (k = 0; k < T.length; k += 4) { o = ll(T[k] / 10, T[k + 1] / 10); var d2 = Math.hypot(o[0] - q[0], o[1] - q[1]); if (d2 < bd) { bd = d2; best = 1900 + T[k + 3]; } }
+          return best;
+        }
+        // street level: lamps along real OSM roads from OpenFreeMap vector tiles (z14, no key), lazily for the tiles in view
+        var SL = { tiles: new Map(), url: null, busy: 0, t: 0, U: { uSunW: WU.uSunW, uSunOn: WU.uSunOn, uYear: cityU.uYear, uEY: { value: 1900 }, uPx: { value: 1 }, uA: { value: 0 } } };
+        SL.mat = new THREE.ShaderMaterial({
+          transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, uniforms: SL.U,
+          vertexShader: "attribute vec2 aK; uniform float uYear, uEY, uPx, uA, uSunOn; uniform vec3 uSunW; varying float vA; varying vec3 vC;\n" +
+            "void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vec4 mv = viewMatrix * w;" +
+            " float on = smoothstep(uEY + aK.y * 30.0, uEY + aK.y * 30.0 + 4.0, uYear);" + // streets get lamps one by one over ~30 years
+            " float nite = uSunOn * smoothstep(3.6 + aK.y * 0.3, 3.75 + aK.y * 0.3, distance(w.xz, uSunW.xz));" +
+            " float px = 0.000005 * uPx / max(-mv.z, 1e-9); gl_PointSize = clamp(px, 1.3, 10.0);" +
+            " vA = on * nite * uA * min(1.0, px * 0.6 + 0.5) * (aK.x > 0.5 ? 1.0 : 0.75);" +
+            " vC = aK.y > (aK.x > 0.5 ? 0.8 : 0.92) ? vec3(0.92, 0.94, 1.0) : vec3(1.0, 0.6, 0.25);" + // sodium amber, some white LED
+            " gl_Position = projectionMatrix * mv; if (vA < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0); }",
+          fragmentShader: "varying float vA; varying vec3 vC; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; if (d >= 1.0) discard;" +
+            " float a = exp(-d * d * 9.0) + 0.25 * exp(-d * d * 2.5); gl_FragColor = vec4(vC * a * vA * 1.3, 1.0); }"
+        });
+        function pbf(b) { // minimal protobuf reader
+          var pos = 0;
+          function vi() { var r = 0, m = 1, c; do { c = b[pos++]; r += (c & 127) * m; m *= 128; } while (c & 128); return r; }
+          return { end: function () { return pos >= b.length; }, tag: function () { var t = vi(); return [t >>> 3, t & 7]; }, vi: vi,
+            bytes: function () { var n = vi(), s = b.subarray(pos, pos + n); pos += n; return s; },
+            skip: function (w) { if (w === 0) vi(); else if (w === 1) pos += 8; else if (w === 2) pos += vi(); else if (w === 5) pos += 4; } };
+        }
+        function str(u8) { return new TextDecoder().decode(u8); }
+        var SLK = { motorway: [2, 1], trunk: [2, 1], primary: [2.2, 1], secondary: [2.5, 1], tertiary: [2.8, 1], minor: [3.5, 0], service: [5, 0] }; // lamp spacing in units of 1e-5 (~20 m), major
+        function mvtRoads(buf) { // [class, [x0, y0, x1, y1, ...] tile coords 0..extent], extent
+          var r = pbf(buf), out = [], ext = 4096;
+          while (!r.end()) {
+            var t = r.tag();
+            if (t[0] !== 3) { r.skip(t[1]); continue; }
+            var L = pbf(r.bytes()), name = "", keys = [], vals = [], feats = [];
+            while (!L.end()) {
+              var lt = L.tag();
+              if (lt[0] === 1) name = str(L.bytes());
+              else if (lt[0] === 2) feats.push(L.bytes());
+              else if (lt[0] === 3) keys.push(str(L.bytes()));
+              else if (lt[0] === 4) { var V = pbf(L.bytes()), v = null; while (!V.end()) { var vt = V.tag(); if (vt[0] === 1) v = str(V.bytes()); else V.skip(vt[1]); } vals.push(v); }
+              else if (lt[0] === 5) ext = L.vi();
+              else L.skip(lt[1]);
+            }
+            if (name !== "transportation") continue;
+            var ci = keys.indexOf("class");
+            feats.forEach(function (fb) {
+              var F = pbf(fb), tags = null, geo = null, type = 0;
+              while (!F.end()) {
+                var ft = F.tag();
+                if (ft[0] === 2) tags = F.bytes(); else if (ft[0] === 3) type = F.vi(); else if (ft[0] === 4) geo = F.bytes(); else F.skip(ft[1]);
+              }
+              if (type !== 2 || !geo || !tags) return;
+              var T = pbf(tags), cls = null;
+              while (!T.end()) { var kk = T.vi(), vv = T.vi(); if (kk === ci) cls = vals[vv]; }
+              if (!SLK[cls]) return;
+              var G = pbf(geo), x = 0, y = 0, line = null;
+              while (!G.end()) {
+                var cmd = G.vi(), id = cmd & 7, n = cmd >> 3;
+                for (var i = 0; i < n && id !== 7; i++) {
+                  var dx = G.vi(), dy = G.vi(); x += (dx >> 1) ^ -(dx & 1); y += (dy >> 1) ^ -(dy & 1);
+                  if (id === 1) { line = [x, y]; out.push([cls, line]); } else line.push(x, y);
+                }
+              }
+            });
+          }
+          return { roads: out, ext: ext };
+        }
+        function hash1(n) { var x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+        function slBuild(key, tx, ty, data) {
+          var e = SL.tiles.get(key); if (!e) return;
+          var n = 1 << 14, cl = function (mx, my) { var lon = mx * 360 - 180, lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * my))) / DEG; return ll(lat, lon); };
+          var c = cl((tx + 0.5) / n, (ty + 0.5) / n), P = [], K = [], seed = tx * 7.13 + ty * 3.71;
+          data.roads.forEach(function (rd) {
+            var sp = SLK[rd[0]][0] * 1e-5, maj = SLK[rd[0]][1], a = rd[1], carry = sp * hash1(seed++), prev = null;
+            for (var i = 0; i < a.length; i += 2) {
+              var p = cl((tx + a[i] / data.ext) / n, (ty + a[i + 1] / data.ext) / n);
+              if (prev) {
+                var dx = p[0] - prev[0], dz = p[1] - prev[1], L = Math.hypot(dx, dz), d = carry;
+                for (; d < L; d += sp) { var f = d / L, x = prev[0] + dx * f, z = prev[1] + dz * f; P.push(x, z); K.push(maj, hash1(seed++)); }
+                carry = d - L;
+              }
+              prev = p;
+            }
+          });
+          var N = P.length / 2, ord = new Uint32Array(N), i, j;
+          for (i = 0; i < N; i++) ord[i] = i;
+          for (i = N - 1; i > 0; i--) { j = Math.floor(hash1(i + seed) * (i + 1)); var tmp = ord[i]; ord[i] = ord[j]; ord[j] = tmp; } // shuffled, so any draw range is an even thinning
+          var pos = new Float32Array(N * 3), kk = new Float32Array(N * 2);
+          for (i = 0; i < N; i++) {
+            var o = ord[i], x2 = P[o * 2], z2 = P[o * 2 + 1];
+            pos[i * 3] = x2 - c[0]; pos[i * 3 + 1] = ground(x2, z2) + 0.000004; pos[i * 3 + 2] = z2 - c[1]; kk[i * 2] = K[o * 2]; kk[i * 2 + 1] = K[o * 2 + 1];
+          }
+          var g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.BufferAttribute(pos, 3)); g.setAttribute("aK", new THREE.BufferAttribute(kk, 2));
+          var m = new THREE.Points(g, SL.mat), ey = elecYear(toLL(c[0], c[1])[0], toLL(c[0], c[1])[1]);
+          m.position.set(c[0], 0, c[1]); m.frustumCulled = false; m.renderOrder = 9; m.userData.n = N;
+          m.onBeforeRender = function () { SL.U.uEY.value = ey; SL.mat.uniformsNeedUpdate = true; };
+          e.mesh = m; e.c = c; world.add(m); kick();
+        }
+        function slFetch(key, tx, ty) {
+          SL.busy++;
+          (SL.url ? Promise.resolve(SL.url) : fetch("https://tiles.openfreemap.org/planet").then(function (r) { return r.json(); }).then(function (j) { return (SL.url = j.tiles[0]); }))
+            .then(function (u) { return fetch(u.replace("{z}", 14).replace("{x}", tx).replace("{y}", ty)); })
+            .then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })
+            .then(function (ab) {
+              var b = new Uint8Array(ab);
+              if (b[0] === 0x1f && b[1] === 0x8b && window.DecompressionStream) return new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer().then(function (x) { return new Uint8Array(x); });
+              return b;
+            })
+            .then(function (b) { slBuild(key, tx, ty, mvtRoads(b)); }, function () { var e = SL.tiles.get(key); if (e) e.fail = true; })
+            .then(function () { SL.busy--; });
+        }
+        function streetLights(cp, akm, now) { // called each frame in absolute coords
+          var night = WU.uSunOn.value > 0 && Math.hypot(cp.x - WU.uSunW.value.x - ANC0.x, cp.z - WU.uSunW.value.z - ANC0.z) > 3.4;
+          var on = cp.y > 0 && akm < 60 && night && cityU.uYear.value > 1870;
+          SL.U.uA.value = on ? 1 - smooth(25, 60, akm) : 0;
+          SL.U.uPx.value = ptScale.value / Math.tan(camera.fov * DEG / 2);
+          SL.tiles.forEach(function (e) { if (e.mesh) { e.mesh.visible = on; if (on) { var d = Math.hypot(cp.x - e.c[0], cp.z - e.c[1]) / Math.max(akm / KM, 1e-6); e.mesh.geometry.setDrawRange(0, Math.ceil(e.mesh.userData.n * Math.min(1, 1.6 / Math.max(0.3, d) * (MOB ? 0.6 : 1) * (1 - 0.7 * smooth(8, 40, akm))))); } } });
+          if (!on || now - SL.t < 0.4) return;
+          SL.t = now;
+          var L = toLL(cp.x, cp.z), m = merc(L[0], L[1]), n = 1 << 14, cx = Math.floor(m[0] * n), cy = Math.floor(m[1] * n);
+          var rr = akm < 4 ? 1 : akm < 15 ? 2 : MOB ? 2 : 3, want = {};
+          for (var dy = -rr; dy <= rr; dy++) for (var dx = -rr; dx <= rr; dx++) {
+            var tx = ((cx + dx) % n + n) % n, ty = cy + dy; if (ty < 0 || ty >= n) continue;
+            var key = tx + "/" + ty; want[key] = 1;
+            if (!SL.tiles.has(key) && SL.busy < 4) { SL.tiles.set(key, { mesh: null }); slFetch(key, tx, ty); }
+          }
+          if (SL.tiles.size > (MOB ? 40 : 70)) SL.tiles.forEach(function (e, k) { if (!want[k] && e.mesh) { world.remove(e.mesh); e.mesh.geometry.dispose(); SL.tiles.delete(k); } else if (!want[k] && e.fail) SL.tiles.delete(k); });
         }
         function heightsReady() {
           iceBuild(); lightsBuild();
@@ -1552,16 +1670,32 @@
           elev(ze + "/" + Math.floor(t.x / s) + "/" + Math.floor(t.y / s), t, function (d) { if (t.g === g) { t.el = d; done(); } });
         }
         function cancel(t) { if (t.st === 1) { kill(t.rq); t.g++; t.st = 0; if (isBM(t.im)) t.im.close(); t.im = t.el = null; } }
+        // D2. regional detail for the night lights: NASA GIBS Black Marble tiles (Web Mercator, max z8, ~600 m) per streamed tile
+        var NTC = new Map(), NT0 = new THREE.DataTexture(new Uint8Array(4), 1, 1); NT0.needsUpdate = true;
+        function nightTile(t, mat) {
+          var zg = Math.min(t.z, 8), d = t.z - zg, n = 1 << d, ax = t.x >> d, ay = t.y >> d, k = zg + "/" + ax + "/" + ay, e = NTC.get(k), sc = 1 / n;
+          mat.userData.nt = { value: NT0 }; mat.userData.ntk = { value: 0 };
+          mat.userData.nto = { value: new THREE.Vector4((t.x - ax * n) * sc, 1 - (t.y - ay * n) * sc - sc, sc, mat.map.flipY ? 0 : 1) };
+          if (!e) {
+            e = { tex: null, w: [], u: 0 }; NTC.set(k, e);
+            new THREE.TextureLoader().load("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2012-01-01/GoogleMapsCompatible_Level8/" + k.replace(/^(\d+)\/(\d+)\/(\d+)$/, "$1/$3/$2") + ".png", function (tx) {
+              tx.minFilter = THREE.LinearFilter; tx.generateMipmaps = false; e.tex = tx; e.w.forEach(function (m) { m.userData.nt.value = tx; m.userData.ntk.value = 1; }); e.w = [];
+            }, undefined, function () { e.w = []; });
+          }
+          e.u++; mat.userData.ntKey = k;
+          if (e.tex) { mat.userData.nt.value = e.tex; mat.userData.ntk.value = 1; } else e.w.push(mat);
+        }
         function tileOBC(sh) {
           Object.assign(sh.uniforms, WU); sh.uniforms.uFoam = this.userData.f;
           sh.uniforms.uSelK = uni.uSelK; sh.uniforms.uSelM = uni.uSelM; sh.uniforms.uSelP = uni.uSelP; sh.uniforms.uSelF = uni.uSelF; sh.uniforms.uAnc = uni.uAnc; // the same selection spotlight as the base disc
+          sh.uniforms.uNT = this.userData.nt; sh.uniforms.uNTk = this.userData.ntk; sh.uniforms.uNTo = this.userData.nto;
           sh.vertexShader = "attribute float aW; varying float vW;\n" + WVP + sh.vertexShader.replace("#include <project_vertex>", "#include <project_vertex>\nvW = aW;" + WVM);
-          sh.fragmentShader = "uniform float uFoam; varying float vW;\n" + SELP + WFP + sh.fragmentShader
+          sh.fragmentShader = "uniform float uFoam, uNTk; uniform sampler2D uNT; uniform vec4 uNTo; varying float vW;\n" + SELP + WFP + sh.fragmentShader
             .replace("#include <map_fragment>", "#include <map_fragment>\nwat = max(vW, wmask(diffuseColor.rgb)); foam = uFoam * smoothstep(0.15, 0.55, vW) * (1.0 - smoothstep(0.6, 0.98, vW));" + WFC + SELF)
             .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>" + WFR)
             .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + WFN)
             .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>" + SELE + WFE)
-            .replace("#include <output_fragment>", NIGHT);
+            .replace("#include <output_fragment>", NIGHT.replace("float ey =", "if (uNTk > 0.5) { vec2 nu = vec2(vUv.x, mix(vUv.y, 1.0 - vUv.y, uNTo.w)); vec2 nq = uNTo.xy + nu * uNTo.z; float nd = 0.0025; vec3 nc = 0.25 * (texture2D(uNT, nq + vec2(nd, nd)).rgb + texture2D(uNT, nq + vec2(-nd, nd)).rgb + texture2D(uNT, nq + vec2(nd, -nd)).rgb + texture2D(uNT, nq + vec2(-nd, -nd)).rgb); nl.r = 0.8 * pow(clamp((nc.r - 0.6 * nc.b) * 1.5, 0.0, 1.0) * step(0.9 * nc.b, nc.r), 1.3); }\nfloat ey ="));
         }
         // draw order with the stencil: detail tiles first (mark 1), then the zoom-2 backdrop where none drew (mark 1), then the base disc
         // verified: detail ref 1 Always/Replace at renderOrder z (3..19) < backdrop ref 1 NotEqual at 30 < base disc ref 1 NotEqual/Keep at 40,
@@ -1628,7 +1762,7 @@
           if (isBM(t.im)) { tx.flipY = false; for (var vi = 1; vi < NV * 2; vi += 2) uv[vi] = 1 - uv[vi]; } // ImageBitmaps ignore flipY: flip the uvs instead
           // double-sided so skirts seen from either side seal LOD cracks: no black slivers of void at the horizon
           var mat = new THREE.MeshStandardMaterial({ map: tx, roughness: 1, metalness: 0, side: THREE.DoubleSide, transparent: false, opacity: 1, depthWrite: true }); // opaque: nothing beneath the disc shows through
-          mat.userData.f = { value: smooth(11, 14, t.z) }; mat.onBeforeCompile = tileOBC;
+          mat.userData.f = { value: smooth(11, 14, t.z) }; nightTile(t, mat); mat.onBeforeCompile = tileOBC;
           if (mat.extensions) mat.extensions.derivatives = true; // fwidth() for the selection glow on WebGL1
           tStencil(mat, false);
           // tile centre in absolute coords; the world group's -anchor makes its render position (c - anchor), computed in doubles.
@@ -1638,7 +1772,7 @@
         }
         function drop(t) {
           cancel(t);
-          if (t.mesh) { tileRoot.remove(t.mesh); t.mesh.geometry.index = null; /* keep the shared index buffer alive */ t.mesh.geometry.dispose(); var mi = t.mesh.material.map.image; t.mesh.material.map.dispose(); if (isBM(mi)) mi.close(); t.mesh.material.dispose(); }
+          if (t.mesh) { var nk = t.mesh.material.userData.ntKey, ne = nk && NTC.get(nk); if (ne && --ne.u <= 0) { if (ne.tex) ne.tex.dispose(); NTC.delete(nk); } tileRoot.remove(t.mesh); t.mesh.geometry.index = null; /* keep the shared index buffer alive */ t.mesh.geometry.dispose(); var mi = t.mesh.material.map.image; t.mesh.material.map.dispose(); if (isBM(mi)) mi.close(); t.mesh.material.dispose(); }
           TC.delete(t.k);
         }
         var TFADE = 0.35; // s: a new tile fades in over the base disc or over its parent
@@ -2530,12 +2664,14 @@
           iceU.uAM2.value.set(((ANC0.x % ICE_S) + ICE_S) % ICE_S, ((ANC0.z % ICE_S) + ICE_S) % ICE_S);
           WU.uSunOn.value = show.sky ? 1 : 0;
           cityU.uYear.value = yF; cityU.uFade.value = cp.y > 0 ? 1 : 0; // under the disc no lights
+          WU.uNLY.value = yF; WU.uNLA.value.set(ANC0.x, ANC0.z);
           g0 = ground(cp.x, cp.z);
           // near/far follow altitude in units (Hades: a fixed 0.1-unit reference); reprojected only when either moves by >10%
           var nAlt = cp.y < -0.25 ? 0.1 : Math.max(Math.abs(cp.y - g0), 0.000002);
           var nr0 = Math.max(nAlt * 0.05, 1e-7), fr0 = Math.min(4000, Math.max(nAlt * 6000, 100)); // far plane well past the horizon at every altitude
           if (Math.abs(nr0 / camera.near - 1) > 0.1 || Math.abs(fr0 / camera.far - 1) > 0.1) { camera.near = nr0; camera.far = fr0; camera.updateProjectionMatrix(); }
           var akm = (cp.y - g0) * KM;
+          WU.uNLk.value = 0.12 + 0.88 * smooth(3, 25, akm); streetLights(cp, akm, now); // satellite glow gives way to street lamps
           WU.uNF.value = cp.y > 0 ? 1 - smooth(0.5, 2, akm) : 0; // moonlit floor raised below 2 km
           WU.uHz.value = Math.sqrt(2 * 6371 * Math.max(akm, 0.001) + akm * akm) / KM; WU.uHzK.value = cp.y > 0 ? 1 - smooth(50, 300, akm) : 0; // light haze at the true horizon, near the ground only
           altEl.textContent = (Math.abs(akm) < 10 ? akm.toFixed(3) : Math.abs(akm) < 1000 ? akm.toFixed(1) : Math.round(akm).toLocaleString()) + " km";
@@ -2593,7 +2729,7 @@
             fc.l.intensity = 0.9 * (0.75 + 0.25 * (0.6 * fireNoise(now * 1.3 + fc.k * 11) + 0.4 * fireNoise(now * 2.7 + fc.k * 23)));
           }
           // sky time: dayT is days since J2000; Live follows the system clock, the other modes run it at their rate
-          if (SKY[skyI][1] === 0) dayT = skyNow(); else if (SKY[skyI][1] > 0) dayT += dt * SKY[skyI][1];
+          if (SKY[skyI][1] === 0) dayT = skyNow() + dbgDT; else if (SKY[skyI][1] > 0) dayT += dt * SKY[skyI][1];
           var sk = skyAt(dayT), rad = (90 - sk.sd) / 180 * R; // each body sits over the point on the disc where it is overhead
           sun.position.set(rad * Math.sin(sk.sl), 3, rad * Math.cos(sk.sl));
           sunLight.position.copy(sun.position);
