@@ -23,3 +23,6 @@ Interactive 3D Google-Earth-style map of the flat disc of 1 Enoch / Genesis cosm
 
 ## Backlog
 See `edit_queue.md`.
+
+
+**AI agents continuing this project: read [HANDOFF.md](HANDOFF.md) first.**

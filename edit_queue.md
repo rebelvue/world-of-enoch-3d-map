@@ -63,3 +63,13 @@ T+. (Levi 02:01) Luminaries speed control (sun/moon/stars): fold into T. A compa
 - Desktop: left drag pan, wheel zoom to cursor, right drag / ctrl drag = rotate+tilt.
 - Compass tap: heading to north, keep tilt. NEW view reset button (glass, under compass): animate 1.2s to default view (top-down, north/lon0 down, whole disc ~80% screen).
 - Keep: max zoom-out clamp disc >=25% screen, 20 m floor with target lifted, side buttons, no text selection.
+
+## V - Historical eclipses + Joshua's long day (Levi, 2026-11-02 02:49)
+Model: 1 Enoch 72-79 (Book of Luminaries) - sun and moon ride chariots through the 6 eastern / 6 western gates, circling above the disc below the dome. Eclipse = moon passes between sun and viewer; shadow is a local soft umbra/penumbra spot moving over the disc along the REAL historical path (NASA Five Millennium Canon dates/paths, projected to the azimuthal disc). Sky darkens, corona glow, stars appear for viewers inside the path.
+Events (timeline markers, tap to play, year slider jumps):
+- Ugarit 5 Mar 1223 BC; Assyrian (Bur-Sagale) 15 Jun 763 BC; Thales/Halys 28 May 585 BC; Crucifixion darkness AD 33 (shown as darkness, note: Passover full moon, not a solar eclipse); 1919 Eddington; 11 Aug 1999 Europe; 21 Aug 2017 USA; 8 Apr 2024 USA. More from canon later.
+- Joshua 10:12-14 "sun stood still upon Gibeon, moon in the valley of Ajalon": sun halts above Gibeon, moon over Aijalon, ~a whole day; date: traditional c. 1406 BC (alt: proposed eclipse 30 Oct 1207 BC, mention in card). INCLUDED (Levi said yes): Hezekiah sign - shadow on the stairs of Ahaz goes back 10 steps (2 Kings 20:9-11, Isaiah 38:8), c. 701 BC, Jerusalem; sun visibly moves back along its path.
+Cards cite the verse/source. Small separate edit after T3.
+
+## M addendum (Levi 2026-11-02 02:51 "don't forget city lights, wars, bombings, fires")
+Great fires: Rome AD 64, London 2-6 Sep 1666, Chicago 8-10 Oct 1871, San Francisco 1906, Tokyo firebombing 9-10 Mar 1945, Hamburg 1943. Priority order after T3: Q, D (city lights), M (wars/bombings/fires/nuclear), V (eclipses), C, L, S.
