@@ -190,6 +190,7 @@
           <button class="x-tog" type="button" data-t="borders" aria-pressed="true">Borders</button>
           <button class="x-tog" type="button" data-t="winds" aria-pressed="true">Wind portals</button>
           <button class="x-tog" type="button" data-t="cities" aria-pressed="true">Cities</button>
+          <button class="x-tog" type="button" data-t="traffic" aria-pressed="true">Traffic</button>
         </div>
         <p class="x-h">Labels</p>
         <div>
@@ -292,7 +293,7 @@
         var $ = function (id) { return document.getElementById(id); };
 
         // UI first, so captions fill even if WebGL fails
-        var show = { dome: true, sky: true, borders: true, winds: true, cities: true }, playing = true;
+        var show = { dome: true, sky: true, borders: true, winds: true, cities: true, traffic: true }, playing = true;
         var lab = { reg: true, cty: true, bib: true, city: true, enoch: false, ev: true }, labSaved = null; // Countries and Cities on by default
         // timeline: one year per step, 3382 BC (AM 622, Ussher) to AD 2026
         var era = $("era"), Y0 = -3382, Y1 = 2026, yF = Y1, yearN = Y1, verseT = 0, tlPlay = false, tlSpeed = 10, tlBtn = $("tl-play");
@@ -1452,12 +1453,12 @@
               if (lt[0] === 1) name = str(L.bytes());
               else if (lt[0] === 2) feats.push(L.bytes());
               else if (lt[0] === 3) keys.push(str(L.bytes()));
-              else if (lt[0] === 4) { var V = pbf(L.bytes()), v = null; while (!V.end()) { var vt = V.tag(); if (vt[0] === 1) v = str(V.bytes()); else V.skip(vt[1]); } vals.push(v); }
+              else if (lt[0] === 4) { var V = pbf(L.bytes()), v = null; while (!V.end()) { var vt = V.tag(); if (vt[0] === 1) v = str(V.bytes()); else if (vt[0] === 4 || vt[0] === 5) v = V.vi(); else if (vt[0] === 6) { var zz = V.vi(); v = (zz >> 1) ^ -(zz & 1); } else V.skip(vt[1]); } vals.push(v); }
               else if (lt[0] === 5) ext = L.vi();
               else L.skip(lt[1]);
             }
             if (name !== "transportation") continue;
-            var ci = keys.indexOf("class");
+            var ci = keys.indexOf("class"), oi = keys.indexOf("oneway"), bi = keys.indexOf("brunnel");
             feats.forEach(function (fb) {
               var F = pbf(fb), tags = null, geo = null, type = 0;
               while (!F.end()) {
@@ -1465,15 +1466,15 @@
                 if (ft[0] === 2) tags = F.bytes(); else if (ft[0] === 3) type = F.vi(); else if (ft[0] === 4) geo = F.bytes(); else F.skip(ft[1]);
               }
               if (type !== 2 || !geo || !tags) return;
-              var T = pbf(tags), cls = null;
-              while (!T.end()) { var kk = T.vi(), vv = T.vi(); if (kk === ci) cls = vals[vv]; }
+              var T = pbf(tags), cls = null, ow = 0, br = null;
+              while (!T.end()) { var kk = T.vi(), vv = T.vi(); if (kk === ci) cls = vals[vv]; else if (kk === oi) ow = +vals[vv] || 0; else if (kk === bi) br = vals[vv]; }
               if (!SLK[cls]) return;
               var G = pbf(geo), x = 0, y = 0, line = null;
               while (!G.end()) {
                 var cmd = G.vi(), id = cmd & 7, n = cmd >> 3;
                 for (var i = 0; i < n && id !== 7; i++) {
                   var dx = G.vi(), dy = G.vi(); x += (dx >> 1) ^ -(dx & 1); y += (dy >> 1) ^ -(dy & 1);
-                  if (id === 1) { line = [x, y]; out.push([cls, line]); } else line.push(x, y);
+                  if (id === 1) { line = [x, y]; out.push([cls, line, ow, br]); } else line.push(x, y);
                 }
               }
             });
@@ -1556,8 +1557,111 @@
           var m = new THREE.Points(gg, SL.mat), ey = elecYear(toLL(c[0], c[1])[0], toLL(c[0], c[1])[1]);
           m.position.set(c[0], 0, c[1]); m.frustumCulled = false; m.renderOrder = 9; m.userData.n = N;
           m.onBeforeRender = function () { SL.U.uEY.value = ey; SL.mat.uniformsNeedUpdate = true; };
-          e.mesh = m; e.poles = poles; e.c = c; world.add(m); world.add(poles); kick();
+          e.mesh = m; e.poles = poles; e.c = c; world.add(m); world.add(poles); trBuild(e, data, c, cl, tx, ty, n, ext, mpu); kick();
         }
+        // V2: traffic. Cars drive the real OpenFreeMap road graph of each street-lamp tile (same z14 tile, no extra fetch):
+        // lane offset on the correct side for the country (and era: Sweden kept left until 1967), one-way tags honoured,
+        // slowing into every line end and turning onto a connected road there (tunnels skipped, so never through buildings).
+        // Density: 0 before 1886 (Benz Patent-Motorwagen), then a logistic vehicles-per-capita curve per region, shifted by the
+        // region's electrification year from D (London/US first): share(y) = 1/(1+exp(-(y-(ey+55))/10)) -> ~1% in 1900-1910,
+        // ~10% by 1925 in the early regions, half by ~1935-1960, near saturation today. Time of day: local solar hour, rush
+        // peaks 07-09 and 16-19, sparse 0-5. Only tiles in view under ~3 km, capped per tile (mobile caps lower).
+        var TRS = { motorway: [31, 14], trunk: [24, 12], primary: [14, 10], secondary: [13, 9], tertiary: [11, 8], minor: [8, 6] }; // m/s, carriageway width m
+        var LHT = [[49.8, 61, -8.7, 1.8], [51.3, 55.4, -10.7, -5.9], [24, 46, 123, 146], [6, 35.5, 68, 97.5], [-44, -10, 112, 154], [-47.5, -34, 166, 179], [-35, -22, 16, 33], [-11, 6, 95, 141], [5.5, 20.5, 97.3, 105.7], [0.8, 7.4, 99.6, 119.3], [-4.7, 5, 33.9, 41.9], [23.6, 37, 60.8, 77.8], [-21, -15, 25, 33.1], [-27, -17.5, 30, 36]];
+        function leftHand(la, lo, y) { if (y < 1967 && la > 55 && la < 69 && lo > 11 && lo < 24.2) return true; for (var i = 0; i < LHT.length; i++) { var b = LHT[i]; if (la > b[0] && la < b[1] && lo > b[2] && lo < b[3]) return true; } return false; }
+        function carShare(y, ey) { return y < 1886 ? 0 : 1 / (1 + Math.exp(-(y - (ey + 55)) / 10)); }
+        function rushK(h) { var b = function (c, w) { var d = Math.min(Math.abs(h - c), 24 - Math.abs(h - c)); return Math.exp(-d * d / (2 * w * w)); }; return 0.08 + 0.35 * (h > 6 && h < 22.5 ? 1 : 0) + 0.6 * b(8, 0.9) + 0.6 * b(17.5, 1.2); }
+        var CARG = (function () { // side profiles in metres (x along the car, y up), extruded across the width; glass inset darker
+          function prof(P, w, glass) {
+            var sh = new THREE.Shape(); sh.moveTo(P[0][0], P[0][1]); for (var i = 1; i < P.length; i++) sh.lineTo(P[i][0], P[i][1]);
+            var g = new THREE.ExtrudeGeometry(sh, { depth: w - 0.16, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.06, bevelSegments: 2, curveSegments: 2 });
+            g.translate(0, 0, -(w - 0.16) / 2); g = g.toNonIndexed();
+            var n = g.attributes.position.count, col = new Float32Array(n * 3); for (var k = 0; k < n * 3; k++) col[k] = glass ? 0.08 : 1;
+            g.setAttribute("color", new THREE.BufferAttribute(col, 3)); g.deleteAttribute("uv"); return g;
+          }
+          function wheel(x, z, r) { var pts = []; for (var i = 0; i <= 6; i++) { var a = i / 6 * Math.PI; pts.push(new THREE.Vector2(r * (0.62 + 0.38 * Math.sin(a)), 0.11 * Math.cos(a))); }
+            var g = new THREE.LatheGeometry(pts, 10); g.rotateX(Math.PI / 2); g.translate(x, r, z); g = g.toNonIndexed(); g.deleteAttribute("uv");
+            var n = g.attributes.position.count, col = new Float32Array(n * 3); for (var k = 0; k < n * 3; k++) col[k] = 0.05; g.setAttribute("color", new THREE.BufferAttribute(col, 3)); return g; }
+          function merge(gs) { var n = 0; gs.forEach(function (g) { n += g.attributes.position.count; }); var P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3), o = 0;
+            gs.forEach(function (g) { P.set(g.attributes.position.array, o); N.set(g.attributes.normal.array, o); C.set(g.attributes.color.array, o); o += g.attributes.position.count * 3; });
+            var m = new THREE.BufferGeometry(); m.setAttribute("position", new THREE.BufferAttribute(P, 3)); m.setAttribute("normal", new THREE.BufferAttribute(N, 3)); m.setAttribute("color", new THREE.BufferAttribute(C, 3)); return m; }
+          function car(body, glass, L, W, r) { var hx = L / 2 - 0.75; return merge([prof(body, W, 0), prof(glass, W + 0.04, 1), wheel(hx, W / 2 - 0.08, r), wheel(-hx, W / 2 - 0.08, r), wheel(hx, -W / 2 + 0.08, r), wheel(-hx, -W / 2 + 0.08, r)]); }
+          // centred on x; nose at +x
+          var sedan = car([[-2.3, 0.3], [2.3, 0.3], [2.35, 0.75], [1.2, 0.9], [0.5, 1.4], [-1.0, 1.42], [-1.8, 1.0], [-2.32, 0.95]], [[1.12, 0.92], [0.52, 1.36], [-0.98, 1.38], [-1.72, 1.0]], 4.6, 1.8, 0.32);
+          var hatch = car([[-1.95, 0.3], [1.95, 0.3], [2.0, 0.75], [1.0, 0.92], [0.35, 1.48], [-1.7, 1.5], [-1.97, 1.0]], [[0.95, 0.94], [0.38, 1.44], [-1.6, 1.46], [-1.85, 1.02]], 3.9, 1.75, 0.31);
+          var van = car([[-2.5, 0.35], [2.5, 0.35], [2.55, 0.9], [2.0, 1.15], [1.5, 1.95], [-2.5, 1.98]], [[1.95, 1.18], [1.52, 1.9], [0.9, 1.9], [0.9, 1.2]], 5.0, 1.95, 0.35);
+          var vint = car([[-1.9, 0.45], [1.9, 0.45], [1.95, 0.95], [0.9, 1.05], [0.6, 1.95], [-1.5, 1.98], [-1.6, 1.05], [-1.92, 1.0]], [[0.55, 1.12], [0.55, 1.85], [-1.4, 1.88], [-1.45, 1.15]], 3.8, 1.6, 0.42);
+          return [sedan, hatch, van, vint];
+        })();
+        var CAR_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.55 });
+        var CAR_COL = [0xe8e8e6, 0x151618, 0x8d9196, 0x5b5f63, 0x23324f, 0x7a1418, 0x1e3b2c, 0xc9c3b0, 0x3d5f8a, 0xb5b8bb], CAR_COL_OLD = [0x111111, 0x1b1d22, 0x2a2420, 0x3a2f28];
+        var TRL = (function () { var cv = document.createElement("canvas"); cv.width = cv.height = 64; var x = cv.getContext("2d"), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.25, "rgba(255,255,255,0.55)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();
+        var TR = { cap: MOB ? 28 : 70, k: 0, lamp: new THREE.PointsMaterial({ size: 0.9 * M, map: TRL, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }), pool: new THREE.PointsMaterial({ size: 9 * M, map: TRL, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }) };
+        function trBuild(e, data, c, cl, tx, ty, n, ext, mpu) {
+          var R = [], node = {}, la0 = toLL(c[0], c[1]);
+          data.roads.forEach(function (rd) {
+            var S = TRS[rd[0]]; if (!S || rd[3] === "tunnel" || rd[1].length < 4) return;
+            var a = rd[1], k = a.length / 2, P = new Float32Array(k * 3), cum = new Float32Array(k), L = 0;
+            for (var i = 0; i < k; i++) { var w = cl((tx + a[i * 2] / ext) / n, (ty + a[i * 2 + 1] / ext) / n); P[i * 3] = w[0] - c[0]; P[i * 3 + 1] = ground(w[0], w[1]) + 0.05 * M; P[i * 3 + 2] = w[1] - c[1]; if (i) L += Math.hypot(P[i * 3] - P[i * 3 - 3], P[i * 3 + 2] - P[i * 3 - 1]); cum[i] = L; }
+            if (L < 8 * M) return;
+            var r = { P: P, cum: cum, L: L, ow: rd[2] || 0, v: S[0] * M, off: (rd[2] ? 0.15 : 0.27) * S[1] * M, w: S[1] }, id = R.length; R.push(r);
+            [[a[0] + "," + a[1], 1], [a[a.length - 2] + "," + a[a.length - 1], 0]].forEach(function (q) { (node[q[0]] = node[q[0]] || []).push([id, q[1]]); });
+            r.ka = a[0] + "," + a[1]; r.kb = a[a.length - 2] + "," + a[a.length - 1];
+          });
+          if (!R.length) return;
+          var tot = 0; R.forEach(function (r) { tot += r.L; });
+          var cap = Math.min(TR.cap, Math.ceil(tot / M / 45)), meshes = CARG.map(function (g) { var m = new THREE.InstancedMesh(g, CAR_MAT, cap); m.count = 0; m.frustumCulled = false; m.position.set(c[0], 0, c[1]); m.visible = false; m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3); world.add(m); return m; });
+          var lp = new THREE.BufferGeometry(), pp = new THREE.BufferGeometry(), lpos = new Float32Array(cap * 12), lcol = new Float32Array(cap * 12), ppos = new Float32Array(cap * 3), pcol = new Float32Array(cap * 3);
+          lp.setAttribute("position", new THREE.BufferAttribute(lpos, 3)); lp.setAttribute("color", new THREE.BufferAttribute(lcol, 3)); pp.setAttribute("position", new THREE.BufferAttribute(ppos, 3)); pp.setAttribute("color", new THREE.BufferAttribute(pcol, 3));
+          var lights = new THREE.Points(lp, TR.lamp), pools = new THREE.Points(pp, TR.pool);
+          [lights, pools].forEach(function (o) { o.position.set(c[0], 0, c[1]); o.frustumCulled = false; o.visible = false; o.renderOrder = 9; world.add(o); });
+          var cars = [], seed = (tx * 73856093) ^ (ty * 19349663);
+          for (var i = 0; i < cap; i++) {
+            var h = function (j) { return hash1(seed * 0.0001 + i * 13.37 + j); }, r = Math.floor(h(1) * R.length) % R.length, ro = R[r];
+            cars.push({ r: r, s: h(2) * ro.L, d: ro.ow === 1 ? 1 : ro.ow === -1 ? -1 : (h(3) < 0.5 ? 1 : -1), t: h(4) < 0.55 ? 0 : h(4) < 0.85 ? 1 : 2, c: h(5), q: h(6), v: 0, yaw: null, lat: 0 });
+          }
+          e.tr = { R: R, node: node, cars: cars, meshes: meshes, lights: lights, pools: pools, cap: cap, k: 0, la: la0[0], lo: la0[1], ey: elecYear(la0[0], la0[1]), c: c };
+        }
+        function trNext(T, car) { // at a line end: pick a connected road (never straight back if there is another), honouring one-way
+          var r = T.R[car.r], key = car.d > 0 ? r.kb : r.ka, opts = (T.node[key] || []).filter(function (o) { var q = T.R[o[0]]; return o[0] !== car.r && (o[1] ? q.ow !== -1 : q.ow !== 1); });
+          if (!opts.length) { if (!r.ow) { car.d = -car.d; return; } car.r = Math.floor(hash1(car.q * 99 + car.s) * T.R.length) % T.R.length; car.s = 0; car.d = T.R[car.r].ow === -1 ? -1 : 1; if (car.d < 0) car.s = T.R[car.r].L; return; }
+          var o = opts[Math.floor(hash1(car.q * 31 + ((T.k = (T.k || 0) + 1) % 997)) * opts.length) % opts.length], q = T.R[o[0]];
+          car.r = o[0]; car.d = o[1] ? 1 : -1; car.s = o[1] ? 0 : q.L;
+        }
+        var trM = new THREE.Matrix4(), trQ = new THREE.Quaternion(), trS = new THREE.Vector3(M, M, M), trU = new THREE.Vector3(0, 1, 0), trV = new THREE.Vector3(), trCol = new THREE.Color();
+        function traffic(cp, akm, dt) {
+          var show = cp.y > 0 && akm < 3 && show_traffic(), any = false, yr = cityU.uYear.value, nite = WU.uSunOn.value > 0 && Math.hypot(cp.x - sun.position.x, cp.z - sun.position.z) > 3.6 ? 1 : 0, hUTC = (((dayT % 1) + 1) % 1 * 24 + 12) % 24;
+          TR.lamp.opacity = TR.pool.opacity = nite * (1 - smooth(1.5, 3, akm)); TR.lamp.size = 0.9 * M; TR.pool.size = 9 * M;
+          SL.tiles.forEach(function (e) {
+            var T = e.tr; if (!T) return;
+            var vis = show && Math.hypot(cp.x - T.c[0], cp.z - T.c[1]) < (2.5 + akm) / KM;
+            T.meshes.forEach(function (m) { m.visible = vis; }); T.lights.visible = T.pools.visible = vis && nite > 0; if (!vis) return; any = true;
+            var hl = (hUTC + T.lo / 15 + 24) % 24, want = Math.round(T.cap * Math.min(1, carShare(yr, T.ey) * rushK(hl) * 1.25)), lh = leftHand(T.la, T.lo, yr), cnt = [0, 0, 0, 0], li = 0;
+            for (var i = 0; i < want; i++) {
+              var car = T.cars[i], r = T.R[car.r], toEnd = car.d > 0 ? r.L - car.s : car.s, vt = r.v * (0.3 + 0.7 * smooth(4 * M, 30 * M, toEnd)) * (0.85 + 0.3 * car.q);
+              car.v += (vt - car.v) * Math.min(1, dt * 1.5); car.s += car.d * car.v * dt * 0.6;
+              if (car.s > r.L || car.s < 0) { trNext(T, car); r = T.R[car.r]; }
+              var P = r.P, cum = r.cum, j = 1; while (j < cum.length - 1 && cum[j] < car.s) j++;
+              var s0 = cum[j - 1], f = Math.min(1, Math.max(0, (car.s - s0) / Math.max(cum[j] - s0, 1e-12))), fx = P[j * 3] - P[j * 3 - 3], fz = P[j * 3 + 2] - P[j * 3 - 1], fl = Math.hypot(fx, fz) || 1;
+              fx = fx / fl * car.d; fz = fz / fl * car.d;
+              var yaw = Math.atan2(-fz, fx); if (car.yaw === null) car.yaw = yaw; var dy = Math.atan2(Math.sin(yaw - car.yaw), Math.cos(yaw - car.yaw)); car.yaw += dy * Math.min(1, dt * 6); // smooth turn
+              var side = lh ? -1 : 1; car.lat += (r.off * side - car.lat) * Math.min(1, dt * 3); // ease across at junctions
+              var cyaw = Math.cos(car.yaw), syaw = -Math.sin(car.yaw), x = P[j * 3 - 3] + (P[j * 3] - P[j * 3 - 3]) * f + (-syaw) * car.lat, z = P[j * 3 - 1] + (P[j * 3 + 2] - P[j * 3 - 1]) * f + cyaw * car.lat, y = P[j * 3 - 2] + (P[j * 3 + 1] - P[j * 3 - 2]) * f;
+              var t = yr < 1935 ? 3 : (yr < 1960 && car.t === 2 ? 0 : car.t), m = T.meshes[t], k = cnt[t]++;
+              trQ.setFromAxisAngle(trU, car.yaw); trV.set(x, y, z); trM.compose(trV, trQ, trS); m.setMatrixAt(k, trM);
+              var pal = yr < 1950 ? CAR_COL_OLD : CAR_COL; trCol.setHex(pal[Math.floor(car.c * pal.length) % pal.length]); m.setColorAt(k, trCol);
+              if (nite) { // 2 heads, 2 tails, 1 road glow ahead; colours in vertex colour, additive, depth-tested (occluded by buildings)
+                var hw = 0.7 * M, fr = 2.2 * M, rx = -syaw, rz = cyaw, L4 = T.lights.geometry.attributes.position.array, C4 = T.lights.geometry.attributes.color.array;
+                for (var q = 0; q < 4; q++) { var fw = q < 2 ? fr : -fr, sd = (q % 2 ? 1 : -1) * hw, o = (li * 4 + q) * 3; L4[o] = x + cyaw * fw + rx * sd; L4[o + 1] = y + 0.75 * M; L4[o + 2] = z + syaw * fw + rz * sd; if (q < 2) { C4[o] = 1; C4[o + 1] = 0.93; C4[o + 2] = 0.78; } else { C4[o] = 0.9; C4[o + 1] = 0.04; C4[o + 2] = 0.02; } }
+                var PP = T.pools.geometry.attributes.position.array, PC = T.pools.geometry.attributes.color.array; PP[li * 3] = x + cyaw * 7 * M; PP[li * 3 + 1] = y + 0.2 * M; PP[li * 3 + 2] = z + syaw * 7 * M; PC[li * 3] = 0.32; PC[li * 3 + 1] = 0.29; PC[li * 3 + 2] = 0.22; li++;
+              }
+            }
+            T.meshes.forEach(function (m, t) { m.count = cnt[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; });
+            T.lights.geometry.setDrawRange(0, li * 4); T.pools.geometry.setDrawRange(0, li); T.lights.geometry.attributes.position.needsUpdate = T.lights.geometry.attributes.color.needsUpdate = true; T.pools.geometry.attributes.position.needsUpdate = T.pools.geometry.attributes.color.needsUpdate = true;
+          });
+          return any;
+        }
+        function show_traffic() { return show.traffic !== false; }
         function slFetch(key, tx, ty) {
           SL.busy++;
           ofmTile(tx, ty)
@@ -1570,7 +1674,7 @@
           SL.U.uA.value = on ? 1 - smooth(25, 60, akm) : 0;
           SL.U.uPx.value = ptScale.value / Math.tan(camera.fov * DEG / 2);
           SL.tiles.forEach(function (e) { if (e.poles) e.poles.visible = cp.y > 0 && akm < 1.5; if (e.mesh) { e.mesh.visible = on; if (on) { var d = Math.hypot(cp.x - e.c[0], cp.z - e.c[1]) / Math.max(akm / KM, 1e-6); var fr = Math.min(1, 1.6 / Math.max(0.3, d) * (MOB ? 0.6 : 1) * (1 - 0.7 * smooth(8, 40, akm))); if (akm < 1.5) fr = 1; e.mesh.geometry.setDrawRange(0, fr >= 1 && akm < 3 ? 2 * e.mesh.userData.n : Math.ceil(e.mesh.userData.n * fr)); } } });
-          if (!on || now - SL.t < 0.4) return;
+          if (!(on || (cp.y > 0 && akm < 3 && cityU.uYear.value >= 1886)) || now - SL.t < 0.4) return; // road tiles also feed V2 traffic by day
           SL.t = now;
           var L = toLL(cp.x, cp.z), m = merc(L[0], L[1]), n = 1 << 14, cx = Math.floor(m[0] * n), cy = Math.floor(m[1] * n);
           var rr = akm < 4 ? 1 : akm < 15 ? 2 : MOB ? 2 : 3, want = {};
@@ -1579,7 +1683,7 @@
             var key = tx + "/" + ty; want[key] = 1;
             if (!SL.tiles.has(key) && SL.busy < 4) { SL.tiles.set(key, { mesh: null }); slFetch(key, tx, ty); }
           }
-          if (SL.tiles.size > (MOB ? 40 : 70)) SL.tiles.forEach(function (e, k) { if (!want[k] && e.mesh) { world.remove(e.mesh); e.mesh.geometry.dispose(); if (e.poles) { world.remove(e.poles); e.poles.dispose(); } SL.tiles.delete(k); } else if (!want[k] && e.fail) SL.tiles.delete(k); });
+          if (SL.tiles.size > (MOB ? 40 : 70)) SL.tiles.forEach(function (e, k) { if (!want[k] && e.mesh) { world.remove(e.mesh); e.mesh.geometry.dispose(); if (e.poles) { world.remove(e.poles); e.poles.dispose(); } if (e.tr) { e.tr.meshes.forEach(function (m) { world.remove(m); m.dispose(); }); world.remove(e.tr.lights); world.remove(e.tr.pools); e.tr.lights.geometry.dispose(); e.tr.pools.geometry.dispose(); e.tr = null; } SL.tiles.delete(k); } else if (!want[k] && e.fail) SL.tiles.delete(k); });
         }
         // B. OSM 3D buildings from the same OpenFreeMap z14 tiles (render_height / render_min_height), lazily for the tiles in view below ~6 km.
         // Not plain boxes: lit by the scene sun, soft ground AO, roofs and facades tinted from the Esri imagery under each footprint,
@@ -2963,7 +3067,7 @@
           var nr0 = Math.max(nAlt * 0.05, 1e-7), fr0 = Math.min(4000, Math.max(nAlt * 6000, 100)); // far plane well past the horizon at every altitude
           if (Math.abs(nr0 / camera.near - 1) > 0.1 || Math.abs(fr0 / camera.far - 1) > 0.1) { camera.near = nr0; camera.far = fr0; camera.updateProjectionMatrix(); }
           var akm = (cp.y - g0) * KM;
-          WU.uNLk.value = 0.12 + 0.88 * smooth(3, 25, akm); streetLights(cp, akm, now); buildings(cp, akm, now); // satellite glow gives way to street lamps
+          WU.uNLk.value = 0.12 + 0.88 * smooth(3, 25, akm); streetLights(cp, akm, now); if (traffic(cp, akm, dt)) busy = true; buildings(cp, akm, now); // satellite glow gives way to street lamps
           WU.uNF.value = cp.y > 0 ? 1 - smooth(0.5, 2, akm) : 0; // moonlit floor raised below 2 km
           WU.uHz.value = Math.sqrt(2 * 6371 * Math.max(akm, 0.001) + akm * akm) / KM; WU.uHzK.value = cp.y > 0 ? 1 - smooth(50, 300, akm) : 0; // light haze at the true horizon, near the ground only
           altEl.textContent = (Math.abs(akm) < 10 ? akm.toFixed(3) : Math.abs(akm) < 1000 ? akm.toFixed(1) : Math.round(akm).toLocaleString()) + " km";
@@ -3025,6 +3129,7 @@
           var sk = skyAt(dayT), rad = (90 - sk.sd) / 180 * R; // each body sits over the point on the disc where it is overhead
           sun.position.set(rad * Math.sin(sk.sl), 3, rad * Math.cos(sk.sl));
           sunLight.position.copy(sun.position);
+          WU.uSunW.value.set(sun.position.x - ANC0.x, sun.position.y, sun.position.z - ANC0.z); WU.uSunV.value.copy(sun.position).applyMatrix4(camera.matrixWorldInverse); // same frame as the sun move
           var mrad = (90 - sk.md) / 180 * R;
           moon.position.set(mrad * Math.sin(sk.ml), 3, mrad * Math.cos(sk.ml));
           domeStars.rotation.y = sk.st; // the stars turn with sidereal time
@@ -3128,7 +3233,6 @@
             } else if (L.vis !== false) { L.el.style.visibility = "hidden"; L.vis = false; }
             if (L.o !== op) { if (Math.abs((L.o || 0) - op) > 0.001) busy = true; L.el.style.opacity = L.o = op; }
           }
-          WU.uSunW.value.set(sun.position.x - ANC0.x, sun.position.y, sun.position.z - ANC0.z); WU.uSunV.value.copy(sun.position).applyMatrix4(camera.matrixWorldInverse); // same frame as the sun move
 
           // back to render space: the world sits at -anchor, camera and target relative to it (all in doubles)
           lastAkm = cp.y > 0 ? akm : 1e9;

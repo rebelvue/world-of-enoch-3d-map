@@ -47,3 +47,9 @@ Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72
 - Geometry: one InstancedMesh per tile (lathe pole + tube arm + lathe head, `POLE`/`POLE_MAT`, real metres via M) visible < 1.5 km; lights are one Points per tile (N heads + N ground pools), `depthTest:true` with log-depth chunks so buildings/terrain occlude them; no depth write.
 - LOD: draw range sorted major-roads-first; all lamps drawn below 1.5 km; far tiles thinned (mobile ×0.6). Lights only at night (camera > 3.4 units from the sub-solar point), after the region's electrification year (D).
 - Fixes: night test now reads `sun.position` directly and `WU.uSunW` is refreshed in the same frame as the sun move (was a frame stale). `setYear` now updates `lastBI` immediately (tap card no longer says "Borders as of AD 2010" right after a year change). Debug: `harkDbg.sunFor(dDays)`.
+
+## V2 traffic (2026-11-02)
+- Cars drive the OFM z14 road graph of each street-lamp tile (no extra fetch); tunnels/service lanes skipped, so never through buildings. Lane offset per driving side (LHT bbox list: UK/IE, JP, IN subcontinent, AU/NZ, southern Africa, Indonesia, Thailand etc.; Sweden left until 1967). One-way tags honoured; cars slow into line ends and turn onto a connected road.
+- Density curve: 0 before 1886; share(y) = 1/(1+exp(-(y-(ey+55))/10)) where ey = regional electrification year (proxy for development); x rushK(local solar hour): peaks 07-09 and 16-19, sparse 0-5. Caps 70 cars/tile desktop, 28 mobile; tiles in view under ~3 km only.
+- Night: white headlights + forward pool, red tails (additive points, depth-tested so buildings occlude). Toggle "Traffic" in the Show menu.
+- Fix: trNext counter T.k was uninitialised (NaN index crashed the frame loop on mobile).
