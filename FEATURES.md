@@ -55,6 +55,7 @@ Last updated: 2026-11-02 03:05 EET.
 - [x] Tap ground picks ground (not Sheol) when zoomed in
 - [x] "Interpretive model" fineprint removed; only "(c) Esri" in menu - grep = 0
 - [x] Minimal glass UI, no text selection on iOS
+- [x] Hide/show controls: eye button under reset, H key, menu entry - grep `uiHidden`
 - [ ] Fix: search icon overlapping menu icon (in progress, edit -10)
 - [ ] Default load view should be top-down, disc ~80% of screen (currently tilted/far) - check
 

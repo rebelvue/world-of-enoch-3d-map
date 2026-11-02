@@ -113,14 +113,26 @@
       .x-compass svg { width: 22px; height: 22px; transition: transform 0.08s linear; }
       .x-home { top: calc(max(8px, env(safe-area-inset-top)) + 2 * var(--tap) + 16px); }
       /* side camera buttons: centred on each edge between the top buttons and the bottom readout */
-      .x-side { position: fixed; z-index: 2; top: calc(max(8px, env(safe-area-inset-top)) + 164px); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 12px); display: flex; flex-direction: column; justify-content: center; gap: 8px; pointer-events: none; transition: opacity 0.5s var(--ease-out); }
+      .x-side { position: fixed; z-index: 2; top: calc(max(8px, env(safe-area-inset-top)) + 216px); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 12px); display: flex; flex-direction: column; justify-content: center; gap: 8px; pointer-events: none; transition: opacity 0.5s var(--ease-out); }
       .x-side--l { left: max(10px, env(safe-area-inset-left)); }
       .x-side--r { right: max(10px, env(safe-area-inset-right)); }
       .x-side.is-dim { opacity: 0.35; }
       .x-side button { pointer-events: auto; flex: none; width: 40px; height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; color: #fff; cursor: pointer; background: rgb(20 20 24 / 0.38); border: 1px solid rgb(255 255 255 / 0.16); -webkit-backdrop-filter: blur(10px) saturate(1.2); backdrop-filter: blur(10px) saturate(1.2); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: background var(--dur-quick), transform var(--dur-quick); }
       .x-side button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
       .x-side button.is-on { background: rgb(255 255 255 / 0.2); transform: scale(0.94); }
-      @media (max-width: 600px) { .x-side { top: calc(max(8px, env(safe-area-inset-top)) + 200px); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 164px); } }
+      @media (max-width: 600px) { .x-side { top: calc(max(8px, env(safe-area-inset-top)) + 216px); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 164px); } }
+      /* hide/show controls: the eye button sits under the home button; everything else fades */
+      .x-eye { top: calc(max(8px, env(safe-area-inset-top)) + 3 * var(--tap) + 24px); transition: opacity 0.3s var(--ease-out); }
+      .x-eye svg { width: 20px; height: 20px; }
+      .x-eye .x-eye__off { display: none; }
+      .x-app.ui-off .x-eye .x-eye__on { display: none; }
+      .x-app.ui-off .x-eye .x-eye__off { display: inline; }
+      .x-app.ui-off .x-eye { opacity: 0.35; }
+      .x-app.ui-off .x-eye:hover, .x-app.ui-off .x-eye:active, .x-app.ui-off .x-eye:focus-visible { opacity: 1; }
+      @media (hover: none) { .x-app.ui-off .x-eye { opacity: 1; } }
+      .x-app.ui-anim :is(.x-title, .x-menu:not(.x-eye), .x-q, .x-sheet, .x-info, .x-bottom, .x-side) { transition: opacity 0.3s var(--ease-out), visibility 0s linear 0s, transform var(--dur-quick) var(--ease-out) !important; }
+      .x-app.ui-off :is(.x-title, .x-menu:not(.x-eye), .x-q, .x-sheet, .x-info, .x-bottom, .x-side) { opacity: 0 !important; visibility: hidden; pointer-events: none !important; transition: opacity 0.3s var(--ease-out), visibility 0s linear 0.3s !important; }
+      .x-app.ui-off .x-bottom * { pointer-events: none !important; }
       /* speed chips beside the play buttons */
       .x-sp { flex: none; height: var(--tap); min-width: 0; padding: 8px 9px; margin: 0 2px 0 0; border: 8px solid transparent; border-width: 8px 0; background: rgb(20 20 24 / 0.5); background-clip: padding-box; border-radius: var(--r-pill); color: rgb(255 255 255 / 0.9); font: var(--type-caption); font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; cursor: pointer; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12); clip-path: inset(8px 0 round var(--r-pill)); }
     </style>
@@ -158,10 +170,15 @@
       <button class="x-menu x-home x-glass" id="home" type="button" aria-label="Reset view">
         <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5L9 3.5l6 5" /><path d="M4.8 7.2V14.5h8.4V7.2" /><circle cx="9" cy="11" r="1.4" /></svg>
       </button>
+      <button class="x-menu x-eye x-glass" id="ui-eye" type="button" aria-label="Hide controls" aria-pressed="false" title="Hide controls (H)">
+        <svg class="x-eye__on" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 10S4.8 4.5 10 4.5 18.2 10 18.2 10 15.2 15.5 10 15.5 1.8 10 1.8 10z" /><circle cx="10" cy="10" r="2.6" /></svg>
+        <svg class="x-eye__off" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4.8a8 8 0 0 1 2-.3c5.2 0 8.2 5.5 8.2 5.5a14 14 0 0 1-2.3 3M12.2 14.9a7.6 7.6 0 0 1-2.2.6C4.8 15.5 1.8 10 1.8 10a14 14 0 0 1 3.4-4" /><path d="M8.2 8.2a2.6 2.6 0 0 0 3.6 3.6" /><path d="M3 3l14 14" /></svg>
+      </button>
       <button class="x-menu x-aa x-glass" id="aa" type="button" aria-label="Show all labels" aria-pressed="true">Aa</button>
       <aside class="x-sheet x-glass" id="sheet" aria-label="View settings">
         <div class="x-sheet__top"><p>View</p><button class="x-close" id="sheet-close" type="button" aria-label="Close">✕</button></div>
         <button class="x-tog x-tog--go" id="sheet-search" type="button">Search</button>
+        <button class="x-tog x-tog--go" id="ui-hide-item" type="button">Hide controls <span class="pill">H</span></button>
         <p class="x-h">Show</p>
         <div>
           <button class="x-tog" type="button" data-t="dome" aria-pressed="true">Firmament</button>
@@ -2648,6 +2665,35 @@
         frameFn = frame;
         running = true; lastAct = performance.now();
         requestAnimationFrame(frame);
+      })();
+    </script>
+    <script>
+      (function () {
+        var uiHidden = false;
+        var uiApp = document.getElementById("top");
+        var uiEyeBtn = document.getElementById("ui-eye");
+        var uiAnimTimer = 0;
+        function uiSetHidden(h) {
+          uiHidden = !!h;
+          clearTimeout(uiAnimTimer);
+          uiApp.classList.add("ui-anim");
+          uiApp.classList.toggle("ui-off", uiHidden);
+          uiAnimTimer = setTimeout(function () { uiApp.classList.remove("ui-anim"); }, 350);
+          uiEyeBtn.setAttribute("aria-pressed", String(uiHidden));
+          uiEyeBtn.setAttribute("aria-label", uiHidden ? "Show controls" : "Hide controls");
+          uiEyeBtn.title = uiHidden ? "Show controls (H)" : "Hide controls (H)";
+        }
+        uiEyeBtn.addEventListener("click", function () { uiSetHidden(!uiHidden); });
+        document.getElementById("ui-hide-item").addEventListener("click", function () {
+          var uiClose = document.getElementById("sheet-close");
+          if (uiClose) uiClose.click();
+          uiSetHidden(true);
+        });
+        addEventListener("keydown", function (ev) {
+          var uiT = ev.target && ev.target.tagName;
+          if (uiT === "INPUT" || uiT === "TEXTAREA" || ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat) return;
+          if (ev.code === "KeyH" || ev.key === "h" || ev.key === "H") uiSetHidden(!uiHidden);
+        });
       })();
     </script>
   </body>
