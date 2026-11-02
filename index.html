@@ -192,6 +192,8 @@
           <button class="x-tog" type="button" data-t="winds" aria-pressed="true">Wind portals</button>
           <button class="x-tog" type="button" data-t="cities" aria-pressed="true">Cities</button>
           <button class="x-tog" type="button" data-t="traffic" aria-pressed="true">Traffic</button>
+          <button class="x-tog" type="button" data-t="cine" aria-pressed="true">Cinematic look</button>
+          <button class="x-tog" type="button" data-t="lbox" aria-pressed="false">Letterbox</button>
           <button class="x-tog" type="button" data-t="veg" aria-pressed="true">Trees &amp; bushes</button>
           <button class="x-tog" type="button" data-t="planes" aria-pressed="true">Aircraft</button>
           <button class="x-tog" type="button" data-t="spray" aria-pressed="false" title="Project chemtrail account. Official explanation: persistent contrails from ice crystals in humid air">Spray trails (chemtrail account)</button>
@@ -311,7 +313,7 @@
         var $ = function (id) { return document.getElementById(id); };
 
         // UI first, so captions fill even if WebGL fails
-        var show = { dome: true, sky: true, borders: true, winds: true, cities: true, traffic: true, planes: true, spray: false, veg: true }, playing = true;
+        var show = { dome: true, sky: true, borders: true, winds: true, cities: true, traffic: true, planes: true, spray: false, veg: true, cine: true, lbox: false }, playing = true;
         var lab = { reg: true, cty: true, bib: true, city: true, enoch: false, ev: true }, labSaved = null; // Countries and Cities on by default
         // timeline: one year per step, 3382 BC (AM 622, Ussher) to AD 2026
         var era = $("era"), Y0 = -3382, Y1 = 2026, yF = Y1, yearN = Y1, verseT = 0, tlPlay = false, tlSpeed = 10, tlBtn = $("tl-play");
@@ -2058,6 +2060,43 @@
           return akm < 2 || VG.Q.length > 0 || VG.busy > 0;
         }
         window.__vg = VG;
+        // ===== Y cinematic look (FEATURES Y + I): one full-screen grade pass over the finished frame (same frame copy as the shimmer) =====
+        // filmic teal/amber split grade, golden- and blue-hour emphasis near the terminator, soft vignette, fine grain,
+        // edge chromatic aberration + anamorphic horizontal sun streak + light god-rays + soft bloom (desktop), letterbox option for tours.
+        // Mobile tier: grade, vignette, grain and a short streak only (no CA, rays or bloom taps).
+        var CINE = { tex: { value: null }, sz: new THREE.Vector2(), v0: new THREE.Vector2(0, 0), sv: new THREE.Vector3() };
+        CINE.U = { uTex: CINE.tex, uRes: { value: new THREE.Vector2(1, 1) }, uSun: { value: new THREE.Vector3(0, 0, 0) }, uT: { value: 0 }, uGold: { value: 0 }, uBlue: { value: 0 }, uLB: { value: 0 }, uHi: { value: MOB ? 0 : 1 } };
+        CINE.S = new THREE.Scene(); CINE.C = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        CINE.Q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: CINE.U, depthTest: false, depthWrite: false, toneMapped: false,
+          vertexShader: "varying vec2 vU; void main(){ vU = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+          fragmentShader: "uniform sampler2D uTex; uniform vec2 uRes; uniform vec3 uSun; uniform float uT, uGold, uBlue, uLB, uHi; varying vec2 vU;\n" +
+            "float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + uT * 0.0) * 43758.5453); }\n" +
+            "vec3 tx(vec2 u){ return texture2D(uTex, clamp(u, 0.0005, 0.9995)).rgb; }\n" +
+            "void main(){ vec2 u = vU, q = u - 0.5; float r2 = dot(q, q); vec3 c;\n" +
+            " if (uHi > 0.5) { vec2 o = q * r2 * 0.012; c = vec3(tx(u + o).r, tx(u).g, tx(u - o).b); } else c = tx(u);\n" + // edge CA
+            " if (uHi > 0.5) { vec3 b = vec3(0.0); for (int i = 0; i < 8; i++) { float a = float(i) * 0.7854; vec3 s = tx(u + vec2(cos(a), sin(a)) * 6.0 / uRes); b += max(s - 0.72, 0.0); } c += b * 0.09; }\n" + // soft bloom
+            " float sv = uSun.z; if (sv > 0.0) { vec2 sp = uSun.xy; float lum = dot(tx(sp), vec3(0.3, 0.6, 0.1)); float k = sv * smoothstep(0.55, 0.95, lum); vec2 d = u - sp; d.x *= uRes.x / uRes.y;\n" +
+            "  c += vec3(1.0, 0.78, 0.55) * k * (exp(-abs(d.y) * 260.0) * exp(-abs(d.x) * (uHi > 0.5 ? 2.2 : 5.0)) * 0.35 + exp(-length(d) * 9.0) * 0.12);\n" + // anamorphic streak + glow
+            "  if (uHi > 0.5) { vec3 gr = vec3(0.0); vec2 st = (sp - u) / 14.0; vec2 p = u; for (int i = 0; i < 14; i++) { p += st; gr += max(tx(p) - 0.8, 0.0); } c += gr / 14.0 * k * 0.45 * vec3(1.0, 0.9, 0.75); } }\n" + // god-rays
+            " float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(c, c * vec3(0.92, 1.0, 1.06), (1.0 - smoothstep(0.0, 0.45, l)) * 0.35); c = mix(c, c * vec3(1.06, 1.0, 0.9), smoothstep(0.45, 1.0, l) * 0.3);\n" + // teal/amber split
+            " c = mix(c, c * vec3(1.12, 0.98, 0.82), uGold * 0.5); c = mix(c, c * vec3(0.85, 0.95, 1.15), uBlue * 0.45);\n" + // golden / blue hour
+            " c = mix(vec3(l), c, 1.06); c *= 1.0 - smoothstep(0.18, 0.72, r2 * 1.6) * 0.32;\n" + // gentle saturation, vignette
+            " c += (h(u * uRes + fract(uT) * 91.7) - 0.5) * 0.028;\n" + // grain
+            " float lb = step(abs(q.y), 0.5 * mix(1.0, clamp((uRes.x / uRes.y) / 2.39, 0.6, 1.0), uLB)); c *= lb;\n" +
+            " gl_FragColor = vec4(c, 1.0); }" }));
+        CINE.Q.frustumCulled = false; CINE.S.add(CINE.Q);
+        function cinePass(cp, akm) {
+          if (show.cine === false) return; renderer.getDrawingBufferSize(CINE.sz);
+          if (!CINE.tex.value || CINE.tex.value.image.width !== CINE.sz.x || CINE.tex.value.image.height !== CINE.sz.y) { if (CINE.tex.value) CINE.tex.value.dispose(); CINE.tex.value = new THREE.FramebufferTexture(CINE.sz.x, CINE.sz.y, THREE.RGBAFormat); CINE.tex.value.minFilter = CINE.tex.value.magFilter = THREE.LinearFilter; }
+          CINE.U.uRes.value.copy(CINE.sz); CINE.U.uT.value = (performance.now() / 1000) % 100; CINE.U.uLB.value = show.lbox ? 1 : 0;
+          var ab = { x: cp.x + ANC0.x, z: cp.z + ANC0.z }, d = WU.uSunOn.value > 0 ? Math.hypot(ab.x - sun.position.x, ab.z - sun.position.z) : 0, low = cp.y > 0 && akm < 400 ? 1 : 0.3;
+          CINE.U.uGold.value = smooth(3.2, 3.55, d) * (1 - smooth(3.6, 3.72, d)) * low; CINE.U.uBlue.value = smooth(3.62, 3.72, d) * (1 - smooth(3.8, 4.0, d)) * low;
+          CINE.sv.set(sun.position.x - ANC0.x, sun.position.y, sun.position.z - ANC0.z).project(camera);
+          var on = sun.visible !== false && WU.uSunOn.value > 0 && CINE.sv.z < 1 && Math.abs(CINE.sv.x) < 1.1 && Math.abs(CINE.sv.y) < 1.1;
+          CINE.U.uSun.value.set((CINE.sv.x + 1) / 2, (CINE.sv.y + 1) / 2, on ? 1 : 0);
+          renderer.copyFramebufferToTexture(CINE.v0, CINE.tex.value);
+          renderer.autoClear = false; renderer.render(CINE.S, CINE.C); renderer.autoClear = true;
+        }
         function show_traffic() { return show.traffic !== false; }
         function slFetch(key, tx, ty) {
           SL.busy++;
@@ -3655,6 +3694,7 @@
             renderer.copyFramebufferToTexture(shimV0, shimTex.value);
             shimG.position.copy(world.position); renderer.autoClear = false; renderer.render(shimS, camera); renderer.autoClear = true;
           }
+          cinePass(cp, akm);
           // keep running while anything moves; after 1 s of stillness the loop pauses until input or a load wakes it
           if (camChanged || busy || inertOn || mv || moving || zooming || fq || tlPlay || (playing && skyI > 0) || pts.size || holding || Object.keys(keys).some(function (k) { return keys[k]; }) || now - prT < 0.35) lastAct = performance.now();
           if (performance.now() - lastAct > 1000) { running = false; lastTs = 0; return; }

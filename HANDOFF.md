@@ -105,3 +105,15 @@ Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72
 - veg_atlas.webp: 6 impostor cells rendered offline in three r147 from CC0 Poly Haven scans (tree_small_02, island_tree_01, fir_sapling_medium a/b, wild_rooibos_bush, shrub_02). These are photoreal impostors, not primitives.
 - Shader: cylindrical billboard, two-frequency wind sway (scaled by height²), random mirror, night darkening per instance using its distance to the sun subpoint, logdepth.
 - LOD: beyond ~2 km instances are thinned in proportion to 1/distance (uLod 1.2 on desktop, 0.6 on mobile). Shown below 5 km altitude. Toggle: "Trees & bushes". Debug hook: `window.__vg`.
+
+## Y cinematic look
+- `cinePass()` runs after the main render and the shimmer pass: it copies the frame to a FramebufferTexture and draws one full-screen grade quad.
+  - No EffectComposer, so it keeps the existing log-depth canvas path and the shimmer copy.
+- What the pass does:
+  - Teal/amber split grade.
+  - Golden and blue hour emphasis, from the camera's distance to the sun subpoint (3.2–4.0).
+  - Vignette and grain.
+  - Anamorphic sun streak and glow, gated by the brightness at the sun pixel, so it handles occlusion.
+- Desktop only: edge chromatic aberration, 8-tap soft bloom and 14-step god-rays.
+- Mobile tier: grade, vignette, grain and a short streak only.
+- Toggles: "Cinematic look" (on) and "Letterbox" (off; 2.39:1 on landscape, 60% height on portrait).
