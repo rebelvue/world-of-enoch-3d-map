@@ -17,7 +17,26 @@
       html, body, .x-app, .x-app * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
       .x-side button, .x-tl, .x-tl *, .x-menu, .x-card__x { touch-action: none; }
       .x-sheet button { touch-action: manipulation; }
-      .x-labels, .x-label, .x-fine, .fineprint { pointer-events: none !important; }
+      .x-labels, .x-label, .fineprint { pointer-events: none !important; }
+      /* search: the input is the only place text can be selected */
+      .x-app .x-q__in { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+      .x-srch { right: calc(max(10px, env(safe-area-inset-right)) + var(--tap) + 8px); }
+      .x-srch svg { width: 18px; height: 18px; }
+      .x-q { position: fixed; top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: min(340px, calc(100vw - 20px)); box-sizing: border-box; border-radius: var(--r-s); z-index: 5; overflow: hidden; }
+      .x-q[hidden] { display: none; }
+      .x-q__bar { display: flex; align-items: center; gap: 6px; padding-left: 12px; }
+      .x-q__bar svg { flex: none; width: 16px; height: 16px; color: var(--text-secondary); }
+      .x-q__in { flex: 1; min-width: 0; height: var(--tap); padding: 0; border: 0; outline: none; background: none; color: #fff; font: var(--type-body); font-size: 16px; }
+      .x-q__in::placeholder { color: rgb(255 255 255 / 0.5); }
+      .x-q__in::-webkit-search-cancel-button { display: none; }
+      .x-q ul { list-style: none; margin: 0; padding: 0 0 4px; max-height: 60vh; overflow-y: auto; border-top: 1px solid rgb(255 255 255 / 0.1); }
+      .x-q ul:empty { display: none; }
+      .x-q li button { display: flex; width: 100%; min-height: var(--tap); align-items: center; justify-content: space-between; gap: 10px; padding: 6px 12px; border: 0; background: none; color: #fff; font: var(--type-small); text-align: left; cursor: pointer; touch-action: manipulation; }
+      .x-q li button:hover, .x-q li button:focus-visible { background: rgb(255 255 255 / 0.08); outline: none; }
+      .x-q li span { flex: none; font: var(--type-caption); color: var(--text-secondary); }
+      .x-q__none { padding: 10px 12px; font: var(--type-caption); color: var(--text-secondary); }
+      .x-tog--go::after { display: none; }
+      .x-sheet .x-attr { margin: 16px 0 0; font: var(--type-caption); color: var(--text-secondary); }
       .x-label--reg { font: var(--type-tag); text-transform: uppercase; letter-spacing: 0.22em; color: rgb(255 255 255 / 0.62); }
       .x-label--reg::before { display: none; }
       .x-card { padding-right: 40px; }
@@ -35,7 +54,7 @@
       .x-title { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); margin: 0; font: var(--type-small); font-weight: var(--weight-medium); color: rgb(255 255 255 / 0.85); text-shadow: 0 1px 6px #000; pointer-events: none; }
       .x-menu { position: fixed; top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: var(--tap); height: var(--tap); border-radius: 50%; display: grid; place-items: center; color: #fff; cursor: pointer; padding: 0; z-index: 3; }
       .x-menu svg { width: 18px; height: 18px; }
-      .x-aa { right: calc(max(10px, env(safe-area-inset-right)) + var(--tap) + 8px); font: var(--type-small); font-weight: var(--weight-medium); }
+      .x-aa { right: calc(max(10px, env(safe-area-inset-right)) + 2 * var(--tap) + 16px); font: var(--type-small); font-weight: var(--weight-medium); }
       .x-aa[aria-pressed="false"] { color: rgb(255 255 255 / 0.45); text-decoration: line-through; }
       .x-sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(280px, 84vw); box-sizing: border-box; padding: max(14px, env(safe-area-inset-top)) 16px 16px; overflow-y: auto; z-index: 4; transform: translateX(105%); transition: transform var(--dur-quick) var(--ease-out); border-width: 0 0 0 1px; }
       .x-sheet.is-open { transform: none; }
@@ -76,7 +95,6 @@
       .x-range::-moz-range-track { height: 2px; border-radius: 1px; background: rgb(255 255 255 / 0.25); }
       .x-range::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgb(255 200 80 / 0.35); }
       .x-range::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #fff; }
-      .x-fine { margin: 0; font: var(--type-caption); color: #fff; opacity: 0.4; text-align: center; text-shadow: 0 1px 4px #000; }
       .x-labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
       .x-label { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 4px; white-space: nowrap; font: var(--type-caption); letter-spacing: 0.01em; color: rgb(242 242 242 / 0.92); text-shadow: 0 1px 3px #000, 0 0 6px rgb(0 0 0 / 0.8); will-change: transform, opacity; margin: -6px 0 0 -3px; }
       .x-label::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5); flex: none; }
@@ -93,8 +111,9 @@
       .x-label--tap { padding: 4px 0; }
       .x-compass { top: calc(max(8px, env(safe-area-inset-top)) + var(--tap) + 8px); }
       .x-compass svg { width: 22px; height: 22px; transition: transform 0.08s linear; }
+      .x-home { top: calc(max(8px, env(safe-area-inset-top)) + 2 * var(--tap) + 16px); }
       /* side camera buttons: centred on each edge between the top buttons and the bottom readout */
-      .x-side { position: fixed; z-index: 2; top: calc(max(8px, env(safe-area-inset-top)) + 112px); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 12px); display: flex; flex-direction: column; justify-content: center; gap: 8px; pointer-events: none; transition: opacity 0.5s var(--ease-out); }
+      .x-side { position: fixed; z-index: 2; top: calc(max(8px, env(safe-area-inset-top)) + 164px); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 12px); display: flex; flex-direction: column; justify-content: center; gap: 8px; pointer-events: none; transition: opacity 0.5s var(--ease-out); }
       .x-side--l { left: max(10px, env(safe-area-inset-left)); }
       .x-side--r { right: max(10px, env(safe-area-inset-right)); }
       .x-side.is-dim { opacity: 0.35; }
@@ -122,12 +141,27 @@
       <button class="x-menu x-glass" id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet">
         <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12" /></svg>
       </button>
+      <button class="x-menu x-srch x-glass" id="srch" type="button" aria-label="Search" aria-expanded="false" aria-controls="q">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7.8" cy="7.8" r="4.8" /><path d="M11.4 11.4L15 15" /></svg>
+      </button>
+      <div class="x-q x-glass" id="q" role="search" hidden>
+        <div class="x-q__bar">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7.8" cy="7.8" r="4.8" /><path d="M11.4 11.4L15 15" /></svg>
+          <input class="x-q__in" id="q-in" type="search" placeholder="Countries, cities, empires" aria-label="Search places" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" />
+          <button class="x-close" id="q-x" type="button" aria-label="Close search">✕</button>
+        </div>
+        <ul id="q-res" role="listbox" aria-label="Results"></ul>
+      </div>
       <button class="x-menu x-compass x-glass" id="compass" type="button" aria-label="Reset north and tilt">
         <svg viewBox="0 0 22 22" id="needle"><path d="M11 3l3 8h-6z" fill="#ff5a4a" /><path d="M11 19l3-8h-6z" fill="rgb(255 255 255 / 0.7)" /></svg>
+      </button>
+      <button class="x-menu x-home x-glass" id="home" type="button" aria-label="Reset view">
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5L9 3.5l6 5" /><path d="M4.8 7.2V14.5h8.4V7.2" /><circle cx="9" cy="11" r="1.4" /></svg>
       </button>
       <button class="x-menu x-aa x-glass" id="aa" type="button" aria-label="Show all labels" aria-pressed="true">Aa</button>
       <aside class="x-sheet x-glass" id="sheet" aria-label="View settings">
         <div class="x-sheet__top"><p>View</p><button class="x-close" id="sheet-close" type="button" aria-label="Close">✕</button></div>
+        <button class="x-tog x-tog--go" id="sheet-search" type="button">Search</button>
         <p class="x-h">Show</p>
         <div>
           <button class="x-tog" type="button" data-t="dome" aria-pressed="true">Firmament</button>
@@ -154,7 +188,7 @@
           <button class="btn" type="button" data-v="ground">Ground level over Jerusalem</button>
           <button class="btn" type="button" data-v="hades">Hades</button>
         </div>
-        <p class="fineprint" style="margin-top: 6px">Imagery: Esri World Imagery. Elevation: Mapzen Terrarium / AWS Terrain Tiles.</p>
+        <p class="fineprint" style="margin-top: 6px">Elevation: Mapzen Terrarium / AWS Terrain Tiles.</p>
         <p class="x-h">Season</p>
         <div class="x-season"><span class="pill" id="month">June · Gate 6</span><button class="btn" id="play" type="button" aria-pressed="true">Pause</button></div>
         <p class="x-h">Timeline speed, years per second</p>
@@ -164,8 +198,9 @@
           <button class="btn" type="button" data-s="100" aria-pressed="false">×100</button>
         </div>
         <p class="x-h">Move</p>
-        <p class="fineprint">Drag up or down to tilt, sideways to slide; right- or Ctrl-drag to turn the earth; scroll to move forward or back. Touch: one finger tilts or slides, twist turns the earth, pinch out moves forward, pinch in moves back. WASD/arrows and Q/E fly, Shift for speed.</p>
+        <p class="fineprint">Drag to pan; scroll to zoom to the cursor; right- or Ctrl-drag to turn and tilt. Touch: one finger pans, pinch zooms, twist turns, two fingers up or down tilt; double-tap zooms in, two-finger tap zooms out, double-tap and drag to zoom. WASD/arrows and Q/E fly, Shift for speed.</p>
         <p class="fineprint" style="margin-top: 12px">Biblical dates: Ussher chronology. Historical borders: aourednik/historical-basemaps (approximate).</p>
+        <p class="x-attr">© Esri</p>
       </aside>
       <aside class="x-info x-glass" id="info" hidden aria-live="polite">
         <h3 id="info-name"></h3>
@@ -190,7 +225,6 @@
           <div class="x-slider"><input class="x-range" id="era" type="range" min="-3382" max="2026" step="1" value="-3382" aria-label="Year" /></div>
           <button class="x-tb" id="tl-next" type="button" aria-label="One year forward">›</button>
         </div>
-        <p class="x-fine">Interpretive model. Relief at true scale. Imagery: NASA Blue Marble.</p>
       </div>
       <div class="x-side x-side--l" id="side-l" role="group" aria-label="Tilt and rotate">
         <button type="button" data-h="tu" aria-label="Tilt up"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="4" ry="8" /><path d="M14 14.5l2-2.5 2 2.5" /></svg></button>
@@ -351,7 +385,7 @@
           if (!infoEl.hidden && !infoEl.contains(e.target)) infoEl.hidden = true;
           if (e.target.tagName === "CANVAS") sheetOpen(false);
         });
-        ["selectstart", "contextmenu"].forEach(function (t) { document.addEventListener(t, function (e) { e.preventDefault(); }); });
+        ["selectstart", "contextmenu"].forEach(function (t) { document.addEventListener(t, function (e) { if (e.target && e.target.id === "q-in") return; e.preventDefault(); }); }); // text selection: the search input only
         function noTouch(el) { ["touchstart", "touchmove"].forEach(function (t) { el.addEventListener(t, function (e) { e.preventDefault(); }, { passive: false }); }); }
 
         // fly input: keys
@@ -1331,8 +1365,8 @@
           .forEach(function (d) { var p = ll(d[1], d[2]); add(d[0], p[0], p[1], "B", "x-label--b"); });
         // polities of each border snapshot, top 25 (2010 stands for today)
         // continents and regions: the only place names shown by default
-        [["Europe", 52, 15], ["Asia", 47, 90], ["Africa", 5, 20], ["Middle East", 29, 45], ["North America", 45, -100], ["South America", -14, -60], ["Oceania", -25, 135], ["Antarctica", -80, -30]]
-          .forEach(function (d) { var p = ll(d[1], d[2]); add(d[0], p[0], p[1], "R", "x-label--reg"); });
+        var CONTS = [["Europe", 52, 15], ["Asia", 47, 90], ["Africa", 5, 20], ["Middle East", 29, 45], ["North America", 45, -100], ["South America", -14, -60], ["Oceania", -25, 135], ["Antarctica", -80, -30]];
+        CONTS.forEach(function (d) { var p = ll(d[1], d[2]); add(d[0], p[0], p[1], "R", "x-label--reg"); });
         var POL = {}, CI = [];
         try { POL = JSON.parse($("polities").textContent || "{}"); } catch (err) {}
         try { CI = JSON.parse($("cinfo").textContent || "[]"); } catch (err) {}
@@ -1729,11 +1763,12 @@
             goView(b.dataset.v); sheetOpen(false);
           });
         });
-        // no orbit zoom: pinch and wheel fly forward or back along the view direction (fwdMove); speed follows altitude
+        // wheel zooms to the cursor: the ground under the cursor stays under it (queued, eased in zoomStep)
         var fq = null, pts = new Map();
-        function fwdReq(k) { mv = null; fq = { f: (fq ? fq.f : 0) + k }; }
-        // wheel: scroll up moves forward, scroll down moves backward (same as pinch out / pinch in)
-        stage.addEventListener("wheel", function (e) { e.preventDefault(); e.stopPropagation(); fwdReq(Math.max(-1, Math.min(1, e.deltaY * (e.deltaMode ? 0.05 : 0.0015)))); }, { capture: true, passive: false });
+        stage.addEventListener("wheel", function (e) {
+          e.preventDefault(); e.stopPropagation(); mv = null; hv = null; za = null;
+          fq = { f: (fq ? fq.f : 0) + Math.max(-1, Math.min(1, e.deltaY * (e.deltaMode ? 0.05 : 0.0015))), x: e.clientX, y: e.clientY };
+        }, { capture: true, passive: false });
         function altNow() { // height above the ground (or distance to it below), never under the 20 m floor
           var cp = camera.position, ox = camAbs ? 0 : ANC0.x, oz = camAbs ? 0 : ANC0.z;
           return Math.max(Math.abs(cp.y - ground(cp.x + ox, cp.z + oz)), 20 * M);
@@ -1747,12 +1782,47 @@
           cp.addScaledVector(d, st); controls.target.addScaledVector(d, st);
         }
         function altMove(s) { var a = altNow() * Math.max(-1, Math.min(1, s)); camera.position.y += a; controls.target.y += a; } // side altitude buttons
-        function zoomStep(dt) { // applies part of the queued wheel move each frame
-          if (!fq || Math.abs(fq.f) < 0.002) { fq = null; return false; }
-          var s = fq.f * (1 - Math.exp(-dt * 12));
-          fq.f -= s;
-          fwdMove(s);
-          return true;
+        function zoomStep(dt) { // each frame, in absolute coords: the anchored gesture solve, the wheel queue, tap zooms and view animations
+          var on = false;
+          if (G1) { gStep(dt); on = true; }
+          if (fq) {
+            if (Math.abs(fq.f) < 0.002) fq = null;
+            else { // wheel: zoom to the cursor
+              var s = fq.f * (1 - Math.exp(-dt * 12)), P = groundHit(fq.x, fq.y, gP);
+              fq.f -= s;
+              if (P) { var o = orient(); solve(P, fq.x, fq.y, o.r * Math.exp(s * 1.5), o.th, o.ph); } else fq = null;
+              on = true;
+            }
+          }
+          if (za) { // animated 2x tap zoom: double-tap in, two-finger tap out; the tapped ground point stays put
+            if (za.need) { za.need = 0; camera.lookAt(controls.target); var zp = groundHit(za.sx, za.sy, gP), zo = orient(); if (!zp) { za = null; return on; } za.P = zp.clone(); za.r0 = zo.r; za.th = zo.th; za.ph = zo.ph; za.t = 0; }
+            za.t = Math.min(1, za.t + dt / 0.35);
+            solve(za.P, za.sx, za.sy, za.r0 * Math.pow(za.f, ease(za.t)), za.th, za.ph);
+            if (za.t >= 1) za = null;
+            on = true;
+          }
+          if (hv) { // compass (north, tilt kept) and reset (default view) animations, heading/tilt/distance interpolated
+            if (hv.need) {
+              hv.need = 0; var ho = orient(), T = controls.target;
+              hv.T0 = T.clone(); hv.r0 = ho.r; hv.th0 = ho.th; hv.ph0 = ho.ph; hv.t = 0;
+              if (hv.to) { hv.T1 = hv.to.T.clone(); hv.r1 = hv.to.r; hv.ph1 = 0.002; var tq = Math.hypot(hv.T1.x, hv.T1.z); hv.th1 = tq > 1e-6 ? Math.atan2(hv.T1.x, hv.T1.z) : 0; } // search: fly to a place, top-down, north up
+              else if (hv.home) { hv.T1 = V(0, 0, 0); hv.r1 = homeDist(); hv.th1 = 0; hv.ph1 = 0.002; } // top-down, lon 0 down, disc ~80% of the screen
+              else { var tr = Math.hypot(T.x, T.z); hv.T1 = T.clone(); hv.r1 = ho.r; hv.ph1 = ho.ph; hv.th1 = tr > 1e-6 ? Math.atan2(T.x, T.z) : 0; } // north = toward the center; tilt kept
+              hv.th1 = hv.th0 + wrapA(hv.th1 - hv.th0);
+            }
+            hv.t = Math.min(1, hv.t + dt / hv.dur);
+            var he = ease(hv.t);
+            controls.target.lerpVectors(hv.T0, hv.T1, he);
+            place(hv.r0 * Math.pow(hv.r1 / hv.r0, he), hv.th0 + (hv.th1 - hv.th0) * he, hv.ph0 + (hv.ph1 - hv.ph0) * he);
+            if (hv.t >= 1) hv = null;
+            on = true;
+          }
+          return on;
+        }
+        function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; } // ease-in-out
+        function homeDist() { // whole disc about 80% of the screen's smaller side
+          var f = innerHeight / (2 * Math.tan(camera.fov * Math.PI / 360));
+          return 2 * DISC_R * f / (0.8 * Math.min(innerWidth, innerHeight));
         }
         // max zoom-out: the whole disc (R plus the ice ring) stays at least 25% of the screen's smaller side; limit from the fov
         var DISC_R = R + ICE_W;
@@ -1769,43 +1839,62 @@
           return true;
         }
 
-        // Gestures. One finger (or left drag): vertical = tilt only, horizontal = truck sideways only, locked to the dominant
-        // axis after 18 px. Two fingers: twist rotates about the disc's central axis through (0,0); pinch out moves forward,
-        // pinch in backward, mode locked per gesture. Right- or Ctrl-drag twists. Wheel moves forward/back. Released motion glides out.
+        // Gestures, Google Earth / Apple Maps standard: gestures anchor to the ground. When a gesture starts its finger(s) are
+        // raycast to the ground (drawn tiles or terrain first, else the y=0 plane); every frame solve() places the camera so each
+        // ground point stays exactly under its finger. Nothing moves the camera by velocity during a drag.
+        // One finger: anchored pan, fling on release. Two fingers: pinch zooms, twist turns the heading and a parallel vertical drag
+        // tilts, all about the centroid's ground point and combinable. Double-tap: 2x in; two-finger tap: 2x out; double-tap-drag:
+        // continuous zoom. Desktop: left drag pans, wheel zooms to the cursor, right- or Ctrl-drag rotates and tilts.
         var gRay = new THREE.Raycaster(), gV = new THREE.Vector2(), gA = new THREE.Vector3(), gB = new THREE.Vector3(), gR = new THREE.Vector3(), gF = new THREE.Vector3();
-        var ivel = { x: 0, z: 0, h: 0, t: 0, z2: 0, a: 0, hd: false }, gest = null, lastMoveT = 0, inertOn = false;
+        var gH = new THREE.Vector3(), gP = new THREE.Vector3(), gO = new THREE.Vector3(), gS0 = new THREE.Vector3(), gS1 = new THREE.Vector3();
+        var ivel = { x: 0, z: 0, h: 0, t: 0, z2: 0, a: 0, hd: false }, lastMoveT = 0, inertOn = false;
+        var G1 = null, za = null, hv = null, tap = { t: 0, x: 0, y: 0 }, twoTap = null, multi = false, R_MIN = 25 * M;
         function discX() { return camAbs ? 0 : -ANC0.x; } // the disc's center (0,0) in render coords
         function discZ() { return camAbs ? 0 : -ANC0.z; }
-        function truck(dxPx) { // the earth follows the finger sideways; speed scales with altitude
-          var k = altNow() * 2 * Math.tan(camera.fov * Math.PI / 360) / innerHeight;
+        function shift(dx, dz) { camera.position.x += dx; camera.position.z += dz; controls.target.x += dx; controls.target.z += dz; }
+        function planeHit(sx, sy, h, out) { // the view ray under screen point (sx, sy) meets the plane y = h; null if it never does
           camera.updateMatrixWorld();
-          gR.setFromMatrixColumn(camera.matrixWorld, 0); gR.y = 0; gR.normalize();
-          var dx = -dxPx * k * gR.x, dz = -dxPx * k * gR.z;
-          shift(dx, dz);
-          return [dx, dz];
-        }
-        function hitAt(x, y, out) { // the plane at the target's height, under a screen point; null near the horizon
-          camera.updateMatrixWorld();
-          gV.set(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1); gRay.setFromCamera(gV, camera);
-          var o = camera.position, d = gRay.ray.direction, py = controls.target.y;
-          if (Math.abs(d.y) < 1e-3) return null;
-          var t = (py - o.y) / d.y;
-          if (t <= 0 || t > o.distanceTo(controls.target) * 25) return null;
+          gV.set(sx / innerWidth * 2 - 1, -sy / innerHeight * 2 + 1); gRay.setFromCamera(gV, camera);
+          var o = gRay.ray.origin, d = gRay.ray.direction;
+          if (Math.abs(d.y) < 1e-6) return null;
+          var t = (h - o.y) / d.y;
+          if (t <= 0) return null;
           return out.copy(o).addScaledVector(d, t);
         }
-        function shift(dx, dz) { camera.position.x += dx; camera.position.z += dz; controls.target.x += dx; controls.target.z += dz; }
-        function panPx(x0, y0, x1, y1) { // the ground under (x0, y0) moves to (x1, y1)
-          var a = hitAt(x0, y0, gA), b = a && hitAt(x1, y1, gB), dx, dz, dist = camera.position.distanceTo(controls.target);
-          if (a && b) { dx = a.x - b.x; dz = a.z - b.z; }
-          else { // near the horizon: move by screen distance at the target's range
-            var k = dist * 2 * Math.tan(camera.fov * Math.PI / 360) / innerHeight;
-            gR.setFromMatrixColumn(camera.matrixWorld, 0); gR.y = 0; gR.normalize(); gF.crossVectors(Y, gR);
-            dx = (-(x1 - x0) * gR.x + (y1 - y0) * gF.x) * k; dz = (-(x1 - x0) * gR.z + (y1 - y0) * gF.z) * k;
+        function groundHit(sx, sy, out) { // raycast to the ground: drawn tiles or terrain first (plane steps along the ray), else y=0
+          if (!planeHit(sx, sy, 0, out)) return null;
+          var h = 0;
+          for (var i = 0; i < 6; i++) {
+            var g = ground(out.x, out.z);
+            if (!isFinite(g) || Math.abs(g - h) < 0.2 * M) break;
+            if (!planeHit(sx, sy, g, gH)) break;
+            h = g; out.copy(gH);
           }
-          var l = Math.hypot(dx, dz), mx = dist * 1.5;
-          if (l > mx) { dx *= mx / l; dz *= mx / l; }
-          shift(dx, dz);
+          return out;
+        }
+        function orient() { // the camera about the target: distance, heading, pitch from straight down
+          var o = gO.copy(camera.position).sub(controls.target), r = o.length() || 1e-9;
+          return { r: r, th: Math.atan2(o.x, o.z), ph: Math.acos(Math.max(-1, Math.min(1, o.y / r))) };
+        }
+        function place(r, th, ph) { // set distance, heading and pitch about the target
+          var t = controls.target, mx = t.y > -0.2 ? Math.PI / 2 - 0.03 : Math.PI * 0.86;
+          r = Math.max(R_MIN, r); ph = Math.max(0.002, Math.min(mx, ph));
+          camera.position.set(t.x + r * Math.sin(ph) * Math.sin(th), t.y + r * Math.cos(ph), t.z + r * Math.sin(ph) * Math.cos(th));
+          camera.lookAt(t);
+        }
+        function pin(P, sx, sy) { // slide camera and target so ground point P sits exactly under screen point (sx, sy)
+          var q = planeHit(sx, sy, P.y, gH);
+          if (!q) return null;
+          var dx = P.x - q.x, dz = P.z - q.z;
+          shift(dx, dz); // a horizontal shift keeps the ray direction, so the ray now meets P exactly
           return [dx, dz];
+        }
+        function solve(P, sx, sy, r, th, ph) { // orientation first, then pin; undone if the point would leave the ground
+          gS0.copy(camera.position); gS1.copy(controls.target);
+          place(r, th, ph);
+          var d = pin(P, sx, sy);
+          if (!d) { camera.position.copy(gS0); controls.target.copy(gS1); camera.lookAt(gS1); }
+          return d;
         }
         function spin(ang, px, pz) { // turn the heading about a vertical axis through (px, pz)
           var c = Math.cos(ang), s = Math.sin(ang);
@@ -1818,82 +1907,102 @@
           ph = Math.max(0.002, Math.min(mx, ph + d));
           camera.position.set(t.x + r * Math.sin(ph) * Math.sin(th), t.y + r * Math.cos(ph), t.z + r * Math.sin(ph) * Math.cos(th));
         }
-        function track(k, v, dtm) { ivel[k] = ivel[k] * 0.5 + (v / dtm) * 0.5; }
+        function wrapA(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
         var cvs = renderer.domElement;
+        function gBegin(now) { // a gesture (re)starts whenever the finger count changes; anchors are raycast in the next frame
+          var a = []; pts.forEach(function (q) { q.x0 = q.x; q.y0 = q.y; a.push(q); });
+          if (a.length === 1) {
+            var p = a[0];
+            if (p.rot) G1 = { k: "rot", need: 1, sx: innerWidth / 2, sy: innerHeight / 2 }; // desktop right- or Ctrl-drag: rotate and tilt about the center's ground point
+            else if (now - tap.t < 320 && Math.hypot(p.x - tap.x, p.y - tap.y) < 40) G1 = { k: "dz", need: 1, sx: p.x, sy: p.y }; // double-tap (then drag: continuous zoom)
+            else G1 = { k: "pan", need: 1, sx: p.x, sy: p.y }; // one-finger drag: anchored pan
+          } else if (a.length === 2) { // pinch, twist and tilt about the centroid's ground point
+            var A = a[0], B = a[1];
+            G1 = { k: "two", need: 1, sx: (A.x + B.x) / 2, sy: (A.y + B.y) / 2, d0: Math.hypot(B.x - A.x, B.y - A.y) || 1, ang: Math.atan2(B.y - A.y, B.x - A.x), rot: 0, tilt: false, noTilt: false };
+            if (!multi) twoTap = { t: now, x: G1.sx, y: G1.sy, ok: true };
+            multi = true;
+          } else { G1 = null; twoTap = null; }
+        }
+        function gStep(dt) { // the per-frame solve: every anchored ground point back under its finger
+          var a = [], g = G1; pts.forEach(function (q) { a.push(q); });
+          if (!a.length) { G1 = null; return; }
+          if (g.need) {
+            camera.lookAt(controls.target);
+            var o = orient(), P = groundHit(g.sx, g.sy, gP);
+            g.r0 = o.r; g.th0 = o.th; g.ph0 = o.ph; g.ox = 0; g.oy = 0;
+            if (P) g.P = P.clone();
+            else if (g.k === "pan") { g.sx = a[0].x; g.sy = a[0].y; return; } // finger on the sky: anchor once it reaches the ground
+            else { // no ground under the fingers: pivot about the target where it sits on screen
+              g.P = controls.target.clone(); var v = gH.copy(g.P).project(camera);
+              g.ox = (v.x + 1) / 2 * innerWidth - g.sx; g.oy = (1 - v.y) / 2 * innerHeight - g.sy;
+            }
+            g.need = 0;
+          }
+          if (g.k === "pan") { // 1. one-finger drag: the anchored ground point stays under the finger
+            var d = pin(g.P, a[0].x, a[0].y), k = 1 - Math.exp(-dt * 20);
+            if (dt > 0) { ivel.x += ((d ? d[0] : 0) / dt - ivel.x) * k; ivel.z += ((d ? d[1] : 0) / dt - ivel.z) * k; } // release speed for the fling
+          } else if (g.k === "dz") { // 5. double-tap then drag: down zooms in, up zooms out, about the tapped point
+            solve(g.P, g.sx, g.sy, g.r0 * Math.exp(-(a[0].y - g.sy) * 0.01), g.th0, g.ph0);
+          } else if (g.k === "rot") { // 6. right- or Ctrl-drag: sideways turns the heading, up tilts more oblique, down more top-down
+            solve(g.P, g.sx + g.ox, g.sy + g.oy, g.r0, g.th0 - (a[0].x - a[0].x0) * 0.005, g.ph0 - (a[0].y - a[0].y0) * 0.005);
+          } else if (g.k === "two" && a.length === 2) {
+            var A = a[0], B = a[1], cx = (A.x + B.x) / 2, cy = (A.y + B.y) / 2, dd = Math.hypot(B.x - A.x, B.y - A.y) || 1, ang = Math.atan2(B.y - A.y, B.x - A.x);
+            g.rot += wrapA(ang - g.ang); g.ang = ang; // 3. twist: heading follows the fingers' angle
+            if (!g.tilt && !g.noTilt) { // 4. tilt gate, parallel-movement test: both fingers move vertically, the same way, by similar amounts
+              var dxA = A.x - A.x0, dyA = A.y - A.y0, dxB = B.x - B.x0, dyB = B.y - B.y0, mvMax = Math.max(Math.hypot(dxA, dyA), Math.hypot(dxB, dyB));
+              if (mvMax > 10) {
+                var parallel = dyA * dyB > 0 && Math.abs(dyA) > 2 * Math.abs(dxA) && Math.abs(dyB) > 2 * Math.abs(dxB) &&
+                  Math.min(Math.abs(dyA), Math.abs(dyB)) > 0.5 * Math.max(Math.abs(dyA), Math.abs(dyB)) &&
+                  Math.abs(dd - g.d0) < 0.15 * g.d0 && Math.abs(g.rot) < 0.15 && Math.abs(B.y - A.y) < Math.abs(B.x - A.x) * 1.2;
+                if (parallel) { g.tilt = true; g.ty0 = cy; g.tph = g.ph0; }
+                else if (mvMax > 40) g.noTilt = true; // a pinch or twist that drifted: no tilt for this gesture
+              }
+            }
+            // drag up = more oblique, drag down = more top-down; while tilting, vertical centroid motion tilts instead of panning
+            var ph = g.tilt ? g.ph0 + (g.ty0 - cy) * 0.006 : g.ph0;
+            // 2. pinch: distance scales with the finger spread, toward the centroid's ground point, which stays under the fingers
+            solve(g.P, cx + g.ox, (g.tilt ? g.ty0 : cy) + g.oy, g.r0 * g.d0 / dd, g.th0 + g.rot, ph);
+          }
+        }
+        function zoomAnim(sx, sy, f) { mv = null; hv = null; za = { need: 1, sx: sx, sy: sy, f: f }; kick(); } // f 0.5 = 2x in, 2 = 2x out
         cvs.addEventListener("pointerdown", function (e) {
           try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
-          pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now(), rot: e.button === 2 || e.ctrlKey, lock: null });
-          mv = null; fq = null; ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; ivel.hd = true; gest = null; lastMoveT = performance.now();
-          if (pts.size === 2) { // measure the two-finger gesture from the moment the second finger lands
-            var ab = []; pts.forEach(function (q) { q.x0 = q.x; q.y0 = q.y; ab.push(q); });
-            var sdx = ab[1].x - ab[0].x, sdy = ab[1].y - ab[0].y;
-            g2 = { d: Math.hypot(sdx, sdy) || 1, a: Math.atan2(sdy, sdx), dx: sdx, dy: sdy, rotOn: false };
-          }
+          var now = performance.now();
+          if (!pts.size) { multi = false; twoTap = null; }
+          pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: now, rot: e.button === 2 || e.ctrlKey });
+          mv = null; fq = null; za = null; hv = null; ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; ivel.hd = true; lastMoveT = now;
+          if (pts.size > 2) twoTap = null;
+          gBegin(now); kick();
         });
-        var g2 = null;
-        function wrapA(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
         cvs.addEventListener("pointermove", function (e) {
           var p = pts.get(e.pointerId);
           if (!p) return;
-          var now = performance.now(), dtm = Math.max(0.008, (now - lastMoveT) / 1000), px = p.x, py = p.y;
-          p.x = e.clientX; p.y = e.clientY;
-          if (px === p.x && py === p.y) return;
-          lastMoveT = now;
-          if (pts.size === 1) {
-            if (p.rot || e.ctrlKey) { // desktop right- or Ctrl-drag: twist about the disc's central axis, pitch unchanged
-              var a1 = (p.x - px) * 0.005;
-              spin(a1, discX(), discZ()); track("h", a1, dtm);
-            } else {
-              if (!p.lock) { // lock to the dominant axis after 18 px
-                var ldx = p.x - p.x0, ldy = p.y - p.y0;
-                if (Math.hypot(ldx, ldy) < 18) return;
-                p.lock = Math.abs(ldy) > Math.abs(ldx) ? "tilt" : "truck";
-              }
-              if (p.lock === "tilt") { var t1 = (p.y - py) * 0.005; tilt(t1); track("t", t1, dtm); } // slide down: pitch toward the horizon (earth tilts up)
-              else { var d = truck(p.x - px); track("x", d[0], dtm); track("z", d[1], dtm); } // sideways only
-            }
-          } else if (pts.size === 2) {
-            var o = null; pts.forEach(function (q, id) { if (id !== e.pointerId) o = q; });
-            var m0x = (o.x + px) / 2, m0y = (o.y + py) / 2, m1x = (o.x + p.x) / 2, m1y = (o.y + p.y) / 2;
-            var d0 = Math.hypot(px - o.x, py - o.y) || 1, d1 = Math.hypot(p.x - o.x, p.y - o.y) || 1;
-            if (!g2) { var gdx = p.x - o.x, gdy = p.y - o.y; o.x0 = o.x; o.y0 = o.y; p.x0 = p.x; p.y0 = p.y; g2 = { d: Math.hypot(gdx, gdy) || 1, a: Math.atan2(gdy, gdx), dx: gdx, dy: gdy, rotOn: false }; }
-            // the start angle is measured from the first finger to the second in insertion order; use the same order now
-            var fa = null, fb = null; pts.forEach(function (q) { if (!fa) fa = q; else fb = q; });
-            var angNow = Math.atan2(fb.y - fa.y, fb.x - fa.x), angChange = Math.abs(wrapA(angNow - g2.a));
-            if (!gest) { // Google Maps style: score the first 18 px of movement, then lock the mode until the fingers lift
-              var dyA = o.y - o.y0, dyB = p.y - p.y0, dxA = o.x - o.x0, dxB = p.x - p.x0;
-              if (Math.max(Math.hypot(dxA, dyA), Math.hypot(dxB, dyB)) < 18) return;
-              var vy = (dyA + dyB) / 2, vx = (dxA + dxB) / 2, same = dyA * dyB > 0, distChange = Math.abs(d1 - g2.d), horiz = Math.abs(g2.dy) < Math.abs(g2.dx);
-              // pinch-vs-twist scoring: twist wins when the angle change outweighs the distance change; locked until the fingers lift
-              if (angChange > 0.12 && distChange < angChange * g2.d * 0.6) { gest = "rotate"; g2.rotOn = true; }
-              else gest = "pinch";
-            }
-            if (gest === "rotate") { // twist: rotate about the disc's vertical central axis through (0,0); pitch unchanged
-              var da = wrapA(Math.atan2(p.y - o.y, p.x - o.x) - Math.atan2(py - o.y, px - o.x));
-              spin(-da, discX(), discZ()); track("h", -da, dtm);
-            } else { // pinch: out moves forward, in moves backward, along the view direction
-              var s = Math.log(d0 / d1) * 1.5; fwdMove(s); track("z2", s, dtm);
-            }
-          }
-          controls.update(); kick();
+          if (p.x === e.clientX && p.y === e.clientY) return;
+          p.x = e.clientX; p.y = e.clientY; lastMoveT = performance.now();
+          if (twoTap && Math.hypot(p.x - p.x0, p.y - p.y0) > 10) twoTap.ok = false;
+          kick(); // the camera itself is solved in the frame (zoomStep -> gStep)
         });
         function ptrEnd(e) {
           var p = pts.get(e.pointerId);
           if (!p) return;
+          var now = performance.now(), g = G1, still = Math.hypot(p.x - p.x0, p.y - p.y0) < 10 && now - p.t0 < 300;
           pts.delete(e.pointerId);
-          var now = performance.now();
-          if (pts.size === 1) pts.forEach(function (q) { q.x0 = q.x; q.y0 = q.y; q.lock = null; }); // the remaining finger starts a fresh one-finger gesture
-          if (pts.size < 2) { gest = null; g2 = null; }
           if (pts.size === 0) {
-            if (now - lastMoveT > 90) ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0;
-            ivel.x *= 0.8; ivel.z *= 0.8; // a touch less glide than the release speed
-          }
+            var fling = g && g.k === "pan" && !still && now - lastMoveT < 90;
+            if (multi) { if (twoTap && twoTap.ok && now - twoTap.t < 350) zoomAnim(twoTap.x, twoTap.y, 2); tap.t = 0; } // two-finger tap: 2x out
+            else if (g && g.k === "dz") { if (still) zoomAnim(g.sx, g.sy, 0.5); tap.t = 0; } // double-tap: animated 2x in at the tapped point
+            else if (g && g.k === "pan" && still) tap = { t: now, x: p.x, y: p.y };
+            else tap.t = 0;
+            if (!fling) ivel.x = ivel.z = 0; // 1. fling: the release speed glides out in inertia()
+            ivel.h = ivel.t = ivel.z2 = ivel.a = 0;
+            G1 = null; twoTap = null; multi = false;
+          } else gBegin(now); // the remaining finger(s) start a fresh gesture, anchored anew
           kick();
         }
         ["pointerup", "pointercancel"].forEach(function (t) { cvs.addEventListener(t, ptrEnd); });
-        function inertia(dt) { // smooth exponential glide after release, in absolute coords inside frame()
-          if (pts.size || mv) return false;
-          var k = Math.exp(-dt * 3.2), on = false, dist = camera.position.distanceTo(controls.target);
+        function inertia(dt) { // smooth exponential glide after release (never during a drag), in absolute coords inside frame()
+          if (pts.size || mv || hv || za) return false;
+          var k = Math.exp(-dt * 3.3), on = false, dist = camera.position.distanceTo(controls.target); // fling decays in about 0.9 s
           if (Math.hypot(ivel.x, ivel.z) > dist * 0.01) { shift(ivel.x * dt, ivel.z * dt); ivel.x *= k; ivel.z *= k; on = true; } else ivel.x = ivel.z = 0;
           if (Math.abs(ivel.h) > 0.005) { if (ivel.hd) spin(ivel.h * dt, discX(), discZ()); else spin(ivel.h * dt, controls.target.x, controls.target.z); ivel.h *= k; on = true; } else ivel.h = 0;
           if (Math.abs(ivel.t) > 0.03) { tilt(ivel.t * dt); ivel.t *= k; on = true; } else ivel.t = 0; // tilt inertia zeroed below 0.03 rad/s: it comes to rest
@@ -1901,17 +2010,21 @@
           if (Math.abs(ivel.a) > 0.02) { altMove(ivel.a * dt); ivel.a *= k; on = true; } else ivel.a = 0;
           return on;
         }
-        // compass: shows north (the disc's center) and resets heading and tilt
+        // 7. compass: shows north (the disc's center); a tap turns the heading back to north and keeps the tilt
         var needle = $("needle"), lastNd = 1e9;
         function northReset() {
-          var t = controls.target.clone().add(tmp.set(camAbs ? 0 : ANC0.x, 0, camAbs ? 0 : ANC0.z)), o0 = camera.position.clone().sub(controls.target), l = o0.length();
-          var r = Math.hypot(t.x, t.z), ox = r > 1e-6 ? t.x / r : 0, oz = r > 1e-6 ? t.z / r : 1; // camera sits on the far side, looking toward the center
-          var o1 = V(ox * 0.004, 1, oz * 0.004).normalize();
-          ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0;
-          mv = { t: 0, dur: 0.9, t0: t.clone(), t1: t.clone(), l0: l, l1: l, o0: o0.normalize(), o1: o1 };
+          ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; mv = null; za = null; fq = null;
+          hv = { need: 1, dur: 0.9, home: false };
           kick();
         }
         $("compass").addEventListener("click", northReset);
+        // 7. view reset: animates over 1.2 s (ease-in-out) to the default view: top-down, lon 0 down, whole disc ~80% of the screen
+        function viewReset() {
+          ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; mv = null; za = null; fq = null;
+          hv = { need: 1, dur: 1.2, home: true };
+          kick();
+        }
+        $("home").addEventListener("click", viewReset);
         function compassDraw() {
           var t = controls.target, cp = camera.position, fx = t.x - cp.x, fz = t.z - cp.z;
           if (Math.hypot(fx, fz) < 1e-9) { camera.getWorldDirection(gF); fx = gF.x; fz = gF.z; }
@@ -2029,6 +2142,104 @@
           sel.x = x; sel.z = z; sel.name = null; sel.t = tNow;
           resolveSel(); // land with no named polity in this period arms the selection as "Not yet established"
         }
+
+        // search: an in-file index of continents (CONTS), countries (CI names, formal names, ISO codes), cities (CITIES) and polities (POL, with year ranges)
+        function fold(s) { return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); } // case- and diacritic-insensitive
+        var SIDX = [], polSeen = {}, Q_MAX = 8, FLY_S = 1.5, TORD = { Continent: 0, Country: 1, City: 2, Polity: 3 };
+        CONTS.forEach(function (d) { SIDX.push({ n: d[0], t: "Continent", lat: d[1], lon: d[2] }); });
+        CI.forEach(function (c, i) { SIDX.push({ n: c.n, t: "Country", id: i + 1, lat: c.lat, lon: c.lon, alt: [c.f, c.iso] }); });
+        CITIES.forEach(function (c) { SIDX.push({ n: c[0], t: "City", lat: c[1], lon: c[2] }); });
+        Object.keys(POL).map(Number).sort(function (a, b) { return a - b; }).forEach(function (k) {
+          POL[k].forEach(function (d) {
+            var e = polSeen[d[0]];
+            if (!e) { e = polSeen[d[0]] = { n: d[0], t: "Polity", at: [] }; SIDX.push(e); }
+            e.at.push([k, d[1], d[2]]);
+          });
+        });
+        function snapEnd(k) { var i = SN.indexOf(k); if (k >= 2010 || i < 0 || i >= SN.length - 1) return Y1; var y = SN[i + 1] - 1; return y === 0 ? -1 : y; } // a border snapshot holds until the next one
+        function fmtR(a, b) { return a < 0 && b < 0 ? -a + "–" + -b + " BC" : a < 0 ? -a + " BC–AD " + b : "AD " + a + "–" + b; }
+        SIDX.forEach(function (e) {
+          e.f = fold(e.n); e.af = (e.alt || []).map(fold).filter(Boolean);
+          if (e.t === "Polity") { e.y0 = e.at[0][0]; e.y1 = snapEnd(e.at[e.at.length - 1][0]); e.tag = "Polity · " + fmtR(e.y0, e.y1); } else e.tag = e.t;
+        });
+        function qFind(q) { // prefix matches first, then substring matches; up to 8
+          q = fold(q); if (!q) return [];
+          var out = [];
+          SIDX.forEach(function (e) {
+            var rk = e.f.indexOf(q) === 0 || e.af.some(function (a) { return a.indexOf(q) === 0; }) ? 0 : e.f.indexOf(q) > 0 || e.af.some(function (a) { return a.indexOf(q) > 0; }) ? 1 : -1;
+            if (rk >= 0) out.push([rk, e]);
+          });
+          out.sort(function (a, b) { return a[0] - b[0] || TORD[a[1].t] - TORD[b[1].t] || a[1].n.length - b[1].n.length || (a[1].n < b[1].n ? -1 : 1); });
+          return out.slice(0, Q_MAX).map(function (o) { return o[1]; });
+        }
+        // the same camera path as the reset button (hv: target, distance, heading and tilt eased together), 1.5 s
+        function flyTo(T, r) {
+          ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; mv = null; za = null; fq = null;
+          hv = { need: 1, dur: FLY_S, to: { T: T, r: r } };
+          kick();
+        }
+        function fitR(b) { // distance that fits a box of disc units in about 80% of the screen
+          var f = innerHeight / (2 * Math.tan(camera.fov * Math.PI / 360)), s = Math.max(Math.hypot(b.x1 - b.x0, b.z1 - b.z0), 60 / KM);
+          return Math.min(maxOutDist(), s * f / (0.8 * Math.min(innerWidth, innerHeight)));
+        }
+        function maskBox() { // the selection mask's extent (smD, 2048² over the 20-unit disc)
+          var c0 = SM, c1 = -1, r0 = SM, r1 = -1;
+          for (var r = 0; r < SM; r++) for (var c = 0, o = r * SM; c < SM; c++) if (smD[(o + c) * 4]) { if (c < c0) c0 = c; if (c > c1) c1 = c; if (r < r0) r0 = r; if (r > r1) r1 = r; }
+          if (c1 < 0) return null;
+          return { x0: (c0 / SM - 0.5) * 20, x1: ((c1 + 1) / SM - 0.5) * 20, z0: (r0 / SM - 0.5) * 20, z1: ((r1 + 1) / SM - 0.5) * 20 };
+        }
+        function idPoint(id, x, z) { // a point inside country id: the label point, else the nearest texel of the country
+          if (idAt(x, z) === id) return [x, z];
+          if (!idCtx) return null;
+          var cx = (0.5 + x / 20) * 4096, cz = (0.5 + z / 20) * 4096, bd = 1e18, best = null;
+          for (var r = 0; r < 4096; r++) for (var c = 0, o = r * 4096; c < 4096; c++) if (idCtx[o + c] === id) { var dd = (c - cx) * (c - cx) + (r - cz) * (r - cz); if (dd < bd) { bd = dd; best = [r, c]; } }
+          return best ? [((best[1] + 0.5) / 4096 - 0.5) * 20, ((best[0] + 0.5) / 4096 - 0.5) * 20] : null;
+        }
+        function qGo(e) {
+          qOpen(false); sheetOpen(false); infoEl.hidden = true;
+          var p, b;
+          if (e.t === "Continent") { p = ll(e.lat, e.lon); return flyTo(V(p[0], 0, p[1]), 4000 / KM); } // about 4,000 km up
+          if (e.t === "City") { p = ll(e.lat, e.lon); return flyTo(V(p[0], ground(p[0], p[1]), p[1]), 15 / KM); } // about 15 km up
+          if (e.t === "Country") { // select it (the spotlight card shows today's countries), then fit its extent
+            p = ll(e.lat, e.lon);
+            if (yearN < 1945) { tlSet(false); setYear(Y1); }
+            var ip = idPoint(e.id, p[0], p[1]);
+            if (ip) { sel.x = ip[0]; sel.z = ip[1]; sel.name = null; sel.t = tNow; resolveSel(); }
+            b = sel.mk && sel.id === e.id ? maskBox() : null;
+            return b ? flyTo(V((b.x0 + b.x1) / 2, 0, (b.z0 + b.z1) / 2), fitR(b)) : flyTo(V(p[0], 0, p[1]), 1500 / KM);
+          }
+          // polity: jump the year into its range (the snapshot nearest the current year, before 1945 where it can), select it, fit its region
+          var cand = e.at.filter(function (a) { return a[0] < 1945; }); if (!cand.length) cand = e.at;
+          var at = null;
+          cand.forEach(function (a) { if (yearN >= a[0] && yearN <= snapEnd(a[0])) at = a; });
+          if (!at) { at = cand[0]; cand.forEach(function (a) { if (Math.abs(a[0] - yearN) < Math.abs(at[0] - yearN)) at = a; }); tlSet(false); setYear(at[0]); }
+          lastBI = Math.max(0, SN.indexOf(at[0])); // the frame loop sets it from the year too; set now so the selection resolves in this period
+          p = ll(at[1], at[2]);
+          if (idAt(p[0], p[1])) { sel.x = p[0]; sel.z = p[1]; sel.name = e.n; sel.t = tNow; resolveSel(); }
+          b = sel.on && sel.mk ? maskBox() : null;
+          flyTo(b ? V((b.x0 + b.x1) / 2, 0, (b.z0 + b.z1) / 2) : V(p[0], 0, p[1]), b ? fitR(b) : 1500 / KM);
+        }
+        var qEl = $("q"), qIn = $("q-in"), qRes = $("q-res"), srchBtn = $("srch"), qHits = [];
+        function qRender() {
+          qHits = qFind(qIn.value); qRes.textContent = "";
+          qHits.forEach(function (e, i) {
+            var li = document.createElement("li"), bt = document.createElement("button"), tg = document.createElement("span");
+            li.setAttribute("role", "option"); bt.type = "button"; bt.dataset.i = i;
+            bt.textContent = e.n; tg.textContent = e.tag; bt.appendChild(tg); li.appendChild(bt); qRes.appendChild(li);
+          });
+          if (!qHits.length && fold(qIn.value)) { var no = document.createElement("li"); no.className = "x-q__none"; no.textContent = "No matches"; qRes.appendChild(no); }
+        }
+        function qOpen(o) {
+          qEl.hidden = !o; srchBtn.setAttribute("aria-expanded", o);
+          if (o) { sheetOpen(false); qIn.value = ""; qRender(); qIn.focus(); } else qIn.blur();
+        }
+        srchBtn.addEventListener("click", function () { qOpen(qEl.hidden); });
+        $("sheet-search").addEventListener("click", function () { qOpen(true); });
+        $("q-x").addEventListener("click", function () { qOpen(false); }); // X closes
+        qIn.addEventListener("input", qRender);
+        qIn.addEventListener("keydown", function (ev) { if (ev.key === "Enter" && qHits[0]) { ev.preventDefault(); qGo(qHits[0]); } });
+        qRes.addEventListener("click", function (ev) { var bt = ev.target.closest("button[data-i]"); if (bt) qGo(qHits[+bt.dataset.i]); });
+        addEventListener("keydown", function (ev) { if (ev.key === "Escape" && !qEl.hidden) qOpen(false); }); // Escape closes
         renderer.domElement.addEventListener("pointerdown", function (ev) { down = [ev.clientX, ev.clientY, performance.now()]; });
         renderer.domElement.addEventListener("pointerup", function (ev) {
           if (!down || Math.hypot(ev.clientX - down[0], ev.clientY - down[1]) >= 8 || performance.now() - down[2] >= 250) return;
