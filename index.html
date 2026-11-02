@@ -1416,18 +1416,18 @@
         }
         // street level: lamps along real OSM roads from OpenFreeMap vector tiles (z14, no key), lazily for the tiles in view
         var SL = { tiles: new Map(), url: null, busy: 0, t: 0, U: { uSunW: WU.uSunW, uSunOn: WU.uSunOn, uYear: cityU.uYear, uEY: { value: 1900 }, uPx: { value: 1 }, uA: { value: 0 } } };
-        SL.mat = new THREE.ShaderMaterial({
-          transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, uniforms: SL.U,
-          vertexShader: "attribute vec2 aK; uniform float uYear, uEY, uPx, uA, uSunOn; uniform vec3 uSunW; varying float vA; varying vec3 vC;\n" +
-            "void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vec4 mv = viewMatrix * w;" +
-            " float on = smoothstep(uEY + aK.y * 30.0, uEY + aK.y * 30.0 + 4.0, uYear);" + // streets get lamps one by one over ~30 years
-            " float nite = uSunOn * smoothstep(3.6 + aK.y * 0.3, 3.75 + aK.y * 0.3, distance(w.xz, uSunW.xz));" +
-            " float sz = 0.6 + 0.8 * fract(aK.y * 13.7), px = 0.000005 * uPx * sz / max(-mv.z, 1e-9); gl_PointSize = clamp(px, 1.3, 10.0);" +
-            " vA = on * nite * uA * min(1.0, px * 0.6 + 0.5) * (aK.x > 0.5 ? 1.0 : 0.7) * (0.5 + 0.7 * fract(aK.y * 29.3));" +
-            " vC = aK.y > (aK.x > 0.5 ? 0.8 : 0.92) ? vec3(0.92, 0.94, 1.0) : vec3(1.0, 0.6, 0.25);" + // sodium amber, some white LED
-            " gl_Position = projectionMatrix * mv; if (vA < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0); }",
-          fragmentShader: "varying float vA; varying vec3 vC; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; if (d >= 1.0) discard;" +
-            " float a = exp(-d * d * 9.0) + 0.25 * exp(-d * d * 2.5); gl_FragColor = vec4(vC * a * vA * 1.3, 1.0); }"
+        SL.mat = new THREE.ShaderMaterial({ // depth-tested against buildings and terrain (log depth like the rest of the scene); additive glow, no depth write
+          transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, uniforms: SL.U,
+          vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute vec2 aK; uniform float uYear, uEY, uPx, uA, uSunOn; uniform vec3 uSunW; varying float vA; varying vec3 vC; varying float vP;\n" +
+            "void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vec4 mv = viewMatrix * w; float pool = step(1.5, aK.x), maj = mod(aK.x, 2.0); vP = pool;" +
+            " float on = smoothstep(uEY + aK.y * 30.0, uEY + aK.y * 30.0 + 4.0, uYear);" + // streets get lamps over ~30 years after electricity
+            " float nite = uSunOn * smoothstep(3.6, 3.75, distance(w.xz, uSunW.xz));" +
+            " float sz = pool > 0.5 ? 2.6 : (maj > 0.5 ? 0.9 : 0.75), px = 0.000005 * uPx * sz / max(-mv.z, 1e-9); gl_PointSize = clamp(px, pool > 0.5 ? 0.0 : 1.3, pool > 0.5 ? 90.0 : 14.0);" +
+            " vA = on * nite * uA * (pool > 0.5 ? 0.22 * smoothstep(3.0, 12.0, px) : min(1.0, px * 0.6 + 0.5) * (maj > 0.5 ? 1.0 : 0.8));" +
+            " vC = maj > 0.5 ? vec3(1.0, 0.62, 0.28) : vec3(1.0, 0.8, 0.55);" + // sodium amber on main roads, warm white on side streets
+            " gl_Position = projectionMatrix * mv; if (vA < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);\n#include <logdepthbuf_vertex>\n}",
+          fragmentShader: "#include <logdepthbuf_pars_fragment>\nvarying float vA; varying vec3 vC; varying float vP; void main(){\n#include <logdepthbuf_fragment>\nfloat d = length(gl_PointCoord - 0.5) * 2.0; if (d >= 1.0) discard;" +
+            " float a = vP > 0.5 ? exp(-d * d * 3.0) * (1.0 - d) : exp(-d * d * 9.0) + 0.25 * exp(-d * d * 2.5); gl_FragColor = vec4(vC * a * vA * 1.3, 1.0); }"
         });
         function pbf(b) { // minimal protobuf reader
           var pos = 0;
@@ -1480,41 +1480,86 @@
           return { roads: out, ext: ext };
         }
         function hash1(n) { var x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
-        function slBuild(key, tx, ty, data) {
+        // L2: lamps stand on real poles. OpenFreeMap tiles carry no highway=street_lamp nodes, so each lamp is placed
+        // deterministically along the road centreline (no randomness): spacing and width by road class, set back ~2 m past the
+        // kerb, paired on major roads, alternating on minor ones, plus a lamp at every line end (junctions), never inside a
+        // building footprint (the B footprints of the same tile), one lamp per ~9 m cell. Lights are depth-tested at the lamp head.
+        var SLR = { motorway: [40, 14, 1], trunk: [38, 12, 1], primary: [32, 10, 1], secondary: [30, 9, 1], tertiary: [30, 8, 0], minor: [27, 6, 0], service: [35, 4, 0] }; // spacing m, width m, paired
+        var POLE_H = 8, POLE = (function () { // tapered pole + curved arm + lamp head, 1 m units, base at origin, arm toward +x
+          function lathe(pts, y0, sx) { return new THREE.LatheGeometry(pts.map(function (p) { return new THREE.Vector2(p[0], p[1]); }), 7).translate(sx || 0, y0 || 0, 0); }
+          var g1 = lathe([[0.001, 0], [0.13, 0], [0.13, 0.5], [0.085, 0.65], [0.06, POLE_H - 0.2], [0.001, POLE_H]]);
+          var arm = new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, POLE_H - 0.6, 0), new THREE.Vector3(0.1, POLE_H + 0.15, 0), new THREE.Vector3(1.5, POLE_H + 0.05, 0)), 8, 0.04, 5, false);
+          var head = lathe([[0.001, 0.12], [0.16, 0.06], [0.24, -0.02], [0.18, -0.08], [0.001, -0.08]], POLE_H, 1.6);
+          var G = [g1, arm, head].map(function (g) { return g.index ? g.toNonIndexed() : g; }), n = 0;
+          G.forEach(function (g) { n += g.attributes.position.count; });
+          var P = new Float32Array(n * 3), N = new Float32Array(n * 3), o = 0;
+          G.forEach(function (g) { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); o += g.attributes.position.count; });
+          var out = new THREE.BufferGeometry(); out.setAttribute("position", new THREE.BufferAttribute(P, 3)); out.setAttribute("normal", new THREE.BufferAttribute(N, 3));
+          return out;
+        })(), POLE_MAT = new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.55, metalness: 0.6 });
+        function inPolys(B, x, y) { // B: grid-indexed building rings in tile coords
+          var cell = B.g[((y / B.s) | 0) * 64 + ((x / B.s) | 0)]; if (!cell) return false;
+          for (var k = 0; k < cell.length; k++) {
+            var r = cell[k], ins = false;
+            for (var i = 0, j = r.length - 2; i < r.length; j = i, i += 2) if ((r[i + 1] > y) !== (r[j + 1] > y) && x < (r[j] - r[i]) * (y - r[i + 1]) / (r[j + 1] - r[i + 1]) + r[i]) ins = !ins;
+            if (ins) return true;
+          }
+          return false;
+        }
+        function slBuild(key, tx, ty, data, bdat) {
           var e = SL.tiles.get(key); if (!e) return;
           var n = 1 << 14, cl = function (mx, my) { var lon = mx * 360 - 180, lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * my))) / DEG; return ll(lat, lon); };
-          var c = cl((tx + 0.5) / n, (ty + 0.5) / n), P = [], K = [], seed = tx * 7.13 + ty * 3.71;
-          data.roads.forEach(function (rd) {
-            var sp = SLK[rd[0]][0] * 1e-5, maj = SLK[rd[0]][1], a = rd[1], carry = sp * hash1(seed++), prev = null;
-            for (var i = 0; i < a.length; i += 2) {
-              var p = cl((tx + a[i] / data.ext) / n, (ty + a[i + 1] / data.ext) / n);
-              if (prev) {
-                var dx = p[0] - prev[0], dz = p[1] - prev[1], L = Math.hypot(dx, dz), d = carry;
-                for (; d < L; d += sp) { var f = d / L, x = prev[0] + dx * f, z = prev[1] + dz * f; P.push(x, z); K.push(maj, hash1(seed++)); }
-                carry = d - L;
-              }
-              prev = p;
-            }
-          });
-          var N = P.length / 2, ord = new Uint32Array(N), i, j;
-          for (i = 0; i < N; i++) ord[i] = i;
-          for (i = N - 1; i > 0; i--) { j = Math.floor(hash1(i + seed) * (i + 1)); var tmp = ord[i]; ord[i] = ord[j]; ord[j] = tmp; } // shuffled, so any draw range is an even thinning
-          var pos = new Float32Array(N * 3), kk = new Float32Array(N * 2);
-          for (i = 0; i < N; i++) {
-            var o = ord[i], x2 = P[o * 2], z2 = P[o * 2 + 1];
-            pos[i * 3] = x2 - c[0]; pos[i * 3 + 1] = ground(x2, z2) + 0.000004; pos[i * 3 + 2] = z2 - c[1]; kk[i * 2] = K[o * 2]; kk[i * 2 + 1] = K[o * 2 + 1];
+          var c = cl((tx + 0.5) / n, (ty + 0.5) / n), ext = data.ext, latC = toLL(c[0], c[1])[0], mpu = 40075016 * Math.cos(latC * DEG) / n / ext; // metres per tile unit
+          var B = { s: ext / 64, g: [] };
+          if (bdat) bdat.b.forEach(function (bb) { var r = bb[0][0] || bb[0]; if (!r || !r.length) return; var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (var i = 0; i < r.length; i += 2) { x0 = Math.min(x0, r[i]); x1 = Math.max(x1, r[i]); y0 = Math.min(y0, r[i + 1]); y1 = Math.max(y1, r[i + 1]); }
+            for (var gy = Math.max(0, (y0 / B.s) | 0); gy <= Math.min(63, (y1 / B.s) | 0); gy++) for (var gx = Math.max(0, (x0 / B.s) | 0); gx <= Math.min(63, (x1 / B.s) | 0); gx++) (B.g[gy * 64 + gx] = B.g[gy * 64 + gx] || []).push(r); });
+          var L = [], seen = {}, cellM = 9 / mpu;
+          function put(x, y, yaw, maj) {
+            if (x < 0 || y < 0 || x >= ext || y >= ext || inPolys(B, x, y)) return;
+            var h = Math.floor(x / cellM) + "," + Math.floor(y / cellM); if (seen[h]) return; seen[h] = 1;
+            L.push(x, y, yaw, maj);
           }
-          var g = new THREE.BufferGeometry();
-          g.setAttribute("position", new THREE.BufferAttribute(pos, 3)); g.setAttribute("aK", new THREE.BufferAttribute(kk, 2));
-          var m = new THREE.Points(g, SL.mat), ey = elecYear(toLL(c[0], c[1])[0], toLL(c[0], c[1])[1]);
+          data.roads.forEach(function (rd) {
+            var S = SLR[rd[0]]; if (!S) return;
+            var sp = S[0] / mpu, off = (S[1] / 2 + 2) / mpu, a = rd[1], d0 = 0, k = 0;
+            for (var i = 2; i < a.length; i += 2) {
+              var x0 = a[i - 2], y0 = a[i - 1], dx = a[i] - x0, dy = a[i + 1] - y0, Ls = Math.hypot(dx, dy); if (Ls < 1e-6) continue;
+              var ux = dx / Ls, uy = dy / Ls, nx = -uy, ny = ux;
+              for (var d = (i === 2 ? 0 : d0); d <= Ls; d += sp, k++) {
+                var px = x0 + ux * d, py = y0 + uy * d, side = S[2] ? 0 : (k % 2 ? 1 : -1);
+                if (side >= 0) put(px + nx * off, py + ny * off, Math.atan2(-ny, -nx), S[2]); // arm reaches back over the road
+                if (side <= 0) put(px - nx * off, py - ny * off, Math.atan2(ny, nx), S[2]);
+              }
+              d0 = d - Ls;
+            }
+            var ex = a[a.length - 2], ey = a[a.length - 1]; if (a.length >= 4) { var qx = ex - a[a.length - 4], qy = ey - a[a.length - 3], ql = Math.hypot(qx, qy) || 1; put(ex - qy / ql * off, ey + qx / ql * off, Math.atan2(-qx / ql, qy / ql), S[2]); } // junction
+          });
+          var N = L.length / 4, pos = new Float32Array(N * 6), kk = new Float32Array(N * 4), ord = [], i;
+          for (i = 0; i < N; i++) ord.push(i);
+          ord.sort(function (p, q) { return L[q * 4 + 3] - L[p * 4 + 3] || p - q; }); // major roads first: a partial draw range thins minor streets, never at random
+          var poles = new THREE.InstancedMesh(POLE, POLE_MAT, N), mt = new THREE.Matrix4(), qt = new THREE.Quaternion(), sc = new THREE.Vector3(M, M, M), up = new THREE.Vector3(0, 1, 0), pv = new THREE.Vector3();
+          for (i = 0; i < N; i++) {
+            var o = ord[i], w = cl((tx + L[o * 4] / ext) / n, (ty + L[o * 4 + 1] / ext) / n), g = ground(w[0], w[1]);
+            var tl = toLL(w[0], w[1]), yawW = L[o * 4 + 2]; // tile x is east, tile y is south; turn that into disc space at this point
+            var e1 = ll(tl[0], tl[1] + 0.001), e2 = ll(tl[0] - 0.001, tl[1]), ex2 = e1[0] - w[0], ez2 = e1[1] - w[1], sx2 = e2[0] - w[0], sz2 = e2[1] - w[1];
+            var ax = Math.cos(yawW), ay = Math.sin(yawW), dxw = ax * ex2 / Math.hypot(ex2, ez2) + ay * sx2 / Math.hypot(sx2, sz2), dzw = ax * ez2 / Math.hypot(ex2, ez2) + ay * sz2 / Math.hypot(sx2, sz2);
+            qt.setFromAxisAngle(up, Math.atan2(-dzw, dxw)); pv.set(w[0] - c[0], g, w[1] - c[1]); mt.compose(pv, qt, sc); poles.setMatrixAt(i, mt);
+            var hl = Math.hypot(dxw, dzw) || 1, hx = w[0] - c[0] + dxw / hl * 1.6 * M, hz = w[1] - c[1] + dzw / hl * 1.6 * M;
+            pos[i * 3] = hx; pos[i * 3 + 1] = g + (POLE_H - 0.15) * M; pos[i * 3 + 2] = hz; kk[i * 2] = L[o * 4 + 3]; kk[i * 2 + 1] = (i % 97) / 97; // head light
+            var j2 = N + i; pos[j2 * 3] = hx; pos[j2 * 3 + 1] = g + 0.6 * M; pos[j2 * 3 + 2] = hz; kk[j2 * 2] = L[o * 4 + 3] + 2; kk[j2 * 2 + 1] = (i % 97) / 97; // ground pool
+          }
+          poles.instanceMatrix.needsUpdate = true; poles.frustumCulled = false; poles.position.set(c[0], 0, c[1]); poles.userData.n = N; poles.visible = false;
+          var gg = new THREE.BufferGeometry();
+          gg.setAttribute("position", new THREE.BufferAttribute(pos, 3)); gg.setAttribute("aK", new THREE.BufferAttribute(kk, 2));
+          var m = new THREE.Points(gg, SL.mat), ey = elecYear(toLL(c[0], c[1])[0], toLL(c[0], c[1])[1]);
           m.position.set(c[0], 0, c[1]); m.frustumCulled = false; m.renderOrder = 9; m.userData.n = N;
           m.onBeforeRender = function () { SL.U.uEY.value = ey; SL.mat.uniformsNeedUpdate = true; };
-          e.mesh = m; e.c = c; world.add(m); kick();
+          e.mesh = m; e.poles = poles; e.c = c; world.add(m); world.add(poles); kick();
         }
         function slFetch(key, tx, ty) {
           SL.busy++;
           ofmTile(tx, ty)
-            .then(function (b) { slBuild(key, tx, ty, mvtRoads(b)); }, function () { var e = SL.tiles.get(key); if (e) e.fail = true; })
+            .then(function (b) { slBuild(key, tx, ty, mvtRoads(b), mvtBuildings(b)); }, function () { var e = SL.tiles.get(key); if (e) e.fail = true; })
             .then(function () { SL.busy--; });
         }
         function streetLights(cp, akm, now) { // called each frame in absolute coords
@@ -1522,7 +1567,7 @@
           var on = cp.y > 0 && akm < 60 && night && cityU.uYear.value > 1870;
           SL.U.uA.value = on ? 1 - smooth(25, 60, akm) : 0;
           SL.U.uPx.value = ptScale.value / Math.tan(camera.fov * DEG / 2);
-          SL.tiles.forEach(function (e) { if (e.mesh) { e.mesh.visible = on; if (on) { var d = Math.hypot(cp.x - e.c[0], cp.z - e.c[1]) / Math.max(akm / KM, 1e-6); e.mesh.geometry.setDrawRange(0, Math.ceil(e.mesh.userData.n * Math.min(1, 1.6 / Math.max(0.3, d) * (MOB ? 0.6 : 1) * (1 - 0.7 * smooth(8, 40, akm))))); } } });
+          SL.tiles.forEach(function (e) { if (e.poles) e.poles.visible = cp.y > 0 && akm < 1.5; if (e.mesh) { e.mesh.visible = on; if (on) { var d = Math.hypot(cp.x - e.c[0], cp.z - e.c[1]) / Math.max(akm / KM, 1e-6); var fr = Math.min(1, 1.6 / Math.max(0.3, d) * (MOB ? 0.6 : 1) * (1 - 0.7 * smooth(8, 40, akm))); if (akm < 1.5) fr = 1; e.mesh.geometry.setDrawRange(0, fr >= 1 && akm < 3 ? 2 * e.mesh.userData.n : Math.ceil(e.mesh.userData.n * fr)); } } });
           if (!on || now - SL.t < 0.4) return;
           SL.t = now;
           var L = toLL(cp.x, cp.z), m = merc(L[0], L[1]), n = 1 << 14, cx = Math.floor(m[0] * n), cy = Math.floor(m[1] * n);
@@ -1532,7 +1577,7 @@
             var key = tx + "/" + ty; want[key] = 1;
             if (!SL.tiles.has(key) && SL.busy < 4) { SL.tiles.set(key, { mesh: null }); slFetch(key, tx, ty); }
           }
-          if (SL.tiles.size > (MOB ? 40 : 70)) SL.tiles.forEach(function (e, k) { if (!want[k] && e.mesh) { world.remove(e.mesh); e.mesh.geometry.dispose(); SL.tiles.delete(k); } else if (!want[k] && e.fail) SL.tiles.delete(k); });
+          if (SL.tiles.size > (MOB ? 40 : 70)) SL.tiles.forEach(function (e, k) { if (!want[k] && e.mesh) { world.remove(e.mesh); e.mesh.geometry.dispose(); if (e.poles) { world.remove(e.poles); e.poles.dispose(); } SL.tiles.delete(k); } else if (!want[k] && e.fail) SL.tiles.delete(k); });
         }
         // B. OSM 3D buildings from the same OpenFreeMap z14 tiles (render_height / render_min_height), lazily for the tiles in view below ~6 km.
         // Not plain boxes: lit by the scene sun, soft ground AO, roofs and facades tinted from the Esri imagery under each footprint,
