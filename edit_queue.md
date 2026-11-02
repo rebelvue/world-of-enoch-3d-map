@@ -47,3 +47,7 @@ T+. (Levi 02:01) Luminaries speed control (sun/moon/stars): fold into T. A compa
 - Twist vs pinch classifier: keep scoring, lock mode per gesture.
 - Max zoom-out clamp: the whole disc model must stay >= 25% of screen size (compute from fov and disc radius R incl. ice ring); camera can't go farther.
 - Keep inertia, the 20 m floor, side buttons, compass.
+
+## P (updated 02:31, e76b1a20 + 250e0cd8) - next after T2
+- Selected country/polity: full colour + glowing border; everything else desaturated+dimmed. Must work at EVERY altitude and over streamed Esri tiles (apply in tile shader via id map / polity polygons, not only base disc), modern and historical polities.
+- Countries and Cities label switches ON by default.

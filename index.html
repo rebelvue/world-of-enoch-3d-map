@@ -164,7 +164,7 @@
           <button class="btn" type="button" data-s="100" aria-pressed="false">×100</button>
         </div>
         <p class="x-h">Move</p>
-        <p class="fineprint">Drag to pan; right- or Ctrl-drag to turn and tilt; scroll to zoom. Touch: one finger pans, pinch zooms, twist turns, two fingers up or down tilt, double-tap zooms in. WASD/arrows and Q/E fly, Shift for speed.</p>
+        <p class="fineprint">Drag up or down to tilt, sideways to slide; right- or Ctrl-drag to turn the earth; scroll to move forward or back. Touch: one finger tilts or slides, twist turns the earth, pinch out moves forward, pinch in moves back. WASD/arrows and Q/E fly, Shift for speed.</p>
         <p class="fineprint" style="margin-top: 12px">Biblical dates: Ussher chronology. Historical borders: aourednik/historical-basemaps (approximate).</p>
       </aside>
       <aside class="x-info x-glass" id="info" hidden aria-live="polite">
@@ -1715,37 +1715,61 @@
             goView(b.dataset.v); sheetOpen(false);
           });
         });
-        // zoom toward the point under the cursor or between the fingers
-        var zq = null, pts = new Map(), zray = new THREE.Raycaster(), zv = new THREE.Vector2();
-        function zoomReq(cx, cy, k) { mv = null; zq = { x: cx, y: cy, f: (zq ? zq.f : 0) + k }; }
-        stage.addEventListener("wheel", function (e) { e.preventDefault(); e.stopPropagation(); zoomReq(e.clientX, e.clientY, Math.max(-1, Math.min(1, e.deltaY * (e.deltaMode ? 0.05 : 0.0015)))); }, { capture: true, passive: false });
-        // zoom by exp(s) toward the ground point under a screen point (works in render or absolute coords)
-        function zoomAt(x, y, s) {
-          var cp = camera.position, gy = controls.target.y, ox = camAbs ? 0 : ANC0.x, oz = camAbs ? 0 : ANC0.z;
-          camera.updateMatrixWorld();
-          zv.set(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1);
-          zray.setFromCamera(zv, camera);
-          var dr = zray.ray.direction, p = tmp2;
-          if (dr.y < -1e-4 && (gy - cp.y) / dr.y < cp.distanceTo(controls.target) * 6) p.copy(cp).addScaledVector(dr, (gy - cp.y) / dr.y); else p.copy(controls.target);
-          var f = Math.exp(s), alt = cp.y - ground(cp.x + ox, cp.z + oz), dist = cp.distanceTo(p);
-          if (f < 1 && dist * f < 0.00015 && dist < alt * 1.5) f = Math.max(f, 0.00015 / dist); // 300 m floor; each step scales distance, so speed follows it
-          if (dist * f > 120) f = 120 / dist;
-          cp.sub(p).multiplyScalar(f).add(p);
-          controls.target.sub(p).multiplyScalar(f).add(p);
+        // no orbit zoom: pinch and wheel fly forward or back along the view direction (fwdMove); speed follows altitude
+        var fq = null, pts = new Map();
+        function fwdReq(k) { mv = null; fq = { f: (fq ? fq.f : 0) + k }; }
+        // wheel: scroll up moves forward, scroll down moves backward (same as pinch out / pinch in)
+        stage.addEventListener("wheel", function (e) { e.preventDefault(); e.stopPropagation(); fwdReq(Math.max(-1, Math.min(1, e.deltaY * (e.deltaMode ? 0.05 : 0.0015)))); }, { capture: true, passive: false });
+        function altNow() { // height above the ground (or distance to it below), never under the 20 m floor
+          var cp = camera.position, ox = camAbs ? 0 : ANC0.x, oz = camAbs ? 0 : ANC0.z;
+          return Math.max(Math.abs(cp.y - ground(cp.x + ox, cp.z + oz)), 20 * M);
         }
-        function zoomStep(dt) { // applies part of the queued zoom each frame
-          if (!zq || Math.abs(zq.f) < 0.002) { zq = null; return false; }
-          var s = zq.f * (1 - Math.exp(-dt * 12));
-          zq.f -= s;
-          zoomAt(zq.x, zq.y, s);
+        // s > 0 moves backward, s < 0 forward, by altitude * s along the view direction; camera and target move together
+        function fwdMove(s) {
+          var cp = camera.position, d = tmp2.copy(controls.target).sub(cp);
+          if (d.lengthSq() < 1e-24) camera.getWorldDirection(d);
+          d.normalize();
+          var st = -altNow() * Math.max(-1, Math.min(1, s));
+          cp.addScaledVector(d, st); controls.target.addScaledVector(d, st);
+        }
+        function altMove(s) { var a = altNow() * Math.max(-1, Math.min(1, s)); camera.position.y += a; controls.target.y += a; } // side altitude buttons
+        function zoomStep(dt) { // applies part of the queued wheel move each frame
+          if (!fq || Math.abs(fq.f) < 0.002) { fq = null; return false; }
+          var s = fq.f * (1 - Math.exp(-dt * 12));
+          fq.f -= s;
+          fwdMove(s);
+          return true;
+        }
+        // max zoom-out: the whole disc (R plus the ice ring) stays at least 25% of the screen's smaller side; limit from the fov
+        var DISC_R = R + ICE_W;
+        function maxOutDist() {
+          var f = innerHeight / (2 * Math.tan(camera.fov * Math.PI / 360)); // focal length in px
+          return 2 * DISC_R * f / (0.25 * Math.min(innerWidth, innerHeight));
+        }
+        function clampOut() {
+          var cp = camera.position, ox = camAbs ? 0 : ANC0.x, oz = camAbs ? 0 : ANC0.z, ax = cp.x + ox, az = cp.z + oz, D = Math.hypot(ax, cp.y, az), Dm = maxOutDist();
+          if (D <= Dm) return false;
+          var k = Dm / D - 1, dx = ax * k, dy = cp.y * k, dz = az * k;
+          cp.x += dx; cp.y += dy; cp.z += dz; controls.target.x += dx; controls.target.y += dy; controls.target.z += dz;
+          if (ivel.z2 > 0) ivel.z2 = 0; if (fq && fq.f > 0) fq = null;
           return true;
         }
 
-        // Google Earth style gestures. Touch: one finger grabs and pans the ground, pinch zooms toward the pinch center,
-        // twist turns the heading, two fingers moving up or down tilt. Mouse: left-drag pans, right- or Ctrl-drag turns and
-        // tilts, wheel zooms toward the cursor. Double-tap or double-click zooms in. Released motion glides out.
+        // Gestures. One finger (or left drag): vertical = tilt only, horizontal = truck sideways only, locked to the dominant
+        // axis after 18 px. Two fingers: twist rotates about the disc's central axis through (0,0); pinch out moves forward,
+        // pinch in backward, mode locked per gesture. Right- or Ctrl-drag twists. Wheel moves forward/back. Released motion glides out.
         var gRay = new THREE.Raycaster(), gV = new THREE.Vector2(), gA = new THREE.Vector3(), gB = new THREE.Vector3(), gR = new THREE.Vector3(), gF = new THREE.Vector3();
-        var ivel = { x: 0, z: 0, h: 0, t: 0, z2: 0 }, gest = null, lastMoveT = 0, lastTap = null, inertOn = false;
+        var ivel = { x: 0, z: 0, h: 0, t: 0, z2: 0, a: 0, hd: false }, gest = null, lastMoveT = 0, inertOn = false;
+        function discX() { return camAbs ? 0 : -ANC0.x; } // the disc's center (0,0) in render coords
+        function discZ() { return camAbs ? 0 : -ANC0.z; }
+        function truck(dxPx) { // the earth follows the finger sideways; speed scales with altitude
+          var k = altNow() * 2 * Math.tan(camera.fov * Math.PI / 360) / innerHeight;
+          camera.updateMatrixWorld();
+          gR.setFromMatrixColumn(camera.matrixWorld, 0); gR.y = 0; gR.normalize();
+          var dx = -dxPx * k * gR.x, dz = -dxPx * k * gR.z;
+          shift(dx, dz);
+          return [dx, dz];
+        }
         function hitAt(x, y, out) { // the plane at the target's height, under a screen point; null near the horizon
           camera.updateMatrixWorld();
           gV.set(x / innerWidth * 2 - 1, -y / innerHeight * 2 + 1); gRay.setFromCamera(gV, camera);
@@ -1784,8 +1808,8 @@
         var cvs = renderer.domElement;
         cvs.addEventListener("pointerdown", function (e) {
           try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
-          pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now(), rot: e.button === 2 || e.ctrlKey });
-          mv = null; ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = 0; gest = null; lastMoveT = performance.now();
+          pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now(), rot: e.button === 2 || e.ctrlKey, lock: null });
+          mv = null; fq = null; ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0; ivel.hd = true; gest = null; lastMoveT = performance.now();
           if (pts.size === 2) { // measure the two-finger gesture from the moment the second finger lands
             var ab = []; pts.forEach(function (q) { q.x0 = q.x; q.y0 = q.y; ab.push(q); });
             var sdx = ab[1].x - ab[0].x, sdy = ab[1].y - ab[0].y;
@@ -1802,10 +1826,18 @@
           if (px === p.x && py === p.y) return;
           lastMoveT = now;
           if (pts.size === 1) {
-            if (p.rot || e.ctrlKey) {
-              var a1 = (p.x - px) * 0.005, t1 = -(p.y - py) * 0.005;
-              spin(a1, controls.target.x, controls.target.z); tilt(t1); track("h", a1, dtm); track("t", t1, dtm);
-            } else { var d = panPx(px, py, p.x, p.y); track("x", d[0], dtm); track("z", d[1], dtm); }
+            if (p.rot || e.ctrlKey) { // desktop right- or Ctrl-drag: twist about the disc's central axis, pitch unchanged
+              var a1 = (p.x - px) * 0.005;
+              spin(a1, discX(), discZ()); track("h", a1, dtm);
+            } else {
+              if (!p.lock) { // lock to the dominant axis after 18 px
+                var ldx = p.x - p.x0, ldy = p.y - p.y0;
+                if (Math.hypot(ldx, ldy) < 18) return;
+                p.lock = Math.abs(ldy) > Math.abs(ldx) ? "tilt" : "truck";
+              }
+              if (p.lock === "tilt") { var t1 = (p.y - py) * 0.005; tilt(t1); track("t", t1, dtm); } // slide down: pitch toward the horizon (earth tilts up)
+              else { var d = truck(p.x - px); track("x", d[0], dtm); track("z", d[1], dtm); } // sideways only
+            }
           } else if (pts.size === 2) {
             var o = null; pts.forEach(function (q, id) { if (id !== e.pointerId) o = q; });
             var m0x = (o.x + px) / 2, m0y = (o.y + py) / 2, m1x = (o.x + p.x) / 2, m1y = (o.y + p.y) / 2;
@@ -1818,20 +1850,15 @@
               var dyA = o.y - o.y0, dyB = p.y - p.y0, dxA = o.x - o.x0, dxB = p.x - p.x0;
               if (Math.max(Math.hypot(dxA, dyA), Math.hypot(dxB, dyB)) < 18) return;
               var vy = (dyA + dyB) / 2, vx = (dxA + dxB) / 2, same = dyA * dyB > 0, distChange = Math.abs(d1 - g2.d), horiz = Math.abs(g2.dy) < Math.abs(g2.dx);
-              if (same && horiz && Math.abs(vy) > 12 && Math.abs(vy) > 2 * Math.abs(vx) && distChange < 0.5 * Math.abs(vy) && angChange < 0.12) gest = "tilt";
-              else if (angChange > 0.12 && distChange < angChange * g2.d * 0.6) { gest = "rotate"; g2.rotOn = true; }
+              // pinch-vs-twist scoring: twist wins when the angle change outweighs the distance change; locked until the fingers lift
+              if (angChange > 0.12 && distChange < angChange * g2.d * 0.6) { gest = "rotate"; g2.rotOn = true; }
               else gest = "pinch";
             }
-            if (gest === "tilt") { var t2 = -(m1y - m0y) * 0.008; tilt(t2); track("t", t2, dtm); } // swipe up tilts toward the horizon
-            else {
-              var s = Math.log(d0 / d1); zoomAt(m1x, m1y, s); track("z2", s, dtm);
-              if (!g2.rotOn && angChange > 0.12) g2.rotOn = true; // pinch: twist only after 0.12 rad, then freely
-              if (g2.rotOn) {
-                var da = wrapA(Math.atan2(p.y - o.y, p.x - o.x) - Math.atan2(py - o.y, px - o.x));
-                var pv = hitAt(m1x, m1y, gB) || controls.target;
-                spin(-da, pv.x, pv.z); track("h", -da, dtm);
-              }
-              if (gest === "pinch") { controls.update(); var d2 = panPx(m0x, m0y, m1x, m1y); track("x", d2[0], dtm); track("z", d2[1], dtm); }
+            if (gest === "rotate") { // twist: rotate about the disc's vertical central axis through (0,0); pitch unchanged
+              var da = wrapA(Math.atan2(p.y - o.y, p.x - o.x) - Math.atan2(py - o.y, px - o.x));
+              spin(-da, discX(), discZ()); track("h", -da, dtm);
+            } else { // pinch: out moves forward, in moves backward, along the view direction
+              var s = Math.log(d0 / d1) * 1.5; fwdMove(s); track("z2", s, dtm);
             }
           }
           controls.update(); kick();
@@ -1841,14 +1868,10 @@
           if (!p) return;
           pts.delete(e.pointerId);
           var now = performance.now();
-          if (e.type === "pointerup" && pts.size === 0 && !gest && Math.hypot(p.x - p.x0, p.y - p.y0) < 10 && now - p.t0 < 300) { // a tap: two in a row zoom in
-            if (lastTap && now - lastTap.t < 320 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 40) { zoomReq(p.x, p.y, -1.1); lastTap = null; }
-            else lastTap = { t: now, x: p.x, y: p.y };
-          }
-          if (pts.size === 1) pts.forEach(function (q) { q.x0 = q.x; q.y0 = q.y; }); // the remaining finger carries on panning
+          if (pts.size === 1) pts.forEach(function (q) { q.x0 = q.x; q.y0 = q.y; q.lock = null; }); // the remaining finger starts a fresh one-finger gesture
           if (pts.size < 2) { gest = null; g2 = null; }
           if (pts.size === 0) {
-            if (now - lastMoveT > 90) ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = 0;
+            if (now - lastMoveT > 90) ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0;
             ivel.x *= 0.8; ivel.z *= 0.8; // a touch less glide than the release speed
           }
           kick();
@@ -1858,9 +1881,10 @@
           if (pts.size || mv) return false;
           var k = Math.exp(-dt * 3.2), on = false, dist = camera.position.distanceTo(controls.target);
           if (Math.hypot(ivel.x, ivel.z) > dist * 0.01) { shift(ivel.x * dt, ivel.z * dt); ivel.x *= k; ivel.z *= k; on = true; } else ivel.x = ivel.z = 0;
-          if (Math.abs(ivel.h) > 0.005) { spin(ivel.h * dt, controls.target.x, controls.target.z); ivel.h *= k; on = true; } else ivel.h = 0;
+          if (Math.abs(ivel.h) > 0.005) { if (ivel.hd) spin(ivel.h * dt, discX(), discZ()); else spin(ivel.h * dt, controls.target.x, controls.target.z); ivel.h *= k; on = true; } else ivel.h = 0;
           if (Math.abs(ivel.t) > 0.03) { tilt(ivel.t * dt); ivel.t *= k; on = true; } else ivel.t = 0; // tilt inertia zeroed below 0.03 rad/s: it comes to rest
-          if (Math.abs(ivel.z2) > 0.02) { zoomAt(innerWidth / 2, innerHeight / 2, ivel.z2 * dt); ivel.z2 *= k; on = true; } else ivel.z2 = 0;
+          if (Math.abs(ivel.z2) > 0.02) { fwdMove(ivel.z2 * dt); ivel.z2 *= k; on = true; } else ivel.z2 = 0;
+          if (Math.abs(ivel.a) > 0.02) { altMove(ivel.a * dt); ivel.a *= k; on = true; } else ivel.a = 0;
           return on;
         }
         // compass: shows north (the disc's center) and resets heading and tilt
@@ -1869,7 +1893,7 @@
           var t = controls.target.clone().add(tmp.set(camAbs ? 0 : ANC0.x, 0, camAbs ? 0 : ANC0.z)), o0 = camera.position.clone().sub(controls.target), l = o0.length();
           var r = Math.hypot(t.x, t.z), ox = r > 1e-6 ? t.x / r : 0, oz = r > 1e-6 ? t.z / r : 1; // camera sits on the far side, looking toward the center
           var o1 = V(ox * 0.004, 1, oz * 0.004).normalize();
-          ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = 0;
+          ivel.x = ivel.z = ivel.h = ivel.t = ivel.z2 = ivel.a = 0;
           mv = { t: 0, dur: 0.9, t0: t.clone(), t1: t.clone(), l0: l, l1: l, o0: o0.normalize(), o1: o1 };
           kick();
         }
@@ -2073,15 +2097,15 @@
             }
           }
           // side buttons: while held they drive the gesture velocities (ivel), which inertia() applies through
-          // tilt(), spin(), zoomAt() and shift(); on release the same velocities glide out
+          // tilt(), spin(), altMove() and shift(); on release the same velocities glide out
           var holding = holdAny();
           if (holding) {
             mv = null;
             var hk = function (k) { if (hold[k] < 0) return 0; hold[k] += dt; var u = Math.min(1, hold[k] / 0.6); return 1 - Math.cos(u * Math.PI / 2); }; // ease in, full speed at 0.6 s
             var hT = hk("tu") - hk("td"), hR = hk("rr") - hk("rl"), hA = hk("au") - hk("ad"), hM = hk("mf") - hk("mb");
             if (hold.tu >= 0 || hold.td >= 0) ivel.t = 0.9 * hT; // rad/s
-            if (hold.rl >= 0 || hold.rr >= 0) ivel.h = 0.9 * hR; // rad/s
-            if (hold.au >= 0 || hold.ad >= 0) ivel.z2 = 1.1 * hA; // e-folds of distance per second: speed follows altitude
+            if (hold.rl >= 0 || hold.rr >= 0) { ivel.h = 0.9 * hR; ivel.hd = false; } // rad/s, about the target
+            if (hold.au >= 0 || hold.ad >= 0) ivel.a = 1.1 * hA; // straight up or down; speed follows altitude
             if (hold.mf >= 0 || hold.mb >= 0) {
               camera.updateMatrixWorld();
               right.setFromMatrixColumn(camera.matrixWorld, 0); right.y = 0; right.normalize();
@@ -2120,6 +2144,7 @@
             }
             if (gLP.on) busy = true;
           } else if (rr < R && cp.y <= -0.25 && cp.y > -0.53) cp.y = -0.53;
+          clampOut(); // max zoom-out: disc keeps >= 25% of the smaller screen side
           zP = cp.distanceTo(controls.target);
           controls.update(); compassDraw();
           // streaming tiles: rebuild the quadtree ~5 times a second, fade and draw every frame
@@ -2333,7 +2358,7 @@
             shimG.position.copy(world.position); renderer.autoClear = false; renderer.render(shimS, camera); renderer.autoClear = true;
           }
           // keep running while anything moves; after 1 s of stillness the loop pauses until input or a load wakes it
-          if (camChanged || busy || inertOn || mv || moving || zooming || zq || tlPlay || (playing && skyI > 0) || pts.size || holding || Object.keys(keys).some(function (k) { return keys[k]; }) || now - prT < 0.35) lastAct = performance.now();
+          if (camChanged || busy || inertOn || mv || moving || zooming || fq || tlPlay || (playing && skyI > 0) || pts.size || holding || Object.keys(keys).some(function (k) { return keys[k]; }) || now - prT < 0.35) lastAct = performance.now();
           if (performance.now() - lastAct > 1000) { running = false; lastTs = 0; return; }
           requestAnimationFrame(frame);
         }
