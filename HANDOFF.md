@@ -98,3 +98,10 @@ Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72
 - Sources: AM chronology (Flood 2348 BC), IBTrACS (cyclone tracks; spirals move along the track), NOAA NCEI (tsunamis; expanding fronts), USGS (earthquakes), Smithsonian GVP (eruptions), CTBTO/DOE (nuclear tests), launch records.
 - Effects are one shared ShaderMaterial (logdepth) on ground/dome quads: ring, glow, spiral, plume, dome, front, flood. Rockets are growing ascent lines; Apollo 11 curves into the Atlantic, and its card shows the flat-earth account alongside the official record. Starfish Prime/Argus light the dome.
 - Caps: 24 active on mobile, 80 on desktop. Tapping within 22 px opens a glass card. `window.__ev` is a debug hook.
+
+## T vegetation
+- `vegetation()` (called before `buildings()`): z14 OpenFreeMap tiles; `mvtVeg` reads landcover (wood/forest, scrub/heath), landuse (park, cemetery, garden, recreation) and park polygons.
+- Per tile, a 512 px canvas mask: vegetation polygons are filled, then buildings (with a 3 px buffer) and roads (4–6 px) are painted out. Instances are seeded deterministically, capped at 24k per tile on desktop and 7k on mobile.
+- veg_atlas.webp: 6 impostor cells rendered offline in three r147 from CC0 Poly Haven scans (tree_small_02, island_tree_01, fir_sapling_medium a/b, wild_rooibos_bush, shrub_02). These are photoreal impostors, not primitives.
+- Shader: cylindrical billboard, two-frequency wind sway (scaled by height²), random mirror, night darkening per instance using its distance to the sun subpoint, logdepth.
+- LOD: beyond ~2 km instances are thinned in proportion to 1/distance (uLod 1.2 on desktop, 0.6 on mobile). Shown below 5 km altitude. Toggle: "Trees & bushes". Debug hook: `window.__vg`.

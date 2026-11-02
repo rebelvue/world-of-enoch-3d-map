@@ -192,6 +192,7 @@
           <button class="x-tog" type="button" data-t="winds" aria-pressed="true">Wind portals</button>
           <button class="x-tog" type="button" data-t="cities" aria-pressed="true">Cities</button>
           <button class="x-tog" type="button" data-t="traffic" aria-pressed="true">Traffic</button>
+          <button class="x-tog" type="button" data-t="veg" aria-pressed="true">Trees &amp; bushes</button>
           <button class="x-tog" type="button" data-t="planes" aria-pressed="true">Aircraft</button>
           <button class="x-tog" type="button" data-t="spray" aria-pressed="false" title="Project chemtrail account. Official explanation: persistent contrails from ice crystals in humid air">Spray trails (chemtrail account)</button>
         </div>
@@ -239,7 +240,7 @@
         <p class="x-h">Move</p>
         <p class="fineprint">Drag to pan; scroll to zoom to the cursor; right- or Ctrl-drag to turn and tilt. Touch: one finger pans, pinch zooms, twist turns, two fingers up or down tilt; double-tap zooms in, two-finger tap zooms out, double-tap and drag to zoom. WASD/arrows and Q/E fly, Shift for speed.</p>
         <p class="fineprint" style="margin-top: 12px">Biblical dates: Ussher chronology. Historical borders: aourednik/historical-basemaps (approximate).</p>
-        <p class="x-attr">© Esri · NASA Black Marble · <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>
+        <p class="x-attr">© Esri · NASA Black Marble · Trees: <a href="https://polyhaven.com" target="_blank" rel="noopener">Poly Haven</a> (CC0) · <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>
       </aside>
       <aside class="x-info x-glass" id="info" hidden aria-live="polite">
         <h3 id="info-name"></h3>
@@ -310,7 +311,7 @@
         var $ = function (id) { return document.getElementById(id); };
 
         // UI first, so captions fill even if WebGL fails
-        var show = { dome: true, sky: true, borders: true, winds: true, cities: true, traffic: true, planes: true, spray: false }, playing = true;
+        var show = { dome: true, sky: true, borders: true, winds: true, cities: true, traffic: true, planes: true, spray: false, veg: true }, playing = true;
         var lab = { reg: true, cty: true, bib: true, city: true, enoch: false, ev: true }, labSaved = null; // Countries and Cities on by default
         // timeline: one year per step, 3382 BC (AM 622, Ussher) to AD 2026
         var era = $("era"), Y0 = -3382, Y1 = 2026, yF = Y1, yearN = Y1, verseT = 0, tlPlay = false, tlSpeed = 10, tlBtn = $("tl-play");
@@ -1971,6 +1972,92 @@
           showCard(e[1], EVC[e[0]], rows, null, null, "");
         }
         document.querySelectorAll('[data-ev]').forEach(function (b) { b.addEventListener('click', function () { var k = b.dataset.ev; evShow[k] = !evShow[k]; b.setAttribute('aria-pressed', evShow[k]); kick(); }); });
+        // ===== T vegetation: instanced photoreal trees and bushes from OpenFreeMap landcover / landuse / park polygons =====
+        // Impostors rendered from CC0 Poly Haven scans (tree_small_02, island_tree_01, fir_sapling_medium a/b, wild_rooibos_bush, shrub_02)
+        // into veg_atlas.webp (6 cells). Placement is rasterised per z14 tile: vegetation polygons in, then buildings and roads cut out,
+        // so nothing stands on a road or inside a building. Cylindrical billboards sway in the wind; LOD thins and fades them with distance.
+        function mvtVeg(b) { // [[kind, ring...]] kind 0 wood, 1 park/garden/grass, 2 scrub
+          var r = pbf(b), out = [], ext = 4096;
+          while (!r.end()) {
+            var t = r.tag(); if (t[0] !== 3) { r.skip(t[1]); continue; }
+            var L = pbf(r.bytes()), name = "", keys = [], vals = [], feats = [];
+            while (!L.end()) { var lt = L.tag();
+              if (lt[0] === 1) name = str(L.bytes()); else if (lt[0] === 2) feats.push(L.bytes()); else if (lt[0] === 3) keys.push(str(L.bytes()));
+              else if (lt[0] === 4) { var V = pbf(L.bytes()), v = null; while (!V.end()) { var vt = V.tag(); if (vt[0] === 1) v = str(V.bytes()); else V.skip(vt[1]); } vals.push(v); }
+              else if (lt[0] === 5) ext = L.vi(); else L.skip(lt[1]); }
+            if (name !== "landcover" && name !== "landuse" && name !== "park") continue;
+            var ci = keys.indexOf("class"), si = keys.indexOf("subclass");
+            feats.forEach(function (fb) {
+              var F = pbf(fb), tags = null, geo = null, type = 0;
+              while (!F.end()) { var ft = F.tag(); if (ft[0] === 2) tags = F.bytes(); else if (ft[0] === 3) type = F.vi(); else if (ft[0] === 4) geo = F.bytes(); else F.skip(ft[1]); }
+              if (type !== 3 || !geo) return; var cls = "", sub = "";
+              if (tags) { var T = pbf(tags); while (!T.end()) { var kk = T.vi(), vv = T.vi(); if (kk === ci) cls = vals[vv]; else if (kk === si) sub = vals[vv]; } }
+              var kind = name === "park" ? 1 : cls === "wood" || sub === "forest" || sub === "wood" ? 0 : sub === "scrub" || sub === "heath" ? 2 : (cls === "park" || cls === "cemetery" || sub === "park" || sub === "garden" || sub === "village_green" || sub === "recreation_ground") ? 1 : -1;
+              if (kind < 0) return;
+              var G = pbf(geo), x = 0, y = 0, rings = [], ring = null;
+              while (!G.end()) { var cmd = G.vi(), id = cmd & 7, n = cmd >> 3; if (id === 7) { if (ring) rings.push(ring); ring = null; continue; }
+                for (var c = 0; c < n; c++) { var dx = G.vi(), dy = G.vi(); x += (dx >> 1) ^ -(dx & 1); y += (dy >> 1) ^ -(dy & 1); if (id === 1) ring = [x, y]; else ring.push(x, y); } }
+              out.push([kind].concat(rings));
+            });
+          }
+          return { v: out, ext: ext };
+        }
+        var VG = { tiles: new Map(), Q: [], busy: 0, t: 0, cap: MOB ? 7000 : 24000, S: 512, U: { uT: { value: 0 }, uSunW: WU.uSunW, uSunOn: WU.uSunOn, uA: { value: 1 }, uLod: { value: 1 }, uMap: { value: null } } };
+        new THREE.TextureLoader().load("veg_atlas.webp", function (tx) { tx.encoding = THREE.sRGBEncoding; tx.anisotropy = 4; VG.U.uMap.value = tx; kick(); });
+        VG.mat = new THREE.ShaderMaterial({ uniforms: VG.U, side: THREE.DoubleSide, transparent: false, alphaToCoverage: false,
+          vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute vec3 aP; attribute vec2 aK; uniform float uT, uLod; varying vec2 vU; varying float vK, vSh; varying vec3 vW;\n" +
+            "void main(){ vec3 base = (modelMatrix * vec4(aP, 1.0)).xyz; float d = length(cameraPosition - base); float keep = step(fract(aK.y * 7.13), uLod / max(d * 900.0, 1.0));\n" +
+            " float s = aK.x * keep; vec3 vd = normalize(vec3(cameraPosition.x - base.x, 0.0, cameraPosition.z - base.z) + 1e-6); vec3 rt = vec3(vd.z, 0.0, -vd.x);\n" +
+            " float sw = sin(uT * 1.7 + aK.y * 40.0 + base.x * 3e4) * 0.035 + sin(uT * 3.1 + aK.y * 17.0) * 0.012; vec3 p = base + rt * position.x * s + vec3(0.0, 1.0, 0.0) * position.y * s + rt * sw * s * position.y * position.y;\n" +
+            " vU = vec2(position.x * (fract(aK.y * 91.0) > 0.5 ? 1.0 : -1.0) + 0.5, position.y); vK = floor(aK.y * 64.0 + 1e-3); vSh = position.y; vW = base;\n" +
+            " gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);\n#include <logdepthbuf_vertex>\n}",
+          fragmentShader: "#include <logdepthbuf_pars_fragment>\nuniform sampler2D uMap; uniform vec3 uSunW; uniform float uSunOn, uA; varying vec2 vU; varying float vK, vSh; varying vec3 vW;\n" +
+            "void main(){\n#include <logdepthbuf_fragment>\n vec4 c = texture2D(uMap, vec2((vK + clamp(vU.x, 0.004, 0.996)) / 6.0, clamp(vU.y, 0.004, 0.996))); if (c.a < 0.45) discard;\n" +
+            " float nd = uSunOn > 0.5 ? smoothstep(3.6, 3.75, length(vW.xz - uSunW.xz)) : 0.0; vec3 col = c.rgb * (0.9 + 0.3 * vSh) * mix(vec3(1.0), vec3(0.06, 0.08, 0.13), nd);\n" +
+            " gl_FragColor = vec4(col, 1.0);\n#include <tonemapping_fragment>\n#include <encodings_fragment>\n}" });
+        VG.geo = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0);
+        // trees: cell 0-3, size range metres; bushes: cell 4-5
+        var VKIND = [[[0, 9, 16], [1, 8, 14], [2, 12, 22], [3, 10, 20]], [[0, 8, 14], [1, 7, 12], [4, 1.6, 2.8], [5, 1.4, 2.4]], [[4, 1.4, 2.6], [5, 1.2, 2.2], [2, 3, 6]]];
+        function vgBuild(e, tx, ty, veg, bl, rd) {
+          var S = VG.S, cv = document.createElement("canvas"); cv.width = cv.height = S; var g = cv.getContext("2d"), ext = veg.ext, k = S / ext;
+          var poly = function (rings) { g.beginPath(); rings.forEach(function (rg) { g.moveTo(rg[0] * k, rg[1] * k); for (var i = 2; i < rg.length; i += 2) g.lineTo(rg[i] * k, rg[i + 1] * k); g.closePath(); }); g.fill("evenodd"); };
+          ["#ff0000", "#00ff00", "#0000ff"].forEach(function (col, kind) { g.fillStyle = col; veg.v.forEach(function (f) { if (f[0] === kind) poly(f.slice(1)); }); });
+          g.fillStyle = "#000"; g.strokeStyle = "#000"; g.lineWidth = 3; if (bl) bl.b.forEach(function (b) { var kb = S / bl.ext; g.beginPath(); b[0].forEach(function (rg) { g.moveTo(rg[0] * kb, rg[1] * kb); for (var i = 2; i < rg.length; i += 2) g.lineTo(rg[i] * kb, rg[i + 1] * kb); g.closePath(); }); g.fill(); g.stroke(); });
+          if (rd) { var kr = S / rd.ext; g.lineCap = "round"; rd.roads.forEach(function (r) { var p = r[1]; g.lineWidth = /motorway|trunk|primary/.test(r[0]) ? 6 : 4; g.beginPath(); g.moveTo(p[0] * kr, p[1] * kr); for (var i = 2; i < p.length; i += 2) g.lineTo(p[i] * kr, p[i + 1] * kr); g.stroke(); }); }
+          var px = g.getImageData(0, 0, S, S).data, n = 1 << 14, cl = function (mx, my) { var lon = mx * 360 - 180, lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * my))) / DEG; return ll(lat, lon); };
+          var c0 = cl((tx + 0.5) / n, (ty + 0.5) / n), cA = cl(tx / n, ty / n), cB = cl((tx + 1) / n, ty / n), cC = cl(tx / n, (ty + 1) / n);
+          var P = [], K = [], tries = VG.cap * 4, seed = (tx * 73856093 ^ ty * 19349663) >>> 0, rnd = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+          var dens = [1, 0.35, 0.6];
+          for (var t = 0; t < tries && P.length / 3 < VG.cap; t++) {
+            var u = rnd(), v = rnd(), o = ((v * S | 0) * S + (u * S | 0)) * 4, kind = px[o] > 128 ? 0 : px[o + 1] > 128 ? 1 : px[o + 2] > 128 ? 2 : -1;
+            if (kind < 0 || rnd() > dens[kind]) continue;
+            var x = cA[0] + (cB[0] - cA[0]) * u + (cC[0] - cA[0]) * v, z = cA[1] + (cB[1] - cA[1]) * u + (cC[1] - cA[1]) * v, T = VKIND[kind], ty0 = T[(rnd() * T.length) | 0];
+            P.push(x - c0[0], ground(x, z) - 0.3 * M, z - c0[1]); K.push((ty0[1] + (ty0[2] - ty0[1]) * rnd()) * M, (ty0[0] + rnd() * 0.98) / 64);
+          }
+          e.done = true; if (!P.length) return;
+          var ig = new THREE.InstancedBufferGeometry(); ig.index = VG.geo.index; ig.setAttribute("position", VG.geo.attributes.position);
+          ig.setAttribute("aP", new THREE.InstancedBufferAttribute(new Float32Array(P), 3)); ig.setAttribute("aK", new THREE.InstancedBufferAttribute(new Float32Array(K), 2)); ig.instanceCount = P.length / 3;
+          e.mesh = new THREE.Mesh(ig, VG.mat); e.mesh.position.set(c0[0], 0, c0[1]); e.mesh.frustumCulled = false; e.n = P.length / 3; world.add(e.mesh);
+        }
+        function vegetation(cp, akm, now) {
+          var on = show.veg !== false && cp.y > 0 && akm < 5 && !!VG.U.uMap.value; VG.U.uT.value = now % 1000; VG.U.uLod.value = MOB ? 0.6 : 1.2;
+          VG.tiles.forEach(function (e) { if (e.mesh) e.mesh.visible = on; });
+          if (VG.Q.length) { var q = VG.Q.shift(), e0 = VG.tiles.get(q[0]); if (e0) try { vgBuild(e0, q[1], q[2], q[3], q[4], q[5]); } catch (er) { e0.fail = true; } }
+          if (!on) return false; if (now - VG.t < 0.5) return akm < 2;
+          VG.t = now;
+          var L = toLL(cp.x, cp.z), m = merc(L[0], L[1]), n = 1 << 14, cx = Math.floor(m[0] * n), cy = Math.floor(m[1] * n), rr = MOB || akm < 1.5 ? 1 : 2, want = {};
+          for (var dy = -rr; dy <= rr; dy++) for (var dx = -rr; dx <= rr; dx++) {
+            var tx = ((cx + dx) % n + n) % n, ty = cy + dy; if (ty < 0 || ty >= n) continue; var key = tx + "/" + ty; want[key] = 1;
+            if (!VG.tiles.has(key) && VG.busy < 2) (function (key, tx, ty) {
+              var e = { mesh: null }; VG.tiles.set(key, e); VG.busy++;
+              ofmTile(tx, ty).then(function (b) { var v = mvtVeg(b), bl = null, rd = null; try { bl = mvtBuildings(b); } catch (x) {} try { rd = mvtRoads(b); } catch (x) {} if (VG.tiles.get(key) === e) VG.Q.push([key, tx, ty, v, bl, rd]); }, function () { e.fail = true; })
+                .then(function () { VG.busy--; kick(); });
+            })(key, tx, ty);
+          }
+          if (VG.tiles.size > (MOB ? 9 : 25)) VG.tiles.forEach(function (e, k) { if (!want[k] && (e.done || e.fail)) { if (e.mesh) { world.remove(e.mesh); e.mesh.geometry.dispose(); } VG.tiles.delete(k); } });
+          return akm < 2 || VG.Q.length > 0 || VG.busy > 0;
+        }
+        window.__vg = VG;
         function show_traffic() { return show.traffic !== false; }
         function slFetch(key, tx, ty) {
           SL.busy++;
@@ -3378,7 +3465,7 @@
           var nr0 = Math.max(nAlt * 0.05, 1e-7), fr0 = Math.min(4000, Math.max(nAlt * 6000, 100)); // far plane well past the horizon at every altitude
           if (Math.abs(nr0 / camera.near - 1) > 0.1 || Math.abs(fr0 / camera.far - 1) > 0.1) { camera.near = nr0; camera.far = fr0; camera.updateProjectionMatrix(); }
           var akm = (cp.y - g0) * KM;
-          WU.uNLk.value = 0.12 + 0.88 * smooth(3, 25, akm); streetLights(cp, akm, now); if (traffic(cp, akm, dt)) busy = true; if (aircraft(cp, akm, dayT)) busy = true; if (events(cp, akm)) busy = true; buildings(cp, akm, now); // satellite glow gives way to street lamps
+          WU.uNLk.value = 0.12 + 0.88 * smooth(3, 25, akm); streetLights(cp, akm, now); if (traffic(cp, akm, dt)) busy = true; if (aircraft(cp, akm, dayT)) busy = true; if (events(cp, akm)) busy = true; if (vegetation(cp, akm, now)) busy = true; buildings(cp, akm, now); // satellite glow gives way to street lamps
           WU.uNF.value = cp.y > 0 ? 1 - smooth(0.5, 2, akm) : 0; // moonlit floor raised below 2 km
           WU.uHz.value = Math.sqrt(2 * 6371 * Math.max(akm, 0.001) + akm * akm) / KM; WU.uHzK.value = cp.y > 0 ? 1 - smooth(50, 300, akm) : 0; // light haze at the true horizon, near the ground only
           altEl.textContent = (Math.abs(akm) < 10 ? akm.toFixed(3) : Math.abs(akm) < 1000 ? akm.toFixed(1) : Math.round(akm).toLocaleString()) + " km";
