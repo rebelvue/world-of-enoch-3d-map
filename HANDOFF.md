@@ -36,3 +36,7 @@ Next, in this order: **Q** ice wall + fast progressive load -> **D** city lights
 
 ## Scripture anchors used
 Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72-79 (sun/moon gates), 1 Sam 2:8 and Job 9:6 (pillars), Joshua 10:12-14, 2 Kings 20:9-11.
+
+## 2026-11-02 16:10 EET: selection fix + F (selectable cities)
+- Fix: country selection was dead on GitHub Pages for two reasons. (1) `polities.json`/`countries_info.json` were loaded via `<script type="application/json" src>`, which browsers never fetch (only Hark's host inlined them), so CI/POL were empty. Now classic `polities.js`/`countries_info.js` (regenerate with `sh tools_jsonjs.sh`). (2) Since 5934fc2 the thin "waters above" shell is visible top-down and caught every tap; background shells (BG) no longer beat land under the finger.
+- F: `cities_data.js` (Natural Earth 7.3k places + D's hand-dated founding years), lazy-loaded. `cityTick()` after render: show from founding year (undated towns from AD 1800, `CTY_UNDATED`), below `cityAltMax(min_zoom)`, greedy screen declutter (36 mobile / 80 desktop), 44 px tap box, panel via showCard. Test hooks: `harkDbg.scr/idt/sel/year/cities`.

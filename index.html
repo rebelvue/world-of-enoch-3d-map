@@ -107,6 +107,8 @@
       .x-label--fire::before { background: #ff7a3a; box-shadow: 0 0 6px #ff5a1a; }
       .x-label--a::before { background: #ffcf7a; }
       .x-label--b::before { background: #9fd7a8; }
+      .x-city { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 5px; white-space: nowrap; font: var(--type-caption); letter-spacing: 0.01em; color: rgb(255 248 236 / 0.9); text-shadow: 0 1px 3px #000, 0 0 6px rgb(0 0 0 / 0.8); margin: -4px 0 0 -4px; visibility: hidden; will-change: transform, opacity; pointer-events: none; user-select: none; -webkit-user-select: none; }
+      .x-city::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: radial-gradient(circle, #fff 0 35%, #ffd9a0 60%, rgb(255 217 160 / 0) 100%); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 0 6px rgb(255 210 150 / 0.6); flex: none; }
       .x-label--city { color: rgb(255 255 255 / 0.75); }
       .x-label--city::before { background: #ffd9a0; }
       .x-label--tap { padding: 4px 0; }
@@ -145,10 +147,11 @@
       <img class="x-tex" id="n-today" src="normal_today_1k.webp" data-full="normal_today.webp" alt="" />
       <img class="x-tex" id="ice" src="ice_wall.webp" alt="" />
       <img class="x-tex" id="ids" src="country_ids.webp" alt="" />
-      <script type="application/json" id="polities" src="polities.json"></script>
-      <script type="application/json" id="cinfo" src="countries_info.json"></script>
+      <script src="polities.js"></script>
+      <script src="countries_info.js"></script>
       <div id="stage"></div>
       <div class="x-vig" id="vig" aria-hidden="true"></div>
+      <div class="x-labels" id="cities" aria-hidden="true"></div>
       <div class="x-labels" id="labels" aria-hidden="true"></div>
       <p class="x-title">The World of Enoch</p>
       <button class="x-menu x-glass" id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet">
@@ -464,7 +467,7 @@
         function kick() { lastAct = performance.now(); if (!running && frameFn) { running = true; requestAnimationFrame(frameFn); } }
         window.harkKick = kick;
         var dbgDT = 0;
-        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sl: function () { var n = 0; SL.tiles.forEach(function (e) { if (e.mesh) n += e.mesh.userData.n; }); var nb = 0, bt = 0; OB.tiles.forEach(function (e) { if (e.mesh) { nb += e.mesh.userData.n; bt++; } }); var zm = 0, nv = 0, hz = {}; TC.forEach(function (t) { var k = t.z + ':' + t.st + (t.on === ST.t ? 'w' : ''); hz[k] = (hz[k] || 0) + 1; if (t.mesh && t.mesh.visible) { nv++; zm = Math.max(zm, t.z); } }); window.__hz = hz; hz.BQ = BQ.length; hz.TACT = TACT; return { tz: zm, tv: nv, st: ST.on, tq: TQ.length, tiles: SL.tiles.size, lamps: n, a: SL.U.uA.value, btiles: bt, bldg: nb }; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
+        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sl: function () { var n = 0; SL.tiles.forEach(function (e) { if (e.mesh) n += e.mesh.userData.n; }); var nb = 0, bt = 0; OB.tiles.forEach(function (e) { if (e.mesh) { nb += e.mesh.userData.n; bt++; } }); var zm = 0, nv = 0, hz = {}; TC.forEach(function (t) { var k = t.z + ':' + t.st + (t.on === ST.t ? 'w' : ''); hz[k] = (hz[k] || 0) + 1; if (t.mesh && t.mesh.visible) { nv++; zm = Math.max(zm, t.z); } }); window.__hz = hz; hz.BQ = BQ.length; hz.TACT = TACT; return { tz: zm, tv: nv, st: ST.on, tq: TQ.length, tiles: SL.tiles.size, lamps: n, a: SL.U.uA.value, btiles: bt, bldg: nb }; }, scr: function (la, lo) { var p = ll(la, lo), w = new THREE.Vector3(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z).project(camera); return [(w.x + 1) / 2 * innerWidth, (1 - w.y) / 2 * innerHeight, w.z]; }, idt: function (la, lo) { var p = ll(la, lo); var i = idAt(p[0], p[1]); return [i, CI.length, i && CI[i - 1] ? CI[i - 1].n : null]; }, year: function (y) { setYear(y); kick(); }, cities: function () { return CTY.on.map(function (o) { return [o[0][0], Math.round(o[1]), Math.round(o[2]), o[0][3]]; }); }, sel: function () { return { id: sel.id, on: sel.on, name: sel.name, card: !card.hidden, info: !infoEl.hidden, txt: (card.hidden ? infoEl : card).innerText.slice(0, 200) }; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
         setInterval(function () { if (skyI === 0 && !document.hidden) kick(); }, 20000); // live sky: refresh the sun and moon while idle
         ["pointerdown", "pointerup", "wheel", "keydown", "keyup", "touchstart", "touchmove", "click", "input", "resize"].forEach(function (t) { addEventListener(t, kick, { capture: true, passive: true }); });
         addEventListener("pointermove", function (e) { if (e.buttons || e.pointerType === "touch") kick(); }, { capture: true, passive: true });
@@ -1736,12 +1739,11 @@
         var CONTS = [["Europe", 52, 15], ["Asia", 47, 90], ["Africa", 5, 20], ["Middle East", 29, 45], ["North America", 45, -100], ["South America", -14, -60], ["Oceania", -25, 135], ["Antarctica", -80, -30]];
         CONTS.forEach(function (d) { var p = ll(d[1], d[2]); add(d[0], p[0], p[1], "R", "x-label--reg"); });
         var POL = {}, CI = [];
-        try { POL = JSON.parse($("polities").textContent || "{}"); } catch (err) {}
-        try { CI = JSON.parse($("cinfo").textContent || "[]"); } catch (err) {}
+        POL = window.POL_DATA || {}; // classic scripts: static hosts never fill <script type="application/json" src>
+        CI = window.CI_DATA || [];
         // country names (today), historical polities (per border snapshot) and cities: on by default
         CI.forEach(function (c) { var p = ll(c.lat, c.lon); add(c.n, p[0], p[1], "K", "x-label--pol"); });
         Object.keys(POL).forEach(function (k) { POL[k].forEach(function (d) { var p = ll(d[1], d[2]); add(d[0], p[0], p[1], "P", "x-label--pol").yr = +k; }); });
-        CITIES.forEach(function (c) { var p = ll(c[1], c[2]); add(c[0], p[0], p[1], "C", "x-label--city"); });
         var CAT = { R: "reg", K: "cty", P: "cty", A: "bib", B: "bib", C: "city", ice: "enoch", dome: "enoch", fixed: "enoch", abyss: "enoch", hades: "enoch" }, PLACE = { R: 1, K: 1, P: 1, A: 1, B: 1, C: 1 };
         labels.forEach(function (L) { L.cat = CAT[L.set]; });
         function nearPol(key, x, z) {
@@ -2633,6 +2635,7 @@
         renderer.domElement.addEventListener("pointerup", function (ev) {
           if (!down || Math.hypot(ev.clientX - down[0], ev.clientY - down[1]) >= 8 || performance.now() - down[2] >= 250) return;
           down = null;
+          var tc = cityAt(ev.clientX, ev.clientY); if (tc) { infoEl.hidden = true; return openCity(tc); }
           for (var li = 0; li < labels.length; li++) { // labels ignore the pointer; hit test them here
             var L = labels[li];
             if (!L.info || L.o < 0.3) continue;
@@ -2662,11 +2665,78 @@
             if (!BG[k]) { best = k; break; }
             if (!best) best = k;
           }
-          if (best) { openInfo(best); return; }
+          var onDisc = gHit && Math.hypot(gHit.x + ANC0.x, gHit.z + ANC0.z) < R;
+          if (best && !(BG[best] && onDisc)) { openInfo(best); return; } // background shells (waters, dome, ice, abyss) never beat land under the finger
           infoEl.hidden = true;
           if (gHit && Math.hypot(gHit.x + ANC0.x, gHit.z + ANC0.z) < R) selectAt(gHit.x + ANC0.x, gHit.z + ANC0.z); // hit point is anchor-relative; only empty sea (in selectAt) or the X clears
         });
 
+        // F. selectable cities: Natural Earth places (public domain) + the hand-dated cities of D, loaded lazily (cities_data.js).
+        // A city shows from its founding year (undated Natural Earth towns: from AD 1800, the first era with broad census records),
+        // and below an altitude set by its Natural Earth min_zoom (big or old cities higher up), decluttered on screen, max ~44 px tap box.
+        var CTY = { el: $("cities"), pool: [], on: [], t: -1, yr: null, ak: -1 }, CTY_UNDATED = 1800, cV = new THREE.Vector3();
+        function cityAltMax(mz) { return 16000 / Math.pow(2, mz - 1); } // min_zoom 3: below 4000 km ... min_zoom 9: below ~60 km
+        function cityFounded(c) { return c[3] == null ? CTY_UNDATED : c[3]; }
+        function cityNode(i) {
+          var n = CTY.pool[i];
+          if (!n) { n = document.createElement("div"); n.className = "x-city"; n.appendChild(document.createElement("span")); CTY.el.appendChild(n); CTY.pool[i] = n; }
+          return n;
+        }
+        function cityTick(akm, above, now) {
+          var D = window.CITY_DATA, k, n;
+          if (!D || !above || akm > 9000) { for (k = 0; k < CTY.on.length; k++) CTY.pool[k].style.visibility = "hidden"; CTY.on = []; return; }
+          if (now - CTY.t < 0.12 && CTY.yr === yearN && Math.abs(CTY.ak / akm - 1) < 0.02) return; // ~8 updates a second while moving
+          CTY.t = now; CTY.yr = yearN; CTY.ak = akm;
+          camera.updateMatrixWorld(); var cx = camera.position.x + ANC0.x, cz = camera.position.z + ANC0.z, reach = Math.max(akm / KM * 6, 0.05);
+          var cand = [];
+          for (k = 0; k < D.length; k++) {
+            var c = D[k], am = cityAltMax(c[7] === 0 ? Math.min(c[6], 3) : c[6]);
+            if (akm > am || yearN < cityFounded(c)) continue;
+            var p = c._p || (c._p = ll(c[1], c[2]));
+            if (Math.abs(p[0] - cx) > reach || Math.abs(p[1] - cz) > reach) continue;
+            cV.set(p[0] - ANC0.x, c._h == null ? (c._h = ground(p[0], p[1])) : c._h, p[1] - ANC0.z).project(camera);
+            if (cV.z > 1 || cV.x < -1.05 || cV.x > 1.05 || cV.y < -1.05 || cV.y > 1.05) continue;
+            cand.push([c, (cV.x + 1) * hw, (1 - cV.y) * hh, (c[7] === 0 ? 0 : c[7] === 1 ? 2 : 4) + c[6] - Math.log10(c[5] + 10) * 0.3 - (c[3] != null ? 1 : 0), Math.min(1, (am - akm) / (am * 0.35))]);
+          }
+          cand.sort(function (a, b) { return a[3] - b[3]; });
+          var taken = [], out = [], MAXC = MOB ? 36 : 80;
+          for (k = 0; k < cand.length && out.length < MAXC; k++) {
+            var q = cand[k], w = q[0][0].length * 6.6 + 16, r = [q[1] - 12, q[2] - 11, q[1] + w, q[2] + 11], hit = false;
+            for (var j = 0; j < taken.length && !hit; j++) { var t = taken[j]; hit = r[0] < t[2] && r[2] > t[0] && r[1] < t[3] && r[3] > t[1]; }
+            if (hit) continue;
+            taken.push(r); out.push(q);
+          }
+          for (k = 0; k < out.length; k++) {
+            n = cityNode(k); var o = out[k];
+            if (n._c !== o[0]) { n.firstChild.textContent = o[0][0]; n._c = o[0]; }
+            n.style.transform = "translate(" + o[1].toFixed(1) + "px," + o[2].toFixed(1) + "px)";
+            n.style.opacity = (0.35 + 0.65 * o[4]).toFixed(2); n.style.visibility = "visible";
+            n._x = o[1]; n._y = o[2];
+          }
+          for (; k < CTY.on.length; k++) CTY.pool[k].style.visibility = "hidden";
+          CTY.on = out;
+        }
+        function cityAt(x, y) { // the tapped city: dot within a 44 px box, or on its label
+          var best = null, bd = 1e9;
+          for (var k = 0; k < CTY.on.length; k++) {
+            var n = CTY.pool[k], dx = x - n._x, dy = y - n._y, b = n.firstChild.getBoundingClientRect();
+            var inDot = Math.abs(dx) <= 22 && Math.abs(dy) <= 22, inLab = x >= b.left - 4 && x <= b.right + 4 && y >= n._y - 22 && y <= n._y + 22;
+            if (!inDot && !inLab) continue;
+            var d = inDot ? Math.hypot(dx, dy) : 30 + Math.abs(dx);
+            if (d < bd) { bd = d; best = n._c; }
+          }
+          return best;
+        }
+        var CKIND = ["National capital", "Regional capital", "Town", "Research station", "Historic city"];
+        function openCity(c) {
+          var f = c[3], desc = c[7] === 0 ? "Capital of " + c[4] : c[7] === 1 && c[8] ? "Regional capital, " + c[8] : CKIND[c[7]] + (c[8] ? ", " + c[8] : "");
+          var rows = [["Founded", f == null ? "Not dated (shown from AD " + CTY_UNDATED + ")" : fmtY(f)]];
+          if (c[4]) rows.push(["Country today", c[4]]);
+          if (c[5] > 0) rows.push(["Population", fmtN(c[5]) + " (Natural Earth)"]);
+          rows.push(["Year shown", fmtY(yearN)]);
+          sel.on = false; sel.mk = false; sel.id = 0; if (sel.bId) { bSel(0); sel.bId = 0; }
+          showCard(c[0], desc, rows);
+        }
         var opA = 1, opB = 0, polF = 0, cityF = 0;
         function opacityFor(L, cy, altRef) {
           var set = L.set;
@@ -3024,6 +3094,7 @@
           var prW = Math.min(DPR, camChanged || now - prT < 0.3 ? PERF.prMove : PERF.prIdle);
           if (prW !== prNow) { prNow = prW; renderer.setPixelRatio(prW); renderer.setSize(innerWidth, innerHeight); ptScale.value = innerHeight * prW / 2; }
           renderer.render(scene, camera);
+          cityTick(akm, cp.y > 0, now);
           if (shimOn && shimS) { // heat shimmer near the fire columns (desktop only): copy the frame, redraw it displaced on the column billboards
             renderer.getDrawingBufferSize(shimSz);
             if (!shimTex.value || shimTex.value.image.width !== shimSz.x || shimTex.value.image.height !== shimSz.y) {
@@ -3049,6 +3120,7 @@
           var ts = document.createElement("script"); ts.src = "towns_data.js"; ts.async = true; // 7,300 towns for the night lights
           ts.onload = function () { lightsBuild(); kick(); };
           document.body.appendChild(ts);
+          var cs = document.createElement("script"); cs.src = "cities_data.js"; cs.async = true; cs.onload = kick; document.body.appendChild(cs); // F: selectable cities
         }, 400); });
       })();
     </script>
