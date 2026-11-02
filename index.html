@@ -529,10 +529,10 @@
         sg.setAttribute("position", new THREE.BufferAttribute(sp, 3));
         sg.setAttribute("aS", new THREE.BufferAttribute(sa, 3));
         sg.setAttribute("aC", new THREE.BufferAttribute(sc, 3));
-        var starU = { uPx: { value: 1 }, uT: { value: 0 }, uTw: { value: 0 } };
+        var starU = { uPx: { value: 1 }, uT: { value: 0 }, uTw: { value: 0 }, uDim: { value: 0 } };
         var starMat = new THREE.ShaderMaterial({
           transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: starU,
-          vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute vec3 aS; attribute vec3 aC; uniform float uPx, uT, uTw; varying vec3 vC; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); float tw = 1.0 - uTw * 0.22 * (0.5 + 0.5 * sin(uT * 0.7 + aS.z)); vC = aC * aS.y * tw; gl_PointSize = aS.x * uPx; gl_Position = projectionMatrix * mv;\n#include <logdepthbuf_vertex>\n}",
+          vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute vec3 aS; attribute vec3 aC; uniform float uPx, uT, uTw, uDim; varying vec3 vC; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); float tw = 1.0 - uTw * 0.22 * (0.5 + 0.5 * sin(uT * 0.7 + aS.z)); vC = aC * aS.y * tw * (1.0 - 0.97 * uDim); gl_PointSize = aS.x * uPx; gl_Position = projectionMatrix * mv;\n#include <logdepthbuf_vertex>\n}",
           fragmentShader: "#include <logdepthbuf_pars_fragment>\nvarying vec3 vC; void main(){\n#include <logdepthbuf_fragment>\nfloat d = length(gl_PointCoord - 0.5) * 2.0; if (d >= 1.0) discard; float a = exp(-d * d * 4.0); gl_FragColor = vec4(vC * a, 1.0); }"
         }), stars = new THREE.Points(sg, starMat);
         stars.frustumCulled = false;
@@ -989,6 +989,41 @@
         world.add(pick(dome, "dome"));
         var domeStars = stars; // the one star layer, on the dome's inner surface
         world.add(domeStars);
+        // S: physically based daytime sky near the ground (Preetham Rayleigh/Mie scattering, ported from three r147 examples/Sky.js).
+        // A camera-centred backdrop drawn first; sun elevation comes from the distance to the sun's subpoint on the disc (0 deg at
+        // the same 3.7-unit day/night edge the lamps and windows use). Deep blue overhead, paler at the horizon, warm at sunrise
+        // and sunset, dark at night so the dome's stars show; it fades out between ~15 km and ~400 km into the firmament view.
+        var SKYU = { uSun: { value: new THREE.Vector3(0, 1, 0) }, uK: { value: 0 }, uRay: { value: 1.6 }, uTurb: { value: 5.0 }, uMie: { value: 0.004 }, uG: { value: 0.8 } };
+        var skyBox = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.ShaderMaterial({
+          side: THREE.BackSide, transparent: false, blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor, /* opaque list so renderOrder -50 draws it first; still fades by alpha */ depthWrite: false, depthTest: false, uniforms: SKYU,
+          vertexShader: "uniform vec3 uSun; uniform float uRay, uTurb, uMie; varying vec3 vD, vBR, vBM; varying float vE, vF;\n" +
+            "const float e = 2.718281828, EE = 1000.0, CUT = 1.6110731556870734, STP = 1.5;\n" +
+            "const vec3 TR = vec3(5.804542996261093E-6, 1.3562911419845635E-5, 3.0265902468824876E-5), MC = vec3(1.8399918514433978E14, 2.7798023919660528E14, 4.0790479543861094E14);\n" +
+            "void main(){ vD = position; vec3 sd = normalize(uSun); float zc = clamp(sd.y, -1.0, 1.0); vE = EE * max(0.0, 1.0 - pow(e, -((CUT - acos(zc)) / STP)));" +
+            " vF = 1.0 - clamp(1.0 - exp(sd.y), 0.0, 1.0); vBR = TR * (uRay - (1.0 - vF)); vBM = 0.434 * (0.2 * uTurb) * 10E-18 * MC * uMie;" +
+            " vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = p.xyww; }",
+          fragmentShader: "uniform vec3 uSun; uniform float uK, uG; varying vec3 vD, vBR, vBM; varying float vE, vF;\n" +
+            "void main(){ const float pi = 3.141592653589793; vec3 up = vec3(0.0, 1.0, 0.0), d = normalize(vD), sd = normalize(uSun);" +
+            " float za = acos(max(0.0, dot(up, d))), inv = 1.0 / (cos(za) + 0.15 * pow(93.885 - za * 180.0 / pi, -1.253));" +
+            " vec3 Fex = exp(-(vBR * 8.4E3 * inv + vBM * 1.25E3 * inv)); float ct = dot(d, sd);" +
+            " float rp = 0.05968310365946075 * (1.0 + pow(ct * 0.5 + 0.5, 2.0)), g2 = uG * uG, mp = 0.07957747154594767 * (1.0 - g2) / pow(1.0 - 2.0 * uG * ct + g2, 1.5);" +
+            " vec3 bt = (vBR * rp + vBM * mp) / (vBR + vBM); vec3 Lin = pow(vE * bt * (1.0 - Fex), vec3(1.5));" +
+            " Lin *= mix(vec3(1.0), pow(vE * bt * Fex, vec3(0.5)), clamp(pow(1.0 - sd.y, 5.0), 0.0, 1.0));" +
+            " vec3 c = (Lin + vec3(0.1) * Fex) * 0.04 + vec3(0.0, 0.0003, 0.00075); c = pow(c, vec3(1.0 / (1.2 + 1.2 * vF)));" +
+            " c = 1.0 - exp(-c * 1.9);" + // gentle filmic shoulder: bright and light, never clipped white
+            " float nite = smoothstep(0.02, -0.22, sd.y); c = mix(c, vec3(0.012, 0.018, 0.04) + vec3(0.02, 0.03, 0.06) * pow(1.0 - max(d.y, 0.0), 3.0), nite);" + // night: deep blue-black, a faint glow low down
+            " c = mix(c, c * vec3(0.62, 0.6, 0.58), smoothstep(0.0, -0.08, d.y));" + // below the horizon (only seen through tiles still loading): muted, never bright sky
+            " gl_FragColor = vec4(c, uK); }"
+        }));
+        skyBox.renderOrder = -50; skyBox.frustumCulled = false; scene.add(skyBox);
+        function skyUpdate(cp, akm) { // per frame: sun direction for this viewer and the fade into the firmament view
+          var rr0 = Math.hypot(cp.x, cp.z), k = show.sky === false ? 0 : (cp.y > 0 && rr0 < R ? 1 - smooth(15, 400, akm) : 0);
+          SKYU.uK.value = k; skyBox.visible = k > 0.002; if (!skyBox.visible) { starU.uDim.value = 0; return; }
+          var dx = sun.position.x - cp.x, dz = sun.position.z - cp.z, d = Math.hypot(dx, dz) || 1e-9, q4 = Math.pow(d / 3.75, 4), el = Math.max(-0.6, (1 - q4) * Math.PI / 2); // 0 deg at the 3.75-unit night edge (terrain and lamps), high sun inside the lit disc
+          SKYU.uSun.value.set(dx / d * Math.cos(el), Math.sin(el), dz / d * Math.cos(el));
+          skyBox.position.copy(camera.position); skyBox.scale.setScalar(Math.max(camera.near * 4, Math.min(camera.far * 0.5, 1)));
+          starU.uDim.value = k * smooth(-0.15, 0.08, Math.sin(el)); // stars fade out as the day sky brightens
+        }
 
         // waters above the firmament (Genesis 1:6-8, 1 Enoch 54:7-8): a deep, slow sea resting on the dome's crown only.
         // From below it is a faint watery shimmer through the dome; from outside, a dark-blue sea. Windows open in the Flood.
@@ -3241,6 +3276,7 @@
           lastCam.copy(cp); lastQ.copy(camera.quaternion);
           cp.x -= ANC0.x; cp.z -= ANC0.z; controls.target.x -= ANC0.x; controls.target.z -= ANC0.z; camAbs = false;
           world.position.set(-ANC0.x, 0, -ANC0.z);
+          skyUpdate({ x: cp.x + ANC0.x, y: cp.y, z: cp.z + ANC0.z }, akm); // absolute disc coords, like sun.position
           starU.uPx.value = prNow; starU.uT.value = now; starU.uTw.value = cp.y > 0 && akm < 200 ? 1 - smooth(20, 200, akm) : 0; // gentle twinkle near the ground only
           // pixel ratio: lower while the view moves (desktop), fixed on phones
           if (camChanged) prT = now;

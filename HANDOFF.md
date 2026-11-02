@@ -71,3 +71,9 @@ Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72
 
 ### Polity data fix (2026-11-02)
 - polities.json held only the 40 largest polities per snapshot, so e.g. France was missing in 1492 and 1914 and a tap in central France returned the Holy Roman Empire. Rebuilt from aourednik/historical-basemaps (all named features, polylabel label points, sorted by area). Labels still draw the 40 largest per snapshot; selection and search use all.
+
+## S — atmospheric sky (Rayleigh/Mie)
+- `skyBox`: Preetham model ported from three r147 `Sky.js`, camera-centred BackSide sphere, opaque render list with
+  alpha blending (renderOrder -50, no depth) so it always sits behind terrain. Sun elevation for the viewer comes from the
+  distance to the sun subpoint: 90° at the subpoint, 0° at the 3.75-unit night edge used by terrain/lamps.
+- Fades out between 15 and 400 km altitude (firmament view takes over); stars dim by day (`starU.uDim`). Toggle: Sky.
