@@ -17,7 +17,7 @@ Interactive 3D Google-Earth-style map of the flat disc of 1 Enoch / Genesis cosm
 
 ## Code rules
 - Classic scripts only; no ES modules, no unpkg r148+ examples. Inline data or local .js globals, never fetch() local files.
-- Streaming tiles: Esri World Imagery + AWS Terrarium elevation (CORS *).
+- Streaming tiles: Esri World Imagery + self-hosted enoch-tiles elevation (Copernicus DEM GLO-90 + GEBCO 2024), https://rebelvue.github.io/enoch-tiles/ (CORS *).
 - Floating origin (`anchor`, `world` group), dynamic near/far, mobile profile `MOB`/`PERF`.
 - After any edit: `node --check` the extracted script and test on iPhone Safari.
 

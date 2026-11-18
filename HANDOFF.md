@@ -117,3 +117,18 @@ Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72
 - Desktop only: edge chromatic aberration, 8-tap soft bloom and 14-step god-rays.
 - Mobile tier: grade, vignette, grain and a short streak only.
 - Toggles: "Cinematic look" (on) and "Letterbox" (off; 2.39:1 on landscape, 60% height on portrait).
+
+## Phase 1 — self-hosted tiles replace NASA (2026-11-18, Hark)
+- Tile host: https://rebelvue.github.io/enoch-tiles/ (repo rebelvue/enoch-tiles, GitHub Pages, CORS *). Manifest: `tiles.json`.
+  - Imagery: `imagery/{L}/{ty}/{tx}.webp`, 512 px, L0-L7. Sentinel-2 cloudless 2020 by EOX (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0.
+  - Heights: `height/{L}/{ty}/{tx}.png`, 256 px, L0-L6, Terrarium encoding (R*256+G+B/256)-32768 m, real values incl. bathymetry. Copernicus DEM GLO-90 (ESA/DLR/Airbus) on land, GEBCO 2024 at sea.
+  - Projection: the map's own north-pole azimuthal equidistant disc. Square [-1,1]^2, level L = 2^L x 2^L tiles, ty counted from the top, lon 0 points down (+y), +90 E right; r=(90-lat)/180, x=r sin(lon), y=r cos(lon). Tiles fully outside the disc 404. Scene: x = x*R, z = y*R.
+  - Bake scripts live in Hark's workspace (`/workspace/work/enoch/bake/`, not in this repo). Note: Sentinel-2 has no data at the north pole, so the bake has a small white ice fill there.
+- What replaced what:
+  - `earth_disc_today_4k.webp` / `_1k.webp`: was NASA Blue Marble; now imagery L3 stitched (8x8 x 512 = 4096), 1k by Lanczos. Same framing (disc fills the square, black outside), checked by coastline overlap with the old file.
+  - `height_today.webp`: 2048 greyscale (R channel), land = max(0,h)/8848*255 (box-averaged from L5), sea = 0. The old file had oceans at ~24 (~830 m too high); no code relied on that.
+  - `normal_today.webp` / `_1k.webp`: regenerated from the new heights, same convention as before (R = -dh/dx, G = +dh/d(row down), B up; mean ~[128,128,253]).
+  - Streaming relief: `elev()` / `elevAtM()` / `load()` / `build()` no longer use `s3.amazonaws.com/elevation-tiles-prod/terrarium` (contained NASA SRTM). Each Esri Web Mercator tile z/x/y now requests the enoch height tiles covering it (`eKeys(t)`: level L = clamp(z-3, 0, 6), dropped until at most 4 tiles cover it). `elevAtM(mx,my)` converts mercator -> lat/lon -> disc and samples the finest loaded enoch tile (L6 down to L0). Cache (EC, 120), priorities (pr-0.5) and the `done` counting (1 + number of height tiles) are unchanged. Water flag `aW = e <= 0` works with GEBCO's negative sea values. Max relief detail is now ~2.4 km/px (L6) instead of AWS z15.
+  - Esri World Imagery streaming is unchanged (close-zoom imagery). The enoch imagery is NOT yet a streaming layer.
+- Credits: menu fineprint now reads "Imagery: Sentinel-2 cloudless 2020 by EOX (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0. Elevation: Copernicus DEM GLO-90 (ESA/DLR/Airbus), GEBCO 2024." The Mapzen/AWS Terrarium credit was removed.
+- Remaining NASA assets: `night_lights_4k.webp` / `night_lights_8k.webp` + GIBS VIIRS Black Marble streaming tiles (task D, "NASA Black Marble" credit kept for them), the LRO moon texture in the watch app, the eclipse canon spec (NASA/Espenak).

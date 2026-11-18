@@ -8,7 +8,9 @@ Last updated: 2026-11-02 03:05 EET.
 - [x] Flat disc, north-pole azimuthal equidistant, REAL scale R=10 units=20,015 km, no relief exaggeration
 - [x] One photoreal map for every year (no supercontinent morph) [B]
 - [x] Streaming Esri imagery at every altitude, zoom up to 19 + grey-placeholder fallback [R, R2] - grep `19`, `placeholder`
-- [x] AWS Terrarium terrain, skirts, no tile duplication / olive band [R] - grep `skirt`
+- [x] Streamed relief from self-hosted enoch-tiles heights (Copernicus DEM GLO-90 land + GEBCO 2024 sea, Terrarium PNG, L0-L6 on the disc projection; replaced AWS Terrarium/NASA SRTM 2026-11-18), skirts, no tile duplication / olive band [R] - grep `enoch-tiles`, `eKeys`, `skirt`
+- [x] Base disc textures rebuilt from own data (2026-11-18): earth_disc_today_4k/1k = Sentinel-2 cloudless 2020 (EOX) imagery L3 stitched; height_today = Copernicus/GEBCO land heights (255 = 8848 m, sea 0); normal_today(_1k) regenerated. No NASA Blue Marble left - grep `Sentinel-2 cloudless`
+- [ ] Remaining NASA assets to replace: night_lights_4k/8k.webp + GIBS Black Marble streaming (task D), LRO moon in the watch app, eclipse canon spec
 - [~] Base disc noise, camera floor 20 m, horizon haze [A] - check on device
 - [~] Ice wall as real 3D cliff (~60 m edge rising to ~4 km plateau) - unverified
 - [x] Ice wall texture/label glitch fix, webp assets, progressive fast load, lazy borders_data.js [Q] - grep `iceBF`, `data-full`, `bs.src`

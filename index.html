@@ -230,7 +230,7 @@
           <button class="btn" type="button" data-v="ground">Ground level over Jerusalem</button>
           <button class="btn" type="button" data-v="hades">Hades</button>
         </div>
-        <p class="fineprint" style="margin-top: 6px">Elevation: Mapzen Terrarium / AWS Terrain Tiles.</p>
+        <p class="fineprint" style="margin-top: 6px">Imagery: Sentinel-2 cloudless 2020 by <a href="https://s2maps.eu" target="_blank" rel="noopener">EOX</a> (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0. Elevation: Copernicus DEM GLO-90 (ESA/DLR/Airbus), GEBCO 2024.</p>
         <p class="x-h">Season</p>
         <div class="x-season"><span class="pill" id="month">June · Gate 6</span><button class="btn" id="play" type="button" aria-pressed="true">Pause</button></div>
         <p class="x-h">Timeline speed, years per second</p>
@@ -2352,7 +2352,7 @@
         add("Tartarus (2 Peter 2:4)", 0, 0, "hades", "x-label--fire", -3.3, "tartarus");
         add("Pillars of the earth (1 Samuel 2:8)", Math.cos(Math.PI / 8) * 7.5, Math.sin(Math.PI / 8) * 7.5, "hades", "x-label--sky", -1.6, "pillars");
 
-        // streaming detail: Esri imagery + Terrarium relief on a quadtree of Web Mercator tiles, true scale, drawn relative to each tile's center
+        // streaming detail: Esri imagery on a quadtree of Web Mercator tiles + self-hosted enoch-tiles relief (Copernicus DEM GLO-90 land, GEBCO 2024 sea), true scale, drawn relative to each tile's center
         var TC = new Map(), EC = new Map(), TQ = [], TACT = 0, ROOTS = [], ST = { on: false, k: 0, c: [0, 0], rad: 0, t: 0, n: 0 }, tileRoot = new THREE.Group(), DEG = Math.PI / 180, ecx = null;
         world.add(tileRoot);
         function mlat(fy) { return Math.atan(Math.sinh(Math.PI * (1 - 2 * fy))) / DEG; }
@@ -2386,18 +2386,34 @@
           var x0 = px | 0, y0 = py | 0, fx = px - x0, fy = py - y0, k = y0 * 256 + x0;
           return (d[k] * (1 - fx) + d[k + 1] * fx) * (1 - fy) + (d[k + 256] * (1 - fx) + d[k + 257] * fx) * fy;
         }
+        // elevation: rebelvue.github.io/enoch-tiles height/{L}/{ty}/{tx}.png, 256 px Terrarium PNGs (R*256+G+B/256-32768 m, sea floor negative), L0-L6,
+        // on this map's own north-pole azimuthal equidistant disc: square [-1,1]^2, L = 2^L x 2^L tiles, ty from the top, x = r sin(lon), y = r cos(lon), r = (90 - lat) / 180
+        var ETU = "https://rebelvue.github.io/enoch-tiles/height/", EMAX = 6;
+        function eDisc(lat, lon) { var r = (90 - lat) / 180, a = lon * DEG; return [(r * Math.sin(a) + 1) / 2, (r * Math.cos(a) + 1) / 2]; } // [0,1]^2, origin top-left
+        function eKey(q, X, Y) { var n = 1 << q; return q + "/" + Math.min(n - 1, Math.max(0, Math.floor(Y * n))) + "/" + Math.min(n - 1, Math.max(0, Math.floor(X * n))); }
+        function eSample(q, X, Y, d) { var n = 1 << q, tx = Math.min(n - 1, Math.max(0, Math.floor(X * n))), ty = Math.min(n - 1, Math.max(0, Math.floor(Y * n))); return bil(d, (X * n - tx) * 256 - 0.5, (Y * n - ty) * 256 - 0.5); }
+        function eKeys(t) { // the enoch height tiles covering an Esri tile, at a level matched to its zoom (~1 height pixel per vertex), at most 4
+          var n = 1 << t.z, x0 = 2, x1 = -1, y0 = 2, y1 = -1;
+          for (var j = 0; j <= 8; j++) for (var i = 0; i <= 8; i++) { var d = eDisc(mlat((t.y + j / 8) / n), (t.x + i / 8) / n * 360 - 180); x0 = Math.min(x0, d[0]); x1 = Math.max(x1, d[0]); y0 = Math.min(y0, d[1]); y1 = Math.max(y1, d[1]); }
+          var px = (x1 - x0) * 0.04 + 1e-6, py = (y1 - y0) * 0.04 + 1e-6; x0 -= px; x1 += px; y0 -= py; y1 += py; // the arcs bow out between samples
+          for (var q = Math.max(0, Math.min(EMAX, t.z - 3)); ; q--) {
+            var m = 1 << q, a0 = Math.max(0, Math.floor(x0 * m)), a1 = Math.min(m - 1, Math.floor(x1 * m)), b0 = Math.max(0, Math.floor(y0 * m)), b1 = Math.min(m - 1, Math.floor(y1 * m));
+            if (q > 0 && (a1 - a0 + 1) * (b1 - b0 + 1) > 4) continue;
+            var K = [];
+            for (var b = b0; b <= b1; b++) for (var a = a0; a <= a1; a++) { var cx = Math.min(Math.max(0, a / m * 2 - 1), (a + 1) / m * 2 - 1), cy = Math.min(Math.max(0, b / m * 2 - 1), (b + 1) / m * 2 - 1); if (cx * cx + cy * cy < 1) K.push(q + "/" + b + "/" + a); } // tiles fully outside the disc do not exist
+            return K;
+          }
+        }
         function elev(k, t, cb) {
           var e = EC.get(k);
           if (e) { EC.delete(k); EC.set(k, e); if (e.d) cb(e.d); else e.w.push(cb); return; }
           e = { d: null, w: [cb] }; EC.set(k, e);
-          req("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/" + k + ".png", { pr: t.pr - 0.5 }, function (im) { e.d = dec(im); e.w.forEach(function (f) { f(e.d); }); e.w = []; });
+          req(ETU + k + ".png", { pr: t.pr - 0.5 }, function (im) { e.d = dec(im); e.w.forEach(function (f) { f(e.d); }); e.w = []; }); // a tile outside the disc 404s: zeros
           if (EC.size > 120) for (var q of EC) if (q[1].d) { EC.delete(q[0]); break; }
         }
-        function elevAtM(mx, my) { // raw meters at a Web Mercator point, from the finest loaded elevation tile (shared by elevAt and every tile vertex)
-          for (var q = 15; q >= 3; q--) {
-            var n = 1 << q, tx = Math.min(n - 1, Math.max(0, Math.floor(mx * n))), ty = Math.min(n - 1, Math.max(0, Math.floor(my * n))), e = EC.get(q + "/" + tx + "/" + ty);
-            if (e && e.d) return bil(e.d, (mx * n - tx) * 256 - 0.5, (my * n - ty) * 256 - 0.5);
-          }
+        function elevAtM(mx, my) { // raw meters at a Web Mercator point, from the finest loaded enoch height tile (shared by elevAt and every tile vertex)
+          var d = eDisc(mlat(my), mx * 360 - 180);
+          for (var q = EMAX; q >= 0; q--) { var e = EC.get(eKey(q, d[0], d[1])); if (e && e.d) return eSample(q, d[0], d[1], e.d); }
           return null;
         }
         function elevAt(x, z) { // meters -> units, from the finest loaded elevation tile
@@ -2421,7 +2437,7 @@
         }
         function getT(z, x, y) { var k = z + "/" + x + "/" + y, t = TC.get(k); if (!t) { t = { k: k, z: z, x: x, y: y, st: 0, f: 0, g: 0, pr: 0 }; TC.set(k, t); } return t; }
         function load(t) {
-          var g = ++t.g, n = 2, ze = Math.min(t.z, 15), s = 1 << (t.z - ze);
+          var g = ++t.g, K = eKeys(t), n = 1 + K.length, el = {};
           t.st = 1;
           function done() { if (--n === 0 && t.g === g) BQ.push({ t: t, g: g }); } // built from the queue, a few per frame
           t.rq = req("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/" + t.z + "/" + t.y + "/" + t.x, t, function (im) {
@@ -2430,7 +2446,7 @@
             if (t.z >= 18 && greyTile(im)) { if (isBM(im)) im.close(); t.st = 3; return; } // placeholder: mark failed, its parent stays
             t.im = im; done();
           });
-          elev(ze + "/" + Math.floor(t.x / s) + "/" + Math.floor(t.y / s), t, function (d) { if (t.g === g) { t.el = d; done(); } });
+          K.forEach(function (k) { elev(k, t, function (d) { if (t.g === g) { el[k] = d; if (Object.keys(el).length === K.length) t.el = el; done(); } }); }); // every covering height tile, then build
         }
         function cancel(t) { if (t.st === 1) { kill(t.rq); t.g++; t.st = 0; if (isBM(t.im)) t.im.close(); t.im = t.el = null; } }
         // D2. regional detail for the night lights: NASA GIBS Black Marble tiles (Web Mercator, max z8, ~600 m) per streamed tile
@@ -2491,12 +2507,12 @@
           return b;
         }
         function build(t) {
-          var G = PERF.G, n = 1 << t.z, ze = Math.min(t.z, 15), s = 1 << (t.z - ze), ex = Math.floor(t.x / s), ey = Math.floor(t.y / s), NV = G * G + 4 * G;
+          var G = PERF.G, n = 1 << t.z, NV = G * G + 4 * G;
           var pos = new Float32Array(NV * 3), uv = new Float32Array(NV * 2), aw = new Float32Array(NV), nr = new Float32Array(NV * 3), c = ll(mlat((t.y + 0.5) / n), (t.x + 0.5) / n * 360 - 180);
           for (var j = 0; j < G; j++) for (var i = 0; i < G; i++) {
             // every vertex samples the same finest loaded elevation tile (elevAtM, as elevAt), so shared edges of tiles of different zoom match
             var u = i / (G - 1), w = j / (G - 1), p = ll(mlat((t.y + w) / n), (t.x + u) / n * 360 - 180), e = elevAtM((t.x + u) / n, (t.y + w) / n), v = j * G + i;
-            if (e === null) e = bil(t.el, ((t.x + u) / s - ex) * 256 - 0.5, ((t.y + w) / s - ey) * 256 - 0.5);
+            if (e === null) { var ed = eDisc(mlat((t.y + w) / n), (t.x + u) / n * 360 - 180); e = 0; for (var ek in t.el) { var eq = +ek.split("/")[0]; if (eKey(eq, ed[0], ed[1]) === ek) { e = eSample(eq, ed[0], ed[1], t.el[ek]); break; } } } // its own height tiles, if the cache let them go
             pos[v * 3] = p[0] - c[0]; pos[v * 3 + 1] = Math.max(0, e) * M; pos[v * 3 + 2] = p[1] - c[1];
             uv[v * 2] = u; uv[v * 2 + 1] = 1 - w; aw[v] = e <= 0 ? 1 : 0;
           }
