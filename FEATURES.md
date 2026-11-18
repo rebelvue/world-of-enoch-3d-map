@@ -2,7 +2,7 @@
 
 Every feature Levi asked for. Status: [x] done (grep-verified), [~] partly / unverified on device, [ ] not built.
 An agent continuing the work: verify each [x]/[~] in `index.html` (grep hint given) and on a phone; build [ ] items in the order given in HANDOFF.md. Full specs: `edit_queue.md` (letter in brackets).
-Last updated: 2026-11-02 03:05 EET.
+Last updated: 2026-11-18 (Hark: night realism, clock HUD, props removed, faster loading, GHSL night lights).
 
 ## Core / world
 - [x] Flat disc, north-pole azimuthal equidistant, REAL scale R=10 units=20,015 km, no relief exaggeration
@@ -11,7 +11,8 @@ Last updated: 2026-11-02 03:05 EET.
 - [x] Streamed relief from self-hosted enoch-tiles heights (Copernicus DEM GLO-90 land + GEBCO 2024 sea, Terrarium PNG, L0-L6 on the disc projection; replaced AWS Terrarium/NASA SRTM 2026-11-18), skirts, no tile duplication / olive band [R] - grep `enoch-tiles`, `eKeys`, `skirt`
 - [x] Phase 2 close-zoom relief: Mapterhorn open terrain (tiles.mapterhorn.com, 512 px Terrarium WebP, Copernicus GLO-30 worldwide + national LiDAR/open DEMs to z17) for Esri tiles z>=8 (Mapterhorn z = min(17, z-3), 404 walks up to parent zoom down to z12, enoch fallback); separate LRU cache 48 desktop / 24 mobile; elevAtM returns the finest loaded value (Mapterhorn, then enoch); camera floor also checks raw elevAt. NO NASA: never sampled or requested inside the Israel bbox lat 29.4-33.4, lon 34.2-35.95 (Mapterhorn's isr10 there is ASTER-derived), enoch heights used there. Credit in menu fineprint - grep `tiles.mapterhorn.com`, `inIL`, `mtel`
 - [x] Base disc textures rebuilt from own data (2026-11-18): earth_disc_today_4k/1k = Sentinel-2 cloudless 2020 (EOX) imagery L3 stitched; height_today = Copernicus/GEBCO land heights (255 = 8848 m, sea 0); normal_today(_1k) regenerated. No NASA Blue Marble left - grep `Sentinel-2 cloudless`
-- [ ] Remaining NASA assets to replace: night_lights_4k/8k.webp + GIBS Black Marble streaming (task D), LRO moon in the watch app, eclipse canon spec
+- [x] Night lights rebuilt without NASA (2026-11-18): night_lights_4k/8k.webp (r = sqrt(light) from GHSL GHS-BUILT-S R2023A 2020 30" built-up, European Commission JRC; g = electrification year kept) + streamed detail tiles enoch-tiles lights/L5-L6 (empty tiles skipped via the NLB bitmask). GIBS Black Marble streaming removed. Credit "Night lights derived from GHSL, European Commission JRC" - grep `NLB`, `ETL`, `GHSL`; grep -i `nasa|gibs|black marble` in index.html = 0
+- [ ] Remaining NASA assets elsewhere (not in index.html): LRO moon in the watch app, eclipse canon spec (task V)
 - [~] Base disc noise, camera floor 20 m, horizon haze [A] - check on device
 - [~] Ice wall as real 3D cliff (~60 m edge rising to ~4 km plateau) - unverified
 - [x] Ice wall texture/label glitch fix, webp assets, progressive fast load, lazy borders_data.js [Q] - grep `iceBF`, `data-full`, `bs.src`
@@ -30,6 +31,8 @@ Last updated: 2026-11-02 03:05 EET.
 - [x] Glow markers: gates, portals, mountains, Garden of Eden
 - [ ] Milky Way + real constellations on dome, real-size sun/moon, Enoch lunar phases [H]
 - [~] Sun/moon through Enoch's gates, moonlit night dark blue (#0b1530), no glare (ACES ~0.9) [A]
+- [x] TRUE NIGHT (2026-11-18): ground (base disc, every streamed tile, ice wall) and OSM buildings darken by local sun elevation (same model as the sky: 0 deg at 3.75 units from the subpoint), smooth through civil/nautical/astronomical twilight with a blue-hour tint, to desaturated moonlit #0b1530; brighter under a high full moon (uMoonW/uMoonP), slightly lifted below 2 km (uNF); city lights emissive on top - grep `sunElD`, `TRUE NIGHT`, `uMoonP`
+- [x] Clock HUD below 3000 m (2026-11-18): IANA zone + abbreviation, civil time with live seconds (Intl.DateTimeFormat, follows the sky clock), local apparent solar time from the sun's subpoint (includes equation of time); zones from tz_data.js (timezone-boundary-builder 2026f, ODbL, ~480 KB, lazy), Etc/GMT+-N over open sea; hidden with H - grep `CLK`, `tzAt`, `clk`
 
 ## Timeline / history
 - [x] Year slider 3382 BC -> 2026, play forwards/backwards, hold-to-scrub arrows
@@ -40,7 +43,7 @@ Last updated: 2026-11-02 03:05 EET.
 - [ ] ~300 dated events + facts as cards while scrubbing [L]
 - [ ] Landmarks rising/falling with the timeline, oversized, build/destroy animations [C]
 - [ ] Cities grow over centuries; animated events (Flood, Sodom, Red Sea) [J]
-- [ ] City lights by era: none before ~1880, London/NYC/Paris first, modern by ~1970, on at dusk/off at dawn [D]
+- [x] City lights by era: none before ~1880, London/NYC/Paris first, modern by ~1970, on at dusk/off at dawn [D] (light source now GHSL, see Core)
 - [ ] Conflict VFX: Jericho, Troy, Nineveh 612 BC, Jerusalem 586 BC/AD 70, Carthage 146 BC, Rome 64/410, Baghdad 1258, Constantinople 1453, WWI, Stalingrad, Dresden, Blitz [M]
 - [ ] Nuclear: Trinity, Hiroshima, Nagasaki (flash, fireball, mushroom, shockwave); Bikini, Tsar Bomba [M]
 - [ ] Great fires: Rome 64, London 1666, Chicago 1871, SF 1906, Hamburg 1943, Tokyo 1945 [M]
@@ -58,6 +61,8 @@ Last updated: 2026-11-02 03:05 EET.
 - [x] Tap ground picks ground (not Sheol) when zoomed in
 - [x] "Interpretive model" fineprint removed; only "(c) Esri" in menu - grep = 0
 - [x] Minimal glass UI, no text selection on iOS
+- [x] Procedural props removed (2026-11-18): street lamps/poles, cars/traffic + headlights, the 3D airliner mesh (aircraft stay as dots, nav lights, contrails); Traffic toggle gone - grep `POLE|CARG|traffic|streetLights|AC_MESH` = 0
+- [x] Faster loading (2026-11-18): preconnect to Esri/enoch-tiles/Mapterhorn/OpenFreeMap; tile queue already loads parents first and nearest-to-screen-centre first (pr = (z - root z) * 4 + tile distance from the centre ground point, +40 off-screen), parent stays drawn until all 4 children are built; sw.js tile cache (cache-first, ~300 MB, oldest deleted first) on hosts with a real origin (GitHub Pages); skipped on the Hark-hosted page (sandboxed iframe, opaque origin) - grep `sw.js`, `preconnect`
 - [x] Hide/show controls: eye button under reset, H key, menu entry - grep `uiHidden`
 - [x] Fix: search icon overlapping menu icon (verified 320/390/1440 px)
 - [x] Default load view top-down, disc ~80% of screen; waters above thin when looking straight down - grep `wTop`

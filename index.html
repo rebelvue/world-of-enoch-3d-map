@@ -5,6 +5,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>The World of Enoch</title>
+    <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
+    <link rel="preconnect" href="https://rebelvue.github.io" crossorigin />
+    <link rel="preconnect" href="https://tiles.mapterhorn.com" crossorigin />
+    <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -84,6 +88,9 @@
       .x-alt { font-family: "Geist Mono", monospace; color: rgb(255 255 255 / 0.55); }
       .x-yr { font: var(--type-heading); font-variant-numeric: tabular-nums; color: #fff; }
       .x-am { font-family: "Geist Mono", monospace; color: rgb(255 255 255 / 0.6); }
+      .x-clock { margin: 2px 0 0; display: flex; gap: 8px; align-items: baseline; font: var(--type-caption); font-family: "Geist Mono", monospace; font-variant-numeric: tabular-nums; color: rgb(255 255 255 / 0.62); text-shadow: 0 1px 4px #000; white-space: nowrap; }
+      .x-clock b { font-weight: var(--weight-medium); color: rgb(255 255 255 / 0.9); }
+      .x-clock[hidden] { display: none; }
       .x-tl { display: flex; align-items: center; gap: 2px; width: 100%; pointer-events: auto; }
       .x-tb { flex: none; width: 36px; height: var(--tap); padding: 0; border: 0; background: none; color: rgb(255 255 255 / 0.85); font: var(--type-small); cursor: pointer; text-shadow: 0 1px 4px #000; }
       .x-tb--play { width: 32px; height: 32px; margin-right: 4px; border-radius: 50%; font-size: 12px; }
@@ -191,7 +198,6 @@
           <button class="x-tog" type="button" data-t="borders" aria-pressed="true">Borders</button>
           <button class="x-tog" type="button" data-t="winds" aria-pressed="true">Wind portals</button>
           <button class="x-tog" type="button" data-t="cities" aria-pressed="true">Cities</button>
-          <button class="x-tog" type="button" data-t="traffic" aria-pressed="true">Traffic</button>
           <button class="x-tog" type="button" data-t="cine" aria-pressed="true">Cinematic look</button>
           <button class="x-tog" type="button" data-t="lbox" aria-pressed="false">Letterbox</button>
           <button class="x-tog" type="button" data-t="veg" aria-pressed="true">Trees &amp; bushes</button>
@@ -230,7 +236,7 @@
           <button class="btn" type="button" data-v="ground">Ground level over Jerusalem</button>
           <button class="btn" type="button" data-v="hades">Hades</button>
         </div>
-        <p class="fineprint" style="margin-top: 6px">Imagery: Sentinel-2 cloudless 2020 by <a href="https://s2maps.eu" target="_blank" rel="noopener">EOX</a> (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0. Elevation: Copernicus DEM GLO-90 (ESA/DLR/Airbus), GEBCO 2024. Terrain detail: <a href="https://mapterhorn.com/attribution" target="_blank" rel="noopener">Mapterhorn</a> (Copernicus GLO-30 and national open elevation data, see mapterhorn.com/attribution).</p>
+        <p class="fineprint" style="margin-top: 6px">Imagery: Sentinel-2 cloudless 2020 by <a href="https://s2maps.eu" target="_blank" rel="noopener">EOX</a> (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0. Elevation: Copernicus DEM GLO-90 (ESA/DLR/Airbus), GEBCO 2024. Terrain detail: <a href="https://mapterhorn.com/attribution" target="_blank" rel="noopener">Mapterhorn</a> (Copernicus GLO-30 and national open elevation data, see mapterhorn.com/attribution). Night lights derived from GHSL, European Commission JRC (GHS-BUILT-S R2023A). Time zones: timezone-boundary-builder, © OpenStreetMap contributors, ODbL.</p>
         <p class="x-h">Season</p>
         <div class="x-season"><span class="pill" id="month">June · Gate 6</span><button class="btn" id="play" type="button" aria-pressed="true">Pause</button></div>
         <p class="x-h">Timeline speed, years per second</p>
@@ -242,7 +248,7 @@
         <p class="x-h">Move</p>
         <p class="fineprint">Drag to pan; scroll to zoom to the cursor; right- or Ctrl-drag to turn and tilt. Touch: one finger pans, pinch zooms, twist turns, two fingers up or down tilt; double-tap zooms in, two-finger tap zooms out, double-tap and drag to zoom. WASD/arrows and Q/E fly, Shift for speed.</p>
         <p class="fineprint" style="margin-top: 12px">Biblical dates: Ussher chronology. Historical borders: aourednik/historical-basemaps (approximate).</p>
-        <p class="x-attr">© Esri · NASA Black Marble · Trees: <a href="https://polyhaven.com" target="_blank" rel="noopener">Poly Haven</a> (CC0) · <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>
+        <p class="x-attr">© Esri · Trees: <a href="https://polyhaven.com" target="_blank" rel="noopener">Poly Haven</a> (CC0) · <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>
       </aside>
       <aside class="x-info x-glass" id="info" hidden aria-live="polite">
         <h3 id="info-name"></h3>
@@ -258,6 +264,7 @@
       <div class="x-bottom">
         <div class="x-verse x-glass" id="verse" aria-live="polite"><p id="cap-quote"></p><p class="x-ref" id="cap-ref"></p></div>
         <p class="x-era"><span class="x-yr" id="yr">AD 2026</span><span class="x-am" id="am">AM 6029</span><span class="x-alt" id="alt"></span></p>
+        <p class="x-clock" id="clk" hidden aria-live="off"><span id="clk-tz"></span><b id="clk-t"></b><span id="clk-s"></span></p>
         <div class="x-tl">
           <button class="x-tb x-tb--play x-glass" id="tl-rev" type="button" aria-label="Play timeline backward" aria-pressed="false">◀</button>
           <button class="x-tb x-tb--play x-glass" id="tl-play" type="button" aria-label="Play timeline forward" aria-pressed="false">▶</button>
@@ -313,7 +320,7 @@
         var $ = function (id) { return document.getElementById(id); };
 
         // UI first, so captions fill even if WebGL fails
-        var show = { dome: true, sky: true, borders: true, winds: true, cities: true, traffic: true, planes: true, spray: false, veg: true, cine: true, lbox: false }, playing = true;
+        var show = { dome: true, sky: true, borders: true, winds: true, cities: true, planes: true, spray: false, veg: true, cine: true, lbox: false }, playing = true;
         var lab = { reg: true, cty: true, bib: true, city: true, enoch: false, ev: true }, labSaved = null; // Countries and Cities on by default
         // timeline: one year per step, 3382 BC (AM 622, Ussher) to AD 2026
         var era = $("era"), Y0 = -3382, Y1 = 2026, yF = Y1, yearN = Y1, verseT = 0, tlPlay = false, tlSpeed = 10, tlBtn = $("tl-play");
@@ -489,7 +496,7 @@
         function kick() { lastAct = performance.now(); if (!running && frameFn) { running = true; requestAnimationFrame(frameFn); } }
         window.harkKick = kick;
         var dbgDT = 0;
-        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sunFor: function (d) { var sk = skyAt(skyNow() + d), rad = (90 - sk.sd) / 180 * R; return [rad * Math.sin(sk.sl), rad * Math.cos(sk.sl)]; }, sl: function () { var n = 0; SL.tiles.forEach(function (e) { if (e.mesh) n += e.mesh.userData.n; }); var nb = 0, bt = 0; OB.tiles.forEach(function (e) { if (e.mesh) { nb += e.mesh.userData.n; bt++; } }); var zm = 0, nv = 0, hz = {}; TC.forEach(function (t) { var k = t.z + ':' + t.st + (t.on === ST.t ? 'w' : ''); hz[k] = (hz[k] || 0) + 1; if (t.mesh && t.mesh.visible) { nv++; zm = Math.max(zm, t.z); } }); window.__hz = hz; hz.BQ = BQ.length; hz.TACT = TACT; return { tz: zm, tv: nv, st: ST.on, tq: TQ.length, tiles: SL.tiles.size, lamps: n, a: SL.U.uA.value, cars: (function () { var k = 0, t = 0; SL.tiles.forEach(function (e) { if (e.tr) { t++; e.tr.meshes.forEach(function (m) { if (m.visible) k += m.count; }); } }); return [k, t]; })(), carL: typeof TR !== "undefined" ? TR.lamp.opacity : 0, btiles: bt, bldg: nb }; }, scr: function (la, lo) { var p = ll(la, lo), w = new THREE.Vector3(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z).project(camera); return [(w.x + 1) / 2 * innerWidth, (1 - w.y) / 2 * innerHeight, w.z]; }, idt: function (la, lo) { var p = ll(la, lo); var i = idAt(p[0], p[1]); return [i, CI.length, i && CI[i - 1] ? CI[i - 1].n : null]; }, year: function (y) { setYear(y); kick(); }, cities: function () { return CTY.on.map(function (o) { return [o[0][0], Math.round(o[1]), Math.round(o[2]), o[0][3]]; }); }, sel: function () { return { id: sel.id, on: sel.on, name: sel.name, card: !card.hidden, info: !infoEl.hidden, txt: (card.hidden ? infoEl : card).innerText.slice(0, 200) }; }, lht: function (la, lo, y) { return leftHand(la, lo, y); }, roof: function () { var rc = new THREE.Raycaster(), ms = [], hit = 0, tot = 0, ex = []; OB.tiles.forEach(function (e) { if (e.mesh) { e.mesh.updateMatrixWorld(); ms.push(e.mesh); } }); SL.tiles.forEach(function (e) { if (!e.mesh) return; var p = e.mesh.geometry.attributes.position, N = e.mesh.userData.n; for (var i = 0; i < N; i += 7) { tot++; var o = new THREE.Vector3(p.getX(i) + e.c[0] - ANC0.x, p.getY(i) + 400 * M, p.getZ(i) + e.c[1] - ANC0.z); rc.set(o, new THREE.Vector3(0, -1, 0)); var h = rc.intersectObjects(ms, false)[0]; if (h && h.point.y > p.getY(i) - 1 * M) { hit++; if (ex.length < 5) ex.push([toLL(o.x + ANC0.x, o.z + ANC0.z), (h.point.y - p.getY(i)) / M]); } } }); return [hit, tot, ex]; }, ac: function () { return { F: AC.F ? AC.F.length : 0, A: acCount(AC.yr), near: acNear.length, mesh: AC_MESH.count, dots: AC_DOT.geometry.drawRange.count, nav: AC_NAV.geometry.drawRange.count, trl: AC_TRL.geometry.drawRange.count }; }, acLook: function (spr, back, up, night) { AC.tFix = dayT; var f = null; (AC.F || []).forEach(function (g) { acPos(g, AC.tFix, g); if (!f && g.on && g.alt > 9500 && (spr ? g.spr : g.con) && (Math.hypot(g.x - sun.position.x, g.z - sun.position.z) < 3.2) === !night) f = g; }); if (!f) return null; var sx = Math.sin(f.hd), sz = Math.cos(f.hd); hvA = null; mv = null; controls.target.set(f.x - ANC0.x, f.alt * M, f.z - ANC0.z); camera.position.set(f.x - ANC0.x + (sz * 0.8 - sx * 0.6) * (back || 300) * M, (f.alt + (up || 80)) * M, f.z - ANC0.z + (-sx * 0.8 - sz * 0.6) * (back || 300) * M); /* beside and behind: the trail is seen side-on */ controls.update(); kick(); return [f.a[1], f.b[1], toLL(f.x, f.z)]; }, acScr: function () { var f = acNear[0]; if (!f) return null; var w = new THREE.Vector3(f.x - ANC0.x, f.alt * M, f.z - ANC0.z).project(camera); return [(w.x + 1) / 2 * innerWidth, (1 - w.y) / 2 * innerHeight]; }, acTime: function (t) { AC.tFix = t; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
+        window.harkDbg = { jump: function (la, lo, h, t) { var p = ll(la, lo); hvA = null; mv = null; controls.target.set(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z); camera.position.set(controls.target.x, controls.target.y + h, controls.target.z + h * (t || 0)); controls.update(); kick(); }, sun: function () { return [sun.position.x, sun.position.z]; }, shift: function (d) { dbgDT = d; kick(); }, sunFor: function (d) { var sk = skyAt(skyNow() + d), rad = (90 - sk.sd) / 180 * R; return [rad * Math.sin(sk.sl), rad * Math.cos(sk.sl)]; }, sl: function () { var nb = 0, bt = 0; OB.tiles.forEach(function (e) { if (e.mesh) { nb += e.mesh.userData.n; bt++; } }); var zm = 0, nv = 0, hz = {}; TC.forEach(function (t) { var k = t.z + ':' + t.st + (t.on === ST.t ? 'w' : ''); hz[k] = (hz[k] || 0) + 1; if (t.mesh && t.mesh.visible) { nv++; zm = Math.max(zm, t.z); } }); window.__hz = hz; hz.BQ = BQ.length; hz.TACT = TACT; return { tz: zm, tv: nv, st: ST.on, tq: TQ.length, btiles: bt, bldg: nb }; }, scr: function (la, lo) { var p = ll(la, lo), w = new THREE.Vector3(p[0] - ANC0.x, ground(p[0], p[1]), p[1] - ANC0.z).project(camera); return [(w.x + 1) / 2 * innerWidth, (1 - w.y) / 2 * innerHeight, w.z]; }, idt: function (la, lo) { var p = ll(la, lo); var i = idAt(p[0], p[1]); return [i, CI.length, i && CI[i - 1] ? CI[i - 1].n : null]; }, year: function (y) { setYear(y); kick(); }, cities: function () { return CTY.on.map(function (o) { return [o[0][0], Math.round(o[1]), Math.round(o[2]), o[0][3]]; }); }, sel: function () { return { id: sel.id, on: sel.on, name: sel.name, card: !card.hidden, info: !infoEl.hidden, txt: (card.hidden ? infoEl : card).innerText.slice(0, 200) }; }, ac: function () { return { F: AC.F ? AC.F.length : 0, A: acCount(AC.yr), near: acNear.length, mesh: 0, dots: AC_DOT.geometry.drawRange.count, nav: AC_NAV.geometry.drawRange.count, trl: AC_TRL.geometry.drawRange.count }; }, acLook: function (spr, back, up, night) { AC.tFix = dayT; var f = null; (AC.F || []).forEach(function (g) { acPos(g, AC.tFix, g); if (!f && g.on && g.alt > 9500 && (spr ? g.spr : g.con) && (Math.hypot(g.x - sun.position.x, g.z - sun.position.z) < 3.2) === !night) f = g; }); if (!f) return null; var sx = Math.sin(f.hd), sz = Math.cos(f.hd); hvA = null; mv = null; controls.target.set(f.x - ANC0.x, f.alt * M, f.z - ANC0.z); camera.position.set(f.x - ANC0.x + (sz * 0.8 - sx * 0.6) * (back || 300) * M, (f.alt + (up || 80)) * M, f.z - ANC0.z + (-sx * 0.8 - sz * 0.6) * (back || 300) * M); /* beside and behind: the trail is seen side-on */ controls.update(); kick(); return [f.a[1], f.b[1], toLL(f.x, f.z)]; }, acScr: function () { var f = acNear[0]; if (!f) return null; var w = new THREE.Vector3(f.x - ANC0.x, f.alt * M, f.z - ANC0.z).project(camera); return [(w.x + 1) / 2 * innerWidth, (1 - w.y) / 2 * innerHeight]; }, acTime: function (t) { AC.tFix = t; }, fly: function (la, lo, r) { var p = ll(la, lo); flyTo(new THREE.Vector3(p[0], 0, p[1]), r); } }; // test hook
         setInterval(function () { if (skyI === 0 && !document.hidden) kick(); }, 20000); // live sky: refresh the sun and moon while idle
         ["pointerdown", "pointerup", "wheel", "keydown", "keyup", "touchstart", "touchmove", "click", "input", "resize"].forEach(function (t) { addEventListener(t, kick, { capture: true, passive: true }); });
         addEventListener("pointermove", function (e) { if (e.buttons || e.pointerType === "touch") kick(); }, { capture: true, passive: true });
@@ -612,17 +619,27 @@
           t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = ANI; t.needsUpdate = true;
           return t;
         }
-        var WU = { uWave: { value: waveTex() }, uWO: { value: new THREE.Vector2() }, uTime: { value: 0 }, uSunV: { value: new THREE.Vector3() }, uSunW: { value: new THREE.Vector3() }, uSunOn: { value: 1 }, uSky: { value: new THREE.Color(0.32, 0.47, 0.68) }, uNF: { value: 0 }, uHz: { value: 1 }, uHzK: { value: 0 }, uNL: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1) }, uNLY: { value: 2026 }, uNLk: { value: 1 }, uNLA: { value: new THREE.Vector2() } };
+        var WU = { uWave: { value: waveTex() }, uWO: { value: new THREE.Vector2() }, uTime: { value: 0 }, uSunV: { value: new THREE.Vector3() }, uSunW: { value: new THREE.Vector3() }, uSunOn: { value: 1 }, uSky: { value: new THREE.Color(0.32, 0.47, 0.68) }, uNF: { value: 0 }, uHz: { value: 1 }, uHzK: { value: 0 }, uNL: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1) }, uNLY: { value: 2026 }, uNLk: { value: 1 }, uNLA: { value: new THREE.Vector2() }, uMoonW: { value: new THREE.Vector3() }, uMoonP: { value: 0 } };
         WU.uNL.value.needsUpdate = true;
         var WVP = "varying vec3 vWP;\n", WVM = "\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;";
-        var WFP = "uniform sampler2D uWave; uniform vec2 uWO; uniform float uTime, uSunOn, uNF, uHz, uHzK, uNLY, uNLk; uniform vec2 uNLA; uniform sampler2D uNL; uniform vec3 uSunV, uSunW, uSky; varying vec3 vWP; float wat = 0.0, foam = 0.0;\nfloat wmask(vec3 c) { c = sqrt(max(c, 0.0)); return smoothstep(0.03, 0.09, c.b - max(c.r, c.g)) * (1.0 - smoothstep(0.45, 0.6, dot(c, vec3(0.333)))); }\n";
-        // night side: dark, cool blue (#0b1530), never black; below 2 km (uNF) a brighter moonlit floor keeps the ground readable, still slightly blue
-        // then a light haze, only around the true horizon distance (uHz) and only near the ground (uHzK)
-        var NIGHT = "\nfloat nightK = uSunOn * smoothstep(3.0, 7.0, distance(vWP.xz, uSunW.xz)) * 0.85; outgoingLight = mix(outgoingLight, diffuseColor.rgb * mix(vec3(0.09, 0.12, 0.2), vec3(0.27, 0.32, 0.44), uNF) + mix(vec3(0.0034, 0.0075, 0.03), vec3(0.012, 0.018, 0.042), uNF), nightK);" +
-          // D2. observed night lights (NASA Black Marble, reprojected to this disc): r = light, g = year the region got electric light
-          "\nvec4 nl = texture2D(uNL, (vWP.xz + uNLA) / 20.0 + 0.5); float ey = 1870.0 + nl.g * 120.0; float nlE = smoothstep(ey, ey + 12.0, uNLY) * mix(0.3, 1.0, smoothstep(ey, 1985.0, uNLY));" +
-          "\noutgoingLight += mix(vec3(1.0, 0.55, 0.22), vec3(1.0, 0.86, 0.66), nl.r * nl.r) * pow(nl.r, 2.4) * 1.25 * nlE * uNLk * nightK / 0.85;" +
-          "\nfloat hzK = uHzK * 0.3 * smoothstep(0.7, 1.3, length(vViewPosition) / uHz); outgoingLight = mix(outgoingLight, uSky * mix(0.9, 0.06, nightK / 0.85), hzK);\n#include <output_fragment>";
+        var WFP = "uniform sampler2D uWave; uniform vec2 uWO; uniform float uTime, uSunOn, uNF, uHz, uHzK, uNLY, uNLk, uMoonP; uniform vec2 uNLA; uniform sampler2D uNL; uniform vec3 uSunV, uSunW, uSky, uMoonW; varying vec3 vWP; float wat = 0.0, foam = 0.0;\nfloat sunElD(float d) { return max(-34.0, (1.0 - pow(d / 3.75, 4.0)) * 90.0); }\nfloat wmask(vec3 c) { c = sqrt(max(c, 0.0)); return smoothstep(0.03, 0.09, c.b - max(c.r, c.g)) * (1.0 - smoothstep(0.45, 0.6, dot(c, vec3(0.333)))); }\n";
+        // TRUE NIGHT. Sun elevation at the fragment from its distance to the sun's subpoint (the same model as the sky: 90 deg at the
+        // subpoint, 0 deg at 3.75 units). Daylight fades through civil (0 to -6), nautical (-6 to -12) and astronomical (-12 to -18)
+        // twilight; below that the ground is moonlit dark blue (#0b1530), never pitch black: the imagery is desaturated to a faint
+        // blue-grey relief, a little brighter under a high full moon (uMoonW/uMoonP) and below 2 km (uNF) so the ground stays readable.
+        // Night lights (GHSL built-up, European Commission JRC; r = sqrt(intensity), g = year the region got electric light) are added
+        // on top as emission, switching on through dusk.
+        var NIGHT = "\nfloat sEl = sunElD(distance(vWP.xz, uSunW.xz)); float dayL = mix(1.0, pow(smoothstep(-18.0, 8.0, sEl), 2.6), uSunOn); float nightK = 1.0 - dayL;" +
+          "\nfloat mUp = uMoonP * (1.0 - smoothstep(3.3, 3.9, distance(vWP.xz, uMoonW.xz)));" +
+          "\nfloat nLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)); vec3 nAlb = mix(vec3(nLum), diffuseColor.rgb, 0.12);" +
+          "\nvec3 nCol = vec3(0.0033, 0.0075, 0.0296) * (1.0 + 0.6 * mUp) + nAlb * (vec3(0.035, 0.05, 0.095) * (1.0 + 1.3 * mUp) + vec3(0.05, 0.065, 0.11) * uNF);" +
+          "\nvec3 twC = mix(vec3(1.0), vec3(0.55, 0.62, 0.95), smoothstep(2.0, -8.0, sEl) * (1.0 - smoothstep(-14.0, -18.0, sEl)));" + // blue hour tint on what daylight is left
+          "\noutgoingLight = mix(nCol, outgoingLight * twC, dayL);" +
+          "\nvec4 nl = texture2D(uNL, (vWP.xz + uNLA) / 20.0 + 0.5); float nI = nl.r * nl.r; float ey = 1870.0 + nl.g * 120.0; float nlE = smoothstep(ey, ey + 12.0, uNLY) * mix(0.3, 1.0, smoothstep(ey, 1985.0, uNLY));" +
+          "\nfloat lOn = uSunOn * (1.0 - smoothstep(-7.0, 1.0, sEl));" +
+          "\nfloat nSt = mix(1.0, (0.25 + 1.5 * smoothstep(0.12, 0.42, nLum)) * nI, uNF);" + // close up the ~1 km glow follows the bright paved ground (streets, roofs) of the imagery instead of a flat wash
+          "\noutgoingLight += mix(mix(vec3(1.0, 0.5, 0.18), vec3(1.0, 0.84, 0.62), nI), vec3(1.0, 0.42, 0.12), uNF * 0.7) * nI * 0.9 * nSt * nlE * uNLk * lOn;" +
+          "\nfloat hzK = uHzK * 0.3 * smoothstep(0.7, 1.3, length(vViewPosition) / uHz); outgoingLight = mix(outgoingLight, uSky * mix(0.9, 0.04, nightK), hzK);\n#include <output_fragment>";
         // water keeps the imagery's own colours: no blue tint, no foam line at the coast; only the wave normals below
         var WFC = "\nvec2 wp = vWP.xz - uWO; vec4 wa = texture2D(uWave, wp / 0.00007 + vec2(uTime * 0.03, uTime * 0.015)), wb = texture2D(uWave, wp / 0.00021 - vec2(uTime * 0.01, uTime * 0.02));\n";
         var WFR = "\nroughnessFactor = mix(1.0, 0.8, wat);";
@@ -1011,7 +1028,7 @@
         world.add(domeStars);
         // S: physically based daytime sky near the ground (Preetham Rayleigh/Mie scattering, ported from three r147 examples/Sky.js).
         // A camera-centred backdrop drawn first; sun elevation comes from the distance to the sun's subpoint on the disc (0 deg at
-        // the same 3.7-unit day/night edge the lamps and windows use). Deep blue overhead, paler at the horizon, warm at sunrise
+        // the same day/night edge the ground and windows use). Deep blue overhead, paler at the horizon, warm at sunrise
         // and sunset, dark at night so the dome's stars show; it fades out between ~15 km and ~400 km into the firmament view.
         var SKYU = { uSun: { value: new THREE.Vector3(0, 1, 0) }, uK: { value: 0 }, uRay: { value: 1.6 }, uTurb: { value: 5.0 }, uMie: { value: 0.004 }, uG: { value: 0.8 } };
         var skyBox = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.ShaderMaterial({
@@ -1432,8 +1449,9 @@
             if (img.complete && img.naturalWidth) go(); else { img.addEventListener("load", go); img.addEventListener("error", rej); }
           });
         }
-        // D2. city lights. Electric light comes from NASA Black Marble (observed VIIRS night lights, public domain), drawn in the
-        // ground shaders (NIGHT); street level adds one point per street lamp along real OpenStreetMap roads (streetLights below).
+        // D2. city lights. Electric light is derived from the GHSL built-up surface (GHS-BUILT-S R2023A, 2020, 30 arcsec ~1 km,
+        // European Commission JRC, public): night_lights_4k/8k.webp (disc projection; r = sqrt(light), g = electrification year)
+        // drawn in the ground shaders (NIGHT), plus finer streamed tiles (enoch-tiles lights/L5-L6) under the streamed imagery.
         // Before electricity only the old cores of real cities glow faintly (lamps and fires): one soft point per city, no scatter.
         // [name, lat, lon, founded (year), electric light (year), size]
         var LIGHTS = [["London", 51.5, -0.13, 47, 1881, 3], ["Paris", 48.86, 2.35, -250, 1882, 2.6], ["New York", 40.71, -74.0, 1624, 1882, 3], ["Berlin", 52.52, 13.4, 1237, 1884, 2.2], ["Chicago", 41.88, -87.63, 1833, 1887, 2.4], ["Vienna", 48.21, 16.37, -15, 1886, 1.8], ["Milan", 45.46, 9.19, -590, 1883, 1.7], ["Rome", 41.9, 12.5, -753, 1890, 2], ["Madrid", 40.42, -3.7, 860, 1890, 1.9], ["Lisbon", 38.72, -9.14, -1000, 1895, 1.3], ["Barcelona", 41.39, 2.17, -15, 1890, 1.6], ["Amsterdam", 52.37, 4.9, 1275, 1890, 1.4], ["Brussels", 50.85, 4.35, 979, 1890, 1.4], ["Manchester", 53.48, -2.24, 79, 1890, 1.7], ["Hamburg", 53.55, 10.0, 808, 1890, 1.6], ["Munich", 48.14, 11.58, 1158, 1890, 1.4], ["Stockholm", 59.33, 18.07, 1252, 1893, 1.2], ["Copenhagen", 55.68, 12.57, 1167, 1892, 1.1], ["Oslo", 59.91, 10.75, 1040, 1895, 0.9], ["Helsinki", 60.17, 24.94, 1550, 1900, 0.9], ["Warsaw", 52.23, 21.01, 1300, 1900, 1.6], ["Prague", 50.08, 14.44, 880, 1895, 1.3], ["Budapest", 47.5, 19.04, 89, 1893, 1.5], ["Bucharest", 44.43, 26.1, 1459, 1882, 1.4], ["Timisoara", 45.75, 21.23, 1212, 1884, 0.8], ["Belgrade", 44.79, 20.45, -279, 1900, 1.1], ["Sofia", 42.7, 23.32, -500, 1900, 1.0], ["Athens", 37.98, 23.73, -1400, 1903, 1.6], ["Istanbul", 41.0, 28.98, -660, 1914, 2.5], ["Kyiv", 50.45, 30.52, 482, 1892, 1.5], ["Moscow", 55.75, 37.6, 1147, 1895, 2.7], ["St Petersburg", 59.94, 30.31, 1703, 1884, 1.9], ["Minsk", 53.9, 27.56, 1067, 1910, 1.1], ["Dublin", 53.35, -6.26, 841, 1892, 1.1], ["Glasgow", 55.86, -4.25, 550, 1893, 1.3], ["Boston", 42.36, -71.06, 1630, 1885, 1.8], ["Philadelphia", 39.95, -75.17, 1682, 1885, 1.9], ["Washington", 38.9, -77.04, 1790, 1890, 1.6], ["Detroit", 42.33, -83.05, 1701, 1890, 1.7], ["Toronto", 43.65, -79.38, 1793, 1890, 1.8], ["Montreal", 45.5, -73.57, 1642, 1890, 1.5], ["Los Angeles", 34.05, -118.24, 1781, 1900, 2.8], ["San Francisco", 37.77, -122.42, 1776, 1890, 1.7], ["Seattle", 47.61, -122.33, 1851, 1905, 1.4], ["Houston", 29.76, -95.37, 1836, 1910, 2.1], ["Dallas", 32.78, -96.8, 1841, 1910, 2.0], ["Atlanta", 33.75, -84.39, 1837, 1905, 1.7], ["Miami", 25.76, -80.19, 1896, 1915, 1.7], ["Denver", 39.74, -104.99, 1858, 1905, 1.3], ["Phoenix", 33.45, -112.07, 1868, 1920, 1.6], ["Vancouver", 49.28, -123.12, 1886, 1905, 1.2], ["Mexico City", 19.43, -99.13, 1325, 1900, 2.8], ["Guadalajara", 20.67, -103.35, 1542, 1920, 1.4], ["Havana", 23.11, -82.37, 1519, 1905, 1.2], ["Bogota", 4.71, -74.07, 1538, 1910, 1.8], ["Caracas", 10.48, -66.9, 1567, 1910, 1.5], ["Lima", -12.05, -77.04, 1535, 1910, 1.9], ["Quito", -0.18, -78.47, 1534, 1920, 1.1], ["Santiago", -33.45, -70.67, 1541, 1905, 1.8], ["Buenos Aires", -34.6, -58.38, 1580, 1890, 2.6], ["Montevideo", -34.9, -56.16, 1724, 1900, 1.1], ["Sao Paulo", -23.55, -46.63, 1554, 1905, 3], ["Rio de Janeiro", -22.91, -43.17, 1565, 1905, 2.3], ["Belo Horizonte", -19.92, -43.94, 1897, 1925, 1.4], ["Brasilia", -15.79, -47.88, 1960, 1960, 1.2], ["Recife", -8.05, -34.88, 1537, 1920, 1.2], ["Cairo", 30.04, 31.24, -3000, 1905, 2.6], ["Alexandria", 31.2, 29.92, -331, 1905, 1.5], ["Casablanca", 33.57, -7.59, -700, 1925, 1.4], ["Algiers", 36.75, 3.06, -1200, 1920, 1.3], ["Tunis", 36.81, 10.18, -800, 1920, 1.0], ["Tripoli", 32.89, 13.19, -700, 1930, 0.9], ["Khartoum", 15.5, 32.56, 1821, 1940, 1.3], ["Addis Ababa", 9.03, 38.74, 1886, 1940, 1.3], ["Nairobi", -1.29, 36.82, 1899, 1930, 1.3], ["Dar es Salaam", -6.79, 39.21, 1862, 1935, 1.3], ["Kinshasa", -4.44, 15.27, 1881, 1935, 1.8], ["Luanda", -8.84, 13.23, 1576, 1940, 1.4], ["Lagos", 6.52, 3.38, 1472, 1925, 2.2], ["Accra", 5.6, -0.19, 1650, 1930, 1.2], ["Abidjan", 5.36, -4.01, 1898, 1940, 1.3], ["Dakar", 14.72, -17.47, 1857, 1925, 1.1], ["Johannesburg", -26.2, 28.05, 1886, 1900, 2.0], ["Cape Town", -33.92, 18.42, 1652, 1895, 1.4], ["Durban", -29.86, 31.02, 1835, 1905, 1.2], ["Harare", -17.83, 31.05, 1890, 1930, 0.9], ["Jerusalem", 31.78, 35.22, -3000, 1920, 0.9], ["Damascus", 33.51, 36.29, -3000, 1910, 1.3], ["Beirut", 33.89, 35.5, -3000, 1910, 1.0], ["Baghdad", 33.3, 44.4, 762, 1920, 1.8], ["Babylon", 32.54, 44.42, -2300, 99999, 0.9], ["Nineveh", 36.36, 43.15, -3000, 99999, 0.7], ["Tehran", 35.7, 51.4, 1200, 1925, 2.2], ["Riyadh", 24.71, 46.68, 1745, 1950, 1.8], ["Jeddah", 21.49, 39.19, 600, 1945, 1.3], ["Dubai", 25.2, 55.27, 1833, 1960, 1.5], ["Karachi", 24.86, 67.0, 1729, 1915, 2.2], ["Lahore", 31.55, 74.34, 1000, 1915, 1.7], ["Delhi", 28.6, 77.2, -300, 1905, 2.8], ["Mumbai", 19.08, 72.88, 1507, 1905, 2.6], ["Kolkata", 22.57, 88.36, 1690, 1899, 2.3], ["Chennai", 13.08, 80.27, 1639, 1910, 1.8], ["Bangalore", 12.97, 77.59, 1537, 1906, 1.8], ["Dhaka", 23.81, 90.41, 1608, 1920, 2.1], ["Kathmandu", 27.72, 85.32, -300, 1940, 0.8], ["Colombo", 6.93, 79.86, 1505, 1920, 0.9], ["Bangkok", 13.76, 100.5, 1782, 1915, 2.1], ["Yangon", 16.87, 96.2, 1755, 1920, 1.2], ["Hanoi", 21.03, 105.85, 1010, 1925, 1.4], ["Ho Chi Minh City", 10.82, 106.63, 1698, 1920, 1.8], ["Kuala Lumpur", 3.14, 101.69, 1857, 1925, 1.6], ["Singapore", 1.35, 103.82, 1819, 1910, 1.3], ["Jakarta", -6.2, 106.85, 1527, 1920, 2.6], ["Surabaya", -7.25, 112.75, 1293, 1925, 1.3], ["Manila", 14.6, 120.98, 1571, 1910, 2.2], ["Beijing", 39.9, 116.4, -1045, 1905, 2.7], ["Shanghai", 31.23, 121.47, 751, 1882, 2.9], ["Guangzhou", 23.13, 113.26, -214, 1890, 2.4], ["Hong Kong", 22.32, 114.17, 1841, 1890, 1.6], ["Shenzhen", 22.54, 114.06, 1979, 1980, 2.0], ["Chongqing", 29.56, 106.55, -316, 1930, 2.0], ["Chengdu", 30.66, 104.07, -311, 1930, 1.9], ["Wuhan", 30.59, 114.31, -1500, 1910, 1.9], ["Xi'an", 34.34, 108.94, -1100, 1935, 1.7], ["Harbin", 45.8, 126.53, 1898, 1910, 1.4], ["Seoul", 37.57, 126.98, -18, 1900, 2.5], ["Pyongyang", 39.03, 125.75, -1122, 1910, 0.8], ["Tokyo", 35.68, 139.69, 1457, 1887, 3], ["Osaka", 34.69, 135.5, 645, 1889, 2.3], ["Nagoya", 35.18, 136.91, 1610, 1895, 1.6], ["Taipei", 25.03, 121.57, 1709, 1905, 1.6], ["Ulaanbaatar", 47.89, 106.91, 1639, 1950, 0.8], ["Tashkent", 41.3, 69.24, -200, 1925, 1.3], ["Almaty", 43.24, 76.89, 1854, 1930, 1.1], ["Novosibirsk", 55.0, 82.93, 1893, 1930, 1.3], ["Yekaterinburg", 56.84, 60.6, 1723, 1920, 1.2], ["Sydney", -33.87, 151.2, 1788, 1904, 2.0], ["Melbourne", -37.81, 144.96, 1835, 1894, 2.0], ["Brisbane", -27.47, 153.03, 1825, 1910, 1.3], ["Perth", -31.95, 115.86, 1829, 1912, 1.2], ["Auckland", -36.85, 174.76, 1840, 1910, 1.1]];
@@ -1471,22 +1489,7 @@
           for (k = 0; k < T.length; k += 4) { o = ll(T[k] / 10, T[k + 1] / 10); var d2 = Math.hypot(o[0] - q[0], o[1] - q[1]); if (d2 < bd) { bd = d2; best = 1900 + T[k + 3]; } }
           return best;
         }
-        // street level: lamps along real OSM roads from OpenFreeMap vector tiles (z14, no key), lazily for the tiles in view
-        var SL = { tiles: new Map(), url: null, busy: 0, t: 0, U: { uSunW: WU.uSunW, uSunOn: WU.uSunOn, uYear: cityU.uYear, uEY: { value: 1900 }, uPx: { value: 1 }, uA: { value: 0 } } };
-        SL.mat = new THREE.ShaderMaterial({ // depth-tested against buildings and terrain (log depth like the rest of the scene); additive glow, no depth write
-          transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, uniforms: SL.U,
-          vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute vec2 aK; uniform float uYear, uEY, uPx, uA, uSunOn; uniform vec3 uSunW; varying float vA; varying vec3 vC; varying float vP;\n" +
-            "void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vec4 mv = viewMatrix * w; float pool = step(1.5, aK.x), maj = mod(aK.x, 2.0); vP = pool;" +
-            " float on = smoothstep(uEY + aK.y * 30.0, uEY + aK.y * 30.0 + 4.0, uYear);" + // streets get lamps over ~30 years after electricity
-            " float nite = uSunOn * smoothstep(3.6, 3.75, distance(w.xz, uSunW.xz));" +
-            " float sz = pool > 0.5 ? 1.5 : (maj > 0.5 ? 0.9 : 0.75), px = 0.000005 * uPx * sz / max(-mv.z, 1e-9); gl_PointSize = clamp(px, pool > 0.5 ? 0.0 : 1.2, pool > 0.5 ? 48.0 : 7.0);" + // sprites stay about street-sized so a lamp just behind a roof edge cannot paint a glow across the roof
-            "" +
-            " vA = on * nite * uA * (pool > 0.5 ? 0.22 * smoothstep(3.0, 12.0, px) : min(1.0, px * 0.6 + 0.5) * (maj > 0.5 ? 1.0 : 0.8));" +
-            " vC = maj > 0.5 ? vec3(1.0, 0.62, 0.28) : vec3(1.0, 0.8, 0.55);" + // sodium amber on main roads, warm white on side streets
-            " gl_Position = projectionMatrix * mv; if (vA < 0.004) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);\n#include <logdepthbuf_vertex>\n}",
-          fragmentShader: "#include <logdepthbuf_pars_fragment>\nvarying float vA; varying vec3 vC; varying float vP; void main(){\n#include <logdepthbuf_fragment>\nfloat d = length(gl_PointCoord - 0.5) * 2.0; if (d >= 1.0) discard;" +
-            " float a = vP > 0.5 ? exp(-d * d * 3.0) * (1.0 - d) : exp(-d * d * 9.0) + 0.25 * exp(-d * d * 2.5); gl_FragColor = vec4(vC * a * vA * 1.3, 1.0); }"
-        });
+        var OFM = { url: null }; // OpenFreeMap tile URL template (resolved once from its TileJSON), shared by buildings and vegetation
         function pbf(b) { // minimal protobuf reader
           var pos = 0;
           function vi() { var r = 0, m = 1, c; do { c = b[pos++]; r += (c & 127) * m; m *= 128; } while (c & 128); return r; }
@@ -1497,7 +1500,7 @@
             skip: function (w) { if (w === 0) vi(); else if (w === 1) pos += 8; else if (w === 2) pos += vi(); else if (w === 5) pos += 4; } };
         }
         function str(u8) { return new TextDecoder().decode(u8); }
-        var SLK = { motorway: [2, 1], trunk: [2, 1], primary: [2.2, 1], secondary: [2.5, 1], tertiary: [2.8, 1], minor: [3.5, 0], service: [5, 0] }; // lamp spacing in units of 1e-5 (~20 m), major
+        var SLK = { motorway: [2, 1], trunk: [2, 1], primary: [2.2, 1], secondary: [2.5, 1], tertiary: [2.8, 1], minor: [3.5, 0], service: [5, 0] }; // road classes read from OpenFreeMap (vegetation paints these roads out); values are legacy spacing/major flags
         function mvtRoads(buf) { // [class, [x0, y0, x1, y1, ...] tile coords 0..extent], extent
           var r = pbf(buf), out = [], ext = 4096;
           while (!r.end()) {
@@ -1538,185 +1541,6 @@
           return { roads: out, ext: ext };
         }
         function hash1(n) { var x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
-        // L2: lamps stand on real poles. OpenFreeMap tiles carry no highway=street_lamp nodes, so each lamp is placed
-        // deterministically along the road centreline (no randomness): spacing and width by road class, set back ~2 m past the
-        // kerb, paired on major roads, alternating on minor ones, plus a lamp at every line end (junctions), never inside a
-        // building footprint (the B footprints of the same tile), one lamp per ~9 m cell. Lights are depth-tested at the lamp head.
-        var SLR = { motorway: [40, 14, 1], trunk: [38, 12, 1], primary: [32, 10, 1], secondary: [30, 9, 1], tertiary: [30, 8, 0], minor: [27, 6, 0] }; // spacing (service lanes skipped: they run through courtyards and under buildings) m, width m, paired
-        var POLE_H = 8, POLE = (function () { // tapered pole + curved arm + lamp head, 1 m units, base at origin, arm toward +x
-          function lathe(pts, y0, sx) { return new THREE.LatheGeometry(pts.map(function (p) { return new THREE.Vector2(p[0], p[1]); }), 7).translate(sx || 0, y0 || 0, 0); }
-          var g1 = lathe([[0.001, 0], [0.13, 0], [0.13, 0.5], [0.085, 0.65], [0.06, POLE_H - 0.2], [0.001, POLE_H]]);
-          var arm = new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, POLE_H - 0.6, 0), new THREE.Vector3(0.1, POLE_H + 0.15, 0), new THREE.Vector3(1.5, POLE_H + 0.05, 0)), 8, 0.04, 5, false);
-          var head = lathe([[0.001, 0.12], [0.16, 0.06], [0.24, -0.02], [0.18, -0.08], [0.001, -0.08]], POLE_H, 1.6);
-          var G = [g1, arm, head].map(function (g) { return g.index ? g.toNonIndexed() : g; }), n = 0;
-          G.forEach(function (g) { n += g.attributes.position.count; });
-          var P = new Float32Array(n * 3), N = new Float32Array(n * 3), o = 0;
-          G.forEach(function (g) { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); o += g.attributes.position.count; });
-          var out = new THREE.BufferGeometry(); out.setAttribute("position", new THREE.BufferAttribute(P, 3)); out.setAttribute("normal", new THREE.BufferAttribute(N, 3));
-          return out;
-        })(), POLE_MAT = new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.55, metalness: 0.6 });
-        function inPolys(B, x, y) { // B: grid-indexed building rings in tile coords
-          if (x < 0 || y < 0 || x >= B.s * 64 || y >= B.s * 64) return false; var cell = B.g[((y / B.s) | 0) * 64 + ((x / B.s) | 0)]; if (!cell) return false;
-          for (var k = 0; k < cell.length; k++) {
-            var r = cell[k], ins = false;
-            for (var i = 0, j = r.length - 2; i < r.length; j = i, i += 2) if ((r[i + 1] > y) !== (r[j + 1] > y) && x < (r[j] - r[i]) * (y - r[i + 1]) / (r[j + 1] - r[i + 1]) + r[i]) ins = !ins;
-            if (ins) return true;
-          }
-          return false;
-        }
-        function slBuild(key, tx, ty, data, bdat) {
-          var e = SL.tiles.get(key); if (!e) return;
-          var n = 1 << 14, cl = function (mx, my) { var lon = mx * 360 - 180, lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * my))) / DEG; return ll(lat, lon); };
-          var c = cl((tx + 0.5) / n, (ty + 0.5) / n), ext = data.ext, latC = toLL(c[0], c[1])[0], mpu = 40075016 * Math.cos(latC * DEG) / n / ext; // metres per tile unit
-          var B = { s: ext / 64, g: [] };
-          if (bdat) bdat.b.forEach(function (bb) { /* every ring: outer rings and courtyards both reject a lamp */ (typeof bb[0][0] === 'number' ? [bb[0]] : bb[0]).forEach(function (r) { if (!r || !r.length) return; var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (var i = 0; i < r.length; i += 2) { x0 = Math.min(x0, r[i]); x1 = Math.max(x1, r[i]); y0 = Math.min(y0, r[i + 1]); y1 = Math.max(y1, r[i + 1]); }
-            for (var gy = Math.max(0, (y0 / B.s) | 0); gy <= Math.min(63, (y1 / B.s) | 0); gy++) for (var gx = Math.max(0, (x0 / B.s) | 0); gx <= Math.min(63, (x1 / B.s) | 0); gx++) (B.g[gy * 64 + gx] = B.g[gy * 64 + gx] || []).push(r); }); });
-          var L = [], seen = {}, cellM = 9 / mpu;
-          function put(x, y, yaw, maj) {
-            if (x < 0 || y < 0 || x >= ext || y >= ext) return; var cm = 3 / mpu, hx0 = x + Math.cos(yaw) * 1.6 / mpu, hy0 = y + Math.sin(yaw) * 1.6 / mpu; // foot, head and a 3 m ring must all be clear of every footprint
-            if (inPolys(B, x, y) || inPolys(B, hx0, hy0) || inPolys(B, x + cm, y) || inPolys(B, x - cm, y) || inPolys(B, x, y + cm) || inPolys(B, x, y - cm)) return;
-            var h = Math.floor(x / cellM) + "," + Math.floor(y / cellM); if (seen[h]) return; seen[h] = 1;
-            L.push(x, y, yaw, maj);
-          }
-          data.roads.forEach(function (rd) {
-            var S = SLR[rd[0]]; if (!S) return;
-            var sp = S[0] / mpu, off = (S[1] / 2 + 2) / mpu, a = rd[1], d0 = 0, k = 0;
-            for (var i = 2; i < a.length; i += 2) {
-              var x0 = a[i - 2], y0 = a[i - 1], dx = a[i] - x0, dy = a[i + 1] - y0, Ls = Math.hypot(dx, dy); if (Ls < 1e-6) continue;
-              var ux = dx / Ls, uy = dy / Ls, nx = -uy, ny = ux;
-              for (var d = (i === 2 ? 0 : d0); d <= Ls; d += sp, k++) {
-                var px = x0 + ux * d, py = y0 + uy * d, side = S[2] ? 0 : (k % 2 ? 1 : -1);
-                if (side >= 0) put(px + nx * off, py + ny * off, Math.atan2(-ny, -nx), S[2]); // arm reaches back over the road
-                if (side <= 0) put(px - nx * off, py - ny * off, Math.atan2(ny, nx), S[2]);
-              }
-              d0 = d - Ls;
-            }
-            var ex = a[a.length - 2], ey = a[a.length - 1]; if (a.length >= 4) { var qx = ex - a[a.length - 4], qy = ey - a[a.length - 3], ql = Math.hypot(qx, qy) || 1; put(ex - qy / ql * off, ey + qx / ql * off, Math.atan2(-qx / ql, qy / ql), S[2]); } // junction
-          });
-          var N = L.length / 4, pos = new Float32Array(N * 6), kk = new Float32Array(N * 4), ord = [], i;
-          for (i = 0; i < N; i++) ord.push(i);
-          ord.sort(function (p, q) { return L[q * 4 + 3] - L[p * 4 + 3] || p - q; }); // major roads first: a partial draw range thins minor streets, never at random
-          var poles = new THREE.InstancedMesh(POLE, POLE_MAT, N), mt = new THREE.Matrix4(), qt = new THREE.Quaternion(), sc = new THREE.Vector3(M, M, M), up = new THREE.Vector3(0, 1, 0), pv = new THREE.Vector3();
-          for (i = 0; i < N; i++) {
-            var o = ord[i], w = cl((tx + L[o * 4] / ext) / n, (ty + L[o * 4 + 1] / ext) / n), g = ground(w[0], w[1]);
-            var tl = toLL(w[0], w[1]), yawW = L[o * 4 + 2]; // tile x is east, tile y is south; turn that into disc space at this point
-            var e1 = ll(tl[0], tl[1] + 0.001), e2 = ll(tl[0] - 0.001, tl[1]), ex2 = e1[0] - w[0], ez2 = e1[1] - w[1], sx2 = e2[0] - w[0], sz2 = e2[1] - w[1];
-            var ax = Math.cos(yawW), ay = Math.sin(yawW), dxw = ax * ex2 / Math.hypot(ex2, ez2) + ay * sx2 / Math.hypot(sx2, sz2), dzw = ax * ez2 / Math.hypot(ex2, ez2) + ay * sz2 / Math.hypot(sx2, sz2);
-            qt.setFromAxisAngle(up, Math.atan2(-dzw, dxw)); pv.set(w[0] - c[0], g, w[1] - c[1]); mt.compose(pv, qt, sc); poles.setMatrixAt(i, mt);
-            var hl = Math.hypot(dxw, dzw) || 1, hx = w[0] - c[0] + dxw / hl * 1.6 * M, hz = w[1] - c[1] + dzw / hl * 1.6 * M;
-            pos[i * 3] = hx; pos[i * 3 + 1] = g + (POLE_H - 0.15) * M; pos[i * 3 + 2] = hz; kk[i * 2] = L[o * 4 + 3]; kk[i * 2 + 1] = (i % 97) / 97; // head light
-            var j2 = N + i; pos[j2 * 3] = hx; pos[j2 * 3 + 1] = g + 0.6 * M; pos[j2 * 3 + 2] = hz; kk[j2 * 2] = L[o * 4 + 3] + 2; kk[j2 * 2 + 1] = (i % 97) / 97; // ground pool
-          }
-          poles.instanceMatrix.needsUpdate = true; poles.frustumCulled = false; poles.position.set(c[0], 0, c[1]); poles.userData.n = N; poles.visible = false;
-          var gg = new THREE.BufferGeometry();
-          gg.setAttribute("position", new THREE.BufferAttribute(pos, 3)); gg.setAttribute("aK", new THREE.BufferAttribute(kk, 2));
-          var m = new THREE.Points(gg, SL.mat), ey = elecYear(toLL(c[0], c[1])[0], toLL(c[0], c[1])[1]);
-          m.position.set(c[0], 0, c[1]); m.frustumCulled = false; m.renderOrder = 9; m.userData.n = N;
-          m.onBeforeRender = function () { SL.U.uEY.value = ey; SL.mat.uniformsNeedUpdate = true; };
-          e.mesh = m; e.poles = poles; e.c = c; world.add(m); world.add(poles); trBuild(e, data, c, cl, tx, ty, n, ext, mpu); kick();
-        }
-        // V2: traffic. Cars drive the real OpenFreeMap road graph of each street-lamp tile (same z14 tile, no extra fetch):
-        // lane offset on the correct side for the country (and era: Sweden kept left until 1967), one-way tags honoured,
-        // slowing into every line end and turning onto a connected road there (tunnels skipped, so never through buildings).
-        // Density: 0 before 1886 (Benz Patent-Motorwagen), then a logistic vehicles-per-capita curve per region, shifted by the
-        // region's electrification year from D (London/US first): share(y) = 1/(1+exp(-(y-(ey+55))/10)) -> ~1% in 1900-1910,
-        // ~10% by 1925 in the early regions, half by ~1935-1960, near saturation today. Time of day: local solar hour, rush
-        // peaks 07-09 and 16-19, sparse 0-5. Only tiles in view under ~3 km, capped per tile (mobile caps lower).
-        var TRS = { motorway: [31, 14], trunk: [24, 12], primary: [14, 10], secondary: [13, 9], tertiary: [11, 8], minor: [8, 6] }; // m/s, carriageway width m
-        var LHT = [[49.8, 61, -8.7, 1.8], [51.3, 55.4, -10.7, -5.9], [24, 46, 123, 146], [6, 35.5, 68, 97.5], [-44, -10, 112, 154], [-47.5, -34, 166, 179], [-35, -22, 16, 33], [-11, 6, 95, 141], [5.5, 20.5, 97.3, 105.7], [0.8, 7.4, 99.6, 119.3], [-4.7, 5, 33.9, 41.9], [23.6, 37, 60.8, 77.8], [-21, -15, 25, 33.1], [-27, -17.5, 30, 36]];
-        function leftHand(la, lo, y) { if ((la < 50.5 && lo > -2 && lo < 1.8) || (la < 51.0 && lo > 1.4 && lo < 1.8)) return false; /* French Channel coast inside the UK box */ if (y < 1967 && la > 55 && la < 69 && lo > 11 && lo < 24.2) return true; for (var i = 0; i < LHT.length; i++) { var b = LHT[i]; if (la > b[0] && la < b[1] && lo > b[2] && lo < b[3]) return true; } return false; }
-        function carShare(y, ey) { return y < 1886 ? 0 : 1 / (1 + Math.exp(-(y - (ey + 55)) / 10)); }
-        function rushK(h) { var b = function (c, w) { var d = Math.min(Math.abs(h - c), 24 - Math.abs(h - c)); return Math.exp(-d * d / (2 * w * w)); }; return 0.08 + 0.35 * (h > 6 && h < 22.5 ? 1 : 0) + 0.6 * b(8, 0.9) + 0.6 * b(17.5, 1.2); }
-        var CARG = (function () { // side profiles in metres (x along the car, y up), extruded across the width; glass inset darker
-          function prof(P, w, glass) {
-            var sh = new THREE.Shape(); sh.moveTo(P[0][0], P[0][1]); for (var i = 1; i < P.length; i++) sh.lineTo(P[i][0], P[i][1]);
-            var g = new THREE.ExtrudeGeometry(sh, { depth: w - 0.16, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.06, bevelSegments: 2, curveSegments: 2 });
-            g.translate(0, 0, -(w - 0.16) / 2); g = g.toNonIndexed();
-            var n = g.attributes.position.count, col = new Float32Array(n * 3); for (var k = 0; k < n * 3; k++) col[k] = glass ? 0.08 : 1;
-            g.setAttribute("color", new THREE.BufferAttribute(col, 3)); g.deleteAttribute("uv"); return g;
-          }
-          function wheel(x, z, r) { var pts = []; for (var i = 0; i <= 6; i++) { var a = i / 6 * Math.PI; pts.push(new THREE.Vector2(r * (0.62 + 0.38 * Math.sin(a)), 0.11 * Math.cos(a))); }
-            var g = new THREE.LatheGeometry(pts, 10); g.rotateX(Math.PI / 2); g.translate(x, r, z); g = g.toNonIndexed(); g.deleteAttribute("uv");
-            var n = g.attributes.position.count, col = new Float32Array(n * 3); for (var k = 0; k < n * 3; k++) col[k] = 0.05; g.setAttribute("color", new THREE.BufferAttribute(col, 3)); return g; }
-          function merge(gs) { var n = 0; gs.forEach(function (g) { n += g.attributes.position.count; }); var P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3), o = 0;
-            gs.forEach(function (g) { P.set(g.attributes.position.array, o); N.set(g.attributes.normal.array, o); C.set(g.attributes.color.array, o); o += g.attributes.position.count * 3; });
-            var m = new THREE.BufferGeometry(); m.setAttribute("position", new THREE.BufferAttribute(P, 3)); m.setAttribute("normal", new THREE.BufferAttribute(N, 3)); m.setAttribute("color", new THREE.BufferAttribute(C, 3)); return m; }
-          function car(body, glass, L, W, r) { var hx = L / 2 - 0.75; return merge([prof(body, W, 0), prof(glass, W + 0.04, 1), wheel(hx, W / 2 - 0.08, r), wheel(-hx, W / 2 - 0.08, r), wheel(hx, -W / 2 + 0.08, r), wheel(-hx, -W / 2 + 0.08, r)]); }
-          // centred on x; nose at +x
-          var sedan = car([[-2.3, 0.3], [2.3, 0.3], [2.35, 0.75], [1.2, 0.9], [0.5, 1.4], [-1.0, 1.42], [-1.8, 1.0], [-2.32, 0.95]], [[1.12, 0.92], [0.52, 1.36], [-0.98, 1.38], [-1.72, 1.0]], 4.6, 1.8, 0.32);
-          var hatch = car([[-1.95, 0.3], [1.95, 0.3], [2.0, 0.75], [1.0, 0.92], [0.35, 1.48], [-1.7, 1.5], [-1.97, 1.0]], [[0.95, 0.94], [0.38, 1.44], [-1.6, 1.46], [-1.85, 1.02]], 3.9, 1.75, 0.31);
-          var van = car([[-2.5, 0.35], [2.5, 0.35], [2.55, 0.9], [2.0, 1.15], [1.5, 1.95], [-2.5, 1.98]], [[1.95, 1.18], [1.52, 1.9], [0.9, 1.9], [0.9, 1.2]], 5.0, 1.95, 0.35);
-          var vint = car([[-1.9, 0.45], [1.9, 0.45], [1.95, 0.95], [0.9, 1.05], [0.6, 1.95], [-1.5, 1.98], [-1.6, 1.05], [-1.92, 1.0]], [[0.55, 1.12], [0.55, 1.85], [-1.4, 1.88], [-1.45, 1.15]], 3.8, 1.6, 0.42);
-          return [sedan, hatch, van, vint];
-        })();
-        var CAR_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.55 });
-        var CAR_COL = [0xe8e8e6, 0x151618, 0x8d9196, 0x5b5f63, 0x23324f, 0x7a1418, 0x1e3b2c, 0xc9c3b0, 0x3d5f8a, 0xb5b8bb], CAR_COL_OLD = [0x111111, 0x1b1d22, 0x2a2420, 0x3a2f28];
-        var TRL = (function () { var cv = document.createElement("canvas"); cv.width = cv.height = 64; var x = cv.getContext("2d"), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.25, "rgba(255,255,255,0.55)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();
-        var TR = { cap: MOB ? 28 : 70, k: 0, lamp: new THREE.PointsMaterial({ size: 0.9 * M, map: TRL, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }), pool: new THREE.PointsMaterial({ size: 9 * M, map: TRL, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }) };
-        function trBuild(e, data, c, cl, tx, ty, n, ext, mpu) {
-          var R = [], node = {}, la0 = toLL(c[0], c[1]);
-          data.roads.forEach(function (rd) {
-            var S = TRS[rd[0]]; if (!S || rd[3] === "tunnel" || rd[1].length < 4) return;
-            var a = rd[1], k = a.length / 2, P = new Float32Array(k * 3), cum = new Float32Array(k), L = 0;
-            for (var i = 0; i < k; i++) { var w = cl((tx + a[i * 2] / ext) / n, (ty + a[i * 2 + 1] / ext) / n); P[i * 3] = w[0] - c[0]; P[i * 3 + 1] = ground(w[0], w[1]) + 0.05 * M; P[i * 3 + 2] = w[1] - c[1]; if (i) L += Math.hypot(P[i * 3] - P[i * 3 - 3], P[i * 3 + 2] - P[i * 3 - 1]); cum[i] = L; }
-            if (L < 8 * M) return;
-            var r = { P: P, cum: cum, L: L, ow: rd[2] || 0, v: S[0] * M, off: (rd[2] ? 0.15 : 0.27) * S[1] * M, w: S[1] }, id = R.length; R.push(r);
-            [[a[0] + "," + a[1], 1], [a[a.length - 2] + "," + a[a.length - 1], 0]].forEach(function (q) { (node[q[0]] = node[q[0]] || []).push([id, q[1]]); });
-            r.ka = a[0] + "," + a[1]; r.kb = a[a.length - 2] + "," + a[a.length - 1];
-          });
-          if (!R.length) return;
-          var tot = 0; R.forEach(function (r) { tot += r.L; });
-          var cap = Math.min(TR.cap, Math.ceil(tot / M / 45)), meshes = CARG.map(function (g) { var m = new THREE.InstancedMesh(g, CAR_MAT, cap); m.count = 0; m.frustumCulled = false; m.position.set(c[0], 0, c[1]); m.visible = false; m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3); world.add(m); return m; });
-          var lp = new THREE.BufferGeometry(), pp = new THREE.BufferGeometry(), lpos = new Float32Array(cap * 12), lcol = new Float32Array(cap * 12), ppos = new Float32Array(cap * 3), pcol = new Float32Array(cap * 3);
-          lp.setAttribute("position", new THREE.BufferAttribute(lpos, 3)); lp.setAttribute("color", new THREE.BufferAttribute(lcol, 3)); pp.setAttribute("position", new THREE.BufferAttribute(ppos, 3)); pp.setAttribute("color", new THREE.BufferAttribute(pcol, 3));
-          var lights = new THREE.Points(lp, TR.lamp), pools = new THREE.Points(pp, TR.pool);
-          [lights, pools].forEach(function (o) { o.position.set(c[0], 0, c[1]); o.frustumCulled = false; o.visible = false; o.renderOrder = 9; world.add(o); });
-          var cars = [], seed = (tx * 73856093) ^ (ty * 19349663);
-          for (var i = 0; i < cap; i++) {
-            var h = function (j) { return hash1(seed * 0.0001 + i * 13.37 + j); }, r = Math.floor(h(1) * R.length) % R.length, ro = R[r];
-            cars.push({ r: r, s: h(2) * ro.L, d: ro.ow === 1 ? 1 : ro.ow === -1 ? -1 : (h(3) < 0.5 ? 1 : -1), t: h(4) < 0.55 ? 0 : h(4) < 0.85 ? 1 : 2, c: h(5), q: h(6), v: 0, yaw: null, lat: 0 });
-          }
-          e.tr = { R: R, node: node, cars: cars, meshes: meshes, lights: lights, pools: pools, cap: cap, k: 0, la: la0[0], lo: la0[1], ey: elecYear(la0[0], la0[1]), c: c };
-        }
-        function trNext(T, car) { // at a line end: pick a connected road (never straight back if there is another), honouring one-way
-          var r = T.R[car.r], key = car.d > 0 ? r.kb : r.ka, opts = (T.node[key] || []).filter(function (o) { var q = T.R[o[0]]; return o[0] !== car.r && (o[1] ? q.ow !== -1 : q.ow !== 1); });
-          if (!opts.length) { if (!r.ow) { car.d = -car.d; return; } car.r = Math.floor(hash1(car.q * 99 + car.s) * T.R.length) % T.R.length; car.s = 0; car.d = T.R[car.r].ow === -1 ? -1 : 1; if (car.d < 0) car.s = T.R[car.r].L; return; }
-          var o = opts[Math.floor(hash1(car.q * 31 + ((T.k = (T.k || 0) + 1) % 997)) * opts.length) % opts.length], q = T.R[o[0]];
-          car.r = o[0]; car.d = o[1] ? 1 : -1; car.s = o[1] ? 0 : q.L;
-        }
-        var trM = new THREE.Matrix4(), trQ = new THREE.Quaternion(), trS = new THREE.Vector3(M, M, M), trU = new THREE.Vector3(0, 1, 0), trV = new THREE.Vector3(), trCol = new THREE.Color();
-        function traffic(cp, akm, dt) {
-          var show = cp.y > 0 && akm < 3 && show_traffic(), any = false, yr = cityU.uYear.value, nite = WU.uSunOn.value > 0 && Math.hypot(cp.x - sun.position.x, cp.z - sun.position.z) > 3.6 ? 1 : 0, hUTC = (((dayT % 1) + 1) % 1 * 24 + 12) % 24;
-          TR.lamp.opacity = TR.pool.opacity = nite * (1 - smooth(1.5, 3, akm)); TR.lamp.size = 0.9 * M; TR.pool.size = 9 * M;
-          SL.tiles.forEach(function (e) {
-            var T = e.tr; if (!T) return;
-            var vis = show && Math.hypot(cp.x - T.c[0], cp.z - T.c[1]) < (2.5 + akm) / KM;
-            T.meshes.forEach(function (m) { m.visible = vis; }); T.lights.visible = T.pools.visible = vis && nite > 0; if (!vis) return; any = true;
-            var hl = (hUTC + T.lo / 15 + 24) % 24, want = Math.round(T.cap * Math.min(1, carShare(yr, T.ey) * rushK(hl) * 1.25)), lh = leftHand(T.la, T.lo, yr), cnt = [0, 0, 0, 0], li = 0;
-            for (var i = 0; i < want; i++) {
-              var car = T.cars[i], r = T.R[car.r], toEnd = car.d > 0 ? r.L - car.s : car.s, vt = r.v * (0.3 + 0.7 * smooth(4 * M, 30 * M, toEnd)) * (0.85 + 0.3 * car.q);
-              car.v += (vt - car.v) * Math.min(1, dt * 1.5); car.s += car.d * car.v * dt * 0.6;
-              if (car.s > r.L || car.s < 0) { trNext(T, car); r = T.R[car.r]; }
-              var P = r.P, cum = r.cum, j = 1; while (j < cum.length - 1 && cum[j] < car.s) j++;
-              var s0 = cum[j - 1], f = Math.min(1, Math.max(0, (car.s - s0) / Math.max(cum[j] - s0, 1e-12))), fx = P[j * 3] - P[j * 3 - 3], fz = P[j * 3 + 2] - P[j * 3 - 1], fl = Math.hypot(fx, fz) || 1;
-              fx = fx / fl * car.d; fz = fz / fl * car.d;
-              var yaw = Math.atan2(-fz, fx); if (car.yaw === null) car.yaw = yaw; var dy = Math.atan2(Math.sin(yaw - car.yaw), Math.cos(yaw - car.yaw)); car.yaw += dy * Math.min(1, dt * 6); // smooth turn
-              var side = lh ? -1 : 1; car.lat += (r.off * side - car.lat) * Math.min(1, dt * 3); // ease across at junctions
-              var cyaw = Math.cos(car.yaw), syaw = -Math.sin(car.yaw), x = P[j * 3 - 3] + (P[j * 3] - P[j * 3 - 3]) * f + (-syaw) * car.lat, z = P[j * 3 - 1] + (P[j * 3 + 2] - P[j * 3 - 1]) * f + cyaw * car.lat, y = P[j * 3 - 2] + (P[j * 3 + 1] - P[j * 3 - 2]) * f;
-              var t = yr < 1935 ? 3 : (yr < 1960 && car.t === 2 ? 0 : car.t), m = T.meshes[t], k = cnt[t]++;
-              trQ.setFromAxisAngle(trU, car.yaw); trV.set(x, y, z); trM.compose(trV, trQ, trS); m.setMatrixAt(k, trM);
-              var pal = yr < 1950 ? CAR_COL_OLD : CAR_COL; trCol.setHex(pal[Math.floor(car.c * pal.length) % pal.length]); m.setColorAt(k, trCol);
-              if (nite) { // 2 heads, 2 tails, 1 road glow ahead; colours in vertex colour, additive, depth-tested (occluded by buildings)
-                var hw = 0.7 * M, fr = 2.2 * M, rx = -syaw, rz = cyaw, L4 = T.lights.geometry.attributes.position.array, C4 = T.lights.geometry.attributes.color.array;
-                for (var q = 0; q < 4; q++) { var fw = q < 2 ? fr : -fr, sd = (q % 2 ? 1 : -1) * hw, o = (li * 4 + q) * 3; L4[o] = x + cyaw * fw + rx * sd; L4[o + 1] = y + 0.75 * M; L4[o + 2] = z + syaw * fw + rz * sd; if (q < 2) { C4[o] = 1; C4[o + 1] = 0.93; C4[o + 2] = 0.78; } else { C4[o] = 0.9; C4[o + 1] = 0.04; C4[o + 2] = 0.02; } }
-                var PP = T.pools.geometry.attributes.position.array, PC = T.pools.geometry.attributes.color.array; PP[li * 3] = x + cyaw * 7 * M; PP[li * 3 + 1] = y + 0.2 * M; PP[li * 3 + 2] = z + syaw * 7 * M; PC[li * 3] = 0.32; PC[li * 3 + 1] = 0.29; PC[li * 3 + 2] = 0.22; li++;
-              }
-            }
-            T.meshes.forEach(function (m, t) { m.count = cnt[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; });
-            T.lights.geometry.setDrawRange(0, li * 4); T.pools.geometry.setDrawRange(0, li); T.lights.geometry.attributes.position.needsUpdate = T.lights.geometry.attributes.color.needsUpdate = true; T.pools.geometry.attributes.position.needsUpdate = T.pools.geometry.attributes.color.needsUpdate = true;
-          });
-          return any;
-        }
         // ===== V3 aircraft: simulated from airports_data.js (OurAirports), never live data =====
         // Airborne count A(y): 0 before 1903 (Wright Flyer); 1903-1918 a handful of short hops (5 + 2/yr);
         // from 1919 (first scheduled airlines) a logistic 10500/(1+exp(-(y-1978)/12)) -> ~80 in 1919, ~1000 in 1950,
@@ -1751,23 +1575,7 @@
           o.alt = f.cr * Math.min(1, Math.min(dkm, rk) / ramp); o.on = true; return o;
         }
         var acTex = (function () { var cv = document.createElement("canvas"); cv.width = cv.height = 32; var x = cv.getContext("2d"), g = x.createRadialGradient(16, 16, 0, 16, 16, 16); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.35, "rgba(255,255,255,0.5)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(cv); })();
-        var ACG = (function () { // airliner in metres, nose at +x: lathe fuselage, swept extruded wings and tailplanes, fin
-          function col(g, v) { g = g.index ? g.toNonIndexed() : g; if (g.attributes.uv) g.deleteAttribute("uv"); g.computeVertexNormals(); var n = g.attributes.position.count, c = new Float32Array(n * 3); for (var k = 0; k < n * 3; k++) c[k] = v; g.setAttribute("color", new THREE.BufferAttribute(c, 3)); return g; }
-          var pts = [[0, -19], [0.9, -18.4], [1.7, -16.5], [2.0, -13], [2.0, 12], [1.7, 15.5], [1.0, 17.5], [0.3, 19.2], [0, 19.4]].map(function (p) { return new THREE.Vector2(p[0], p[1]); });
-          var fus = new THREE.LatheGeometry(pts, 14); fus.rotateZ(-Math.PI / 2);
-          function wing(span, root, tip, sweep, th) { var s = new THREE.Shape(); s.moveTo(root / 2, 0); s.lineTo(root / 2 - sweep, span); s.lineTo(root / 2 - sweep - tip, span); s.lineTo(-root / 2, 0); s.closePath();
-            var g = new THREE.ExtrudeGeometry(s, { depth: th, bevelEnabled: false }); g.rotateX(Math.PI / 2); g.translate(0, th / 2, 0); return g; }
-          var wr = wing(17, 7, 1.6, 6, 0.5); wr.translate(0.5, -0.6, 0); var wl = wing(17, 7, 1.6, 6, 0.5); wl.scale(1, 1, -1); wl.translate(0.5, -0.6, 0);
-          var tr = wing(6, 3.4, 1.2, 2.6, 0.3); tr.translate(-16.5, 0.6, 0); var tl = wing(6, 3.4, 1.2, 2.6, 0.3); tl.scale(1, 1, -1); tl.translate(-16.5, 0.6, 0);
-          var fs = new THREE.Shape(); fs.moveTo(-13.5, 1.5); fs.lineTo(-19, 8.5); fs.lineTo(-20.6, 8.5); fs.lineTo(-19.4, 1.2); fs.closePath(); var fin = new THREE.ExtrudeGeometry(fs, { depth: 0.35, bevelEnabled: false }); fin.translate(0, 0, -0.17);
-          function eng(z) { var e = new THREE.LatheGeometry([[0, -2.4], [1.1, -2.2], [1.25, 0], [1.1, 2.0], [0, 2.1]].map(function (p) { return new THREE.Vector2(p[0], p[1]); }), 10); e.rotateZ(-Math.PI / 2); e.translate(2.5, -1.7, z); return e; }
-          var gs = [col(fus, 0.92), col(wr, 0.8), col(wl, 0.8), col(tr, 0.8), col(tl, 0.8), col(fin, 0.85), col(eng(6), 0.6), col(eng(-6), 0.6)];
-          var n = 0; gs.forEach(function (g) { n += g.attributes.position.count; }); var P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3), o = 0;
-          gs.forEach(function (g) { P.set(g.attributes.position.array, o); N.set(g.attributes.normal.array, o); C.set(g.attributes.color.array, o); o += g.attributes.position.count * 3; });
-          var m = new THREE.BufferGeometry(); m.setAttribute("position", new THREE.BufferAttribute(P, 3)); m.setAttribute("normal", new THREE.BufferAttribute(N, 3)); m.setAttribute("color", new THREE.BufferAttribute(C, 3)); return m;
-        })();
         var acDotTex = (function () { var cv = document.createElement("canvas"); cv.width = cv.height = 16; var x = cv.getContext("2d"), g = x.createRadialGradient(8, 8, 0, 8, 8, 8); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.55, "rgba(255,255,255,0.9)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 16, 16); return new THREE.CanvasTexture(cv); })();
-        var AC_MESH = new THREE.InstancedMesh(ACG, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.45 }), AC.near); AC_MESH.count = 0; AC_MESH.frustumCulled = false; scene.add(AC_MESH);
         function acPts(n, size, add) { var g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3)); g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 3), 3)); g.setDrawRange(0, 0);
           var m = new THREE.PointsMaterial({ size: size, sizeAttenuation: false, map: acTex, vertexColors: true, transparent: true, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending });
           var p = new THREE.Points(g, m); p.frustumCulled = false; p.renderOrder = 12; scene.add(p); return p; }
@@ -1776,17 +1584,17 @@
           vertexShader: "#include <common>\n#include <logdepthbuf_pars_vertex>\nattribute float aS; attribute float aA; attribute vec3 color; varying vec3 vC; varying float vA; uniform float uPx; void main(){ vC=color; vA=aA; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=clamp(aS*uPx/max(-mv.z,1e-7),1.0,64.0);\n#include <logdepthbuf_vertex>\n}",
           fragmentShader: "#include <logdepthbuf_pars_fragment>\nuniform sampler2D uMap; varying vec3 vC; varying float vA; void main(){\n#include <logdepthbuf_fragment>\nfloat a=texture2D(uMap,gl_PointCoord).a*vA; if(a<0.004) discard; gl_FragColor=vec4(vC,a); }" });
         AC_TRL.geometry.setAttribute("aS", new THREE.BufferAttribute(new Float32Array(AC.near * 70 + AC.cap * 3), 1)); AC_TRL.geometry.setAttribute("aA", new THREE.BufferAttribute(new Float32Array(AC.near * 70 + AC.cap * 3), 1));
-        var acM = new THREE.Matrix4(), acQ = new THREE.Quaternion(), acS = new THREE.Vector3(M, M, M), acU = new THREE.Vector3(0, 1, 0), acV = new THREE.Vector3(), acTmp = {}, acNear = [];
+        var acV = new THREE.Vector3(), acTmp = {}, acNear = [];
         function acSunCol(x, z, o) { // white by day, warm near the terminator, dim grey at night
           var d = Math.hypot(x - sun.position.x, z - sun.position.z), k = smooth(3.0, 3.7, d), n = smooth(3.7, 4.1, d);
           o[0] = 1 - 0.05 * k - 0.65 * n; o[1] = 0.97 - 0.3 * k - 0.45 * n; o[2] = 0.95 - 0.55 * k - 0.25 * n; return o; }
         function aircraft(cp, akm, t) {
           if (AC.tFix != null) t = AC.tFix;
           var y = Math.round(cityU.uYear.value), on = show.planes !== false && y >= 1903;
-          [AC_MESH, AC_DOT, AC_NAV, AC_TRL].forEach(function (o) { o.visible = on; }); if (!on) { AC.F = null; acNear.length = 0; return false; }
+          [AC_DOT, AC_NAV, AC_TRL].forEach(function (o) { o.visible = on; }); if (!on) { AC.F = null; acNear.length = 0; return false; }
           if (AC.yr !== y || !AC.F) { AC.F = acBuild(y); AC.yr = y; } var F = AC.F; if (!F) return false;
           var ox = cp.x, oz = cp.z; // anchor near the camera (absolute disc coords), keeps float32 precision up close
-          [AC_MESH, AC_DOT, AC_NAV, AC_TRL].forEach(function (o) { o.position.set(ox - ANC0.x, 0, oz - ANC0.z); });
+          [AC_DOT, AC_NAV, AC_TRL].forEach(function (o) { o.position.set(ox - ANC0.x, 0, oz - ANC0.z); });
           var dp = AC_DOT.geometry.attributes.position.array, dc = AC_DOT.geometry.attributes.color.array, nd = 0, sc = [0, 0, 0];
           var tp = AC_TRL.geometry.attributes.position.array, tc = AC_TRL.geometry.attributes.color.array, ts = AC_TRL.geometry.attributes.aS.array, ta = AC_TRL.geometry.attributes.aA.array, nt = 0;
           var np = AC_NAV.geometry.attributes.position.array, nc = AC_NAV.geometry.attributes.color.array, nn = 0, nite = WU.uSunOn.value > 0, sprayOn = (show.spray === true);
@@ -1806,7 +1614,7 @@
           var nm = 0, cap = AC_TRL.geometry.attributes.position.count, blink = ((performance.now() / 1000) % 1.2) < 0.08;
           for (var j = 0; j < cand.length && nm < AC.near; j++) {
             var f2 = cand[j][1], rx2 = f2.x - ox, rz2 = f2.z - oz, ry2 = f2.alt * M;
-            acQ.setFromAxisAngle(acU, f2.hd - Math.PI / 2); acV.set(rx2, ry2, rz2); acM.compose(acV, acQ, acS); AC_MESH.setMatrixAt(nm++, acM); acNear.push(f2);
+            nm++; acNear.push(f2);
             var sx = Math.sin(f2.hd), sz = Math.cos(f2.hd), wx = sz, wz = -sx; // wing axis (right = starboard)
             if (Math.hypot(f2.x - sun.position.x, f2.z - sun.position.z) > 3.6 && nn < AC.near * 3 - 3) { // nav lights where it is night for that aircraft
               [[-17, 1, 0.1, 0.1], [17, 0.1, 1, 0.3], [0, blink ? 1 : 0, blink ? 1 : 0, blink ? 1 : 0]].forEach(function (L, li) { var off = li === 2 ? -20 : 0;
@@ -1820,7 +1628,6 @@
                 ts[nt] = Math.max(gap * 1.5, spr ? 60 + 2200 * u : 40 + 500 * u) * M; ta[nt] = (spr ? 0.5 : 0.6) * (1 - Math.pow(u, spr ? 2.5 : 1.4)) * Math.min(1, s / 3) * (nite ? 0.25 : 1); nt++; }
             }
           }
-          AC_MESH.count = nm; AC_MESH.instanceMatrix.needsUpdate = true;
           AC_DOT.geometry.setDrawRange(0, nd); AC_NAV.geometry.setDrawRange(0, nn); AC_TRL.geometry.setDrawRange(0, nt);
           [AC_DOT, AC_NAV, AC_TRL].forEach(function (o) { var a = o.geometry.attributes; for (var key in a) a[key].needsUpdate = true; });
           AC_TRL.material.uniforms.uPx.value = innerHeight * renderer.getPixelRatio() / (2 * Math.tan(camera.fov * Math.PI / 360));
@@ -1828,7 +1635,7 @@
           return acNear.length > 0;
         }
         function acTap(cx, cy) { // 44 px target (22 px radius) around each nearby aircraft
-          if (!AC_MESH.visible || !acNear.length) return null; var best = null, bd = 22;
+          if (!AC_DOT.visible || !acNear.length) return null; var best = null, bd = 22;
           acNear.forEach(function (f) { acV.set(f.x - ANC0.x, f.alt * M, f.z - ANC0.z).project(camera); if (acV.z > 1) return; var sx = (acV.x + 1) / 2 * innerWidth, sy = (1 - acV.y) / 2 * innerHeight, d = Math.hypot(sx - cx, sy - cy); if (d < bd) { bd = d; best = f; } });
           return best;
         }
@@ -2097,38 +1904,14 @@
           renderer.copyFramebufferToTexture(CINE.v0, CINE.tex.value);
           renderer.autoClear = false; renderer.render(CINE.S, CINE.C); renderer.autoClear = true;
         }
-        function show_traffic() { return show.traffic !== false; }
-        function slFetch(key, tx, ty) {
-          SL.busy++;
-          ofmTile(tx, ty)
-            .then(function (b) { slBuild(key, tx, ty, mvtRoads(b), mvtBuildings(b)); }, function () { var e = SL.tiles.get(key); if (e) e.fail = true; })
-            .then(function () { SL.busy--; });
-        }
-        function streetLights(cp, akm, now) { // called each frame in absolute coords
-          var night = WU.uSunOn.value > 0 && Math.hypot(cp.x - sun.position.x, cp.z - sun.position.z) > 3.6;
-          var on = cp.y > 0 && akm < 60 && night && cityU.uYear.value > 1870;
-          SL.U.uA.value = on ? 1 - smooth(25, 60, akm) : 0;
-          SL.U.uPx.value = ptScale.value / Math.tan(camera.fov * DEG / 2);
-          SL.tiles.forEach(function (e) { if (e.poles) e.poles.visible = cp.y > 0 && akm < 1.5; if (e.mesh) { e.mesh.visible = on; if (on) { var d = Math.hypot(cp.x - e.c[0], cp.z - e.c[1]) / Math.max(akm / KM, 1e-6); var fr = Math.min(1, 1.6 / Math.max(0.3, d) * (MOB ? 0.6 : 1) * (1 - 0.7 * smooth(8, 40, akm))); if (akm < 1.5) fr = 1; e.mesh.geometry.setDrawRange(0, fr >= 1 && akm < 3 ? 2 * e.mesh.userData.n : Math.ceil(e.mesh.userData.n * fr)); } } });
-          if (!(on || (cp.y > 0 && akm < 3 && cityU.uYear.value >= 1886)) || now - SL.t < 0.4) return; // road tiles also feed V2 traffic by day
-          SL.t = now;
-          var L = toLL(cp.x, cp.z), m = merc(L[0], L[1]), n = 1 << 14, cx = Math.floor(m[0] * n), cy = Math.floor(m[1] * n);
-          var rr = akm < 4 ? 1 : akm < 15 ? 2 : MOB ? 2 : 3, want = {};
-          for (var dy = -rr; dy <= rr; dy++) for (var dx = -rr; dx <= rr; dx++) {
-            var tx = ((cx + dx) % n + n) % n, ty = cy + dy; if (ty < 0 || ty >= n) continue;
-            var key = tx + "/" + ty; want[key] = 1;
-            if (!SL.tiles.has(key) && SL.busy < 4) { SL.tiles.set(key, { mesh: null }); slFetch(key, tx, ty); }
-          }
-          if (SL.tiles.size > (MOB ? 40 : 70)) SL.tiles.forEach(function (e, k) { if (!want[k] && e.mesh) { world.remove(e.mesh); e.mesh.geometry.dispose(); if (e.poles) { world.remove(e.poles); e.poles.dispose(); } if (e.tr) { e.tr.meshes.forEach(function (m) { world.remove(m); m.dispose(); }); world.remove(e.tr.lights); world.remove(e.tr.pools); e.tr.lights.geometry.dispose(); e.tr.pools.geometry.dispose(); e.tr = null; } SL.tiles.delete(k); } else if (!want[k] && e.fail) SL.tiles.delete(k); });
-        }
         // B. OSM 3D buildings from the same OpenFreeMap z14 tiles (render_height / render_min_height), lazily for the tiles in view below ~6 km.
         // Not plain boxes: lit by the scene sun, soft ground AO, roofs and facades tinted from the Esri imagery under each footprint,
         // per-building facade colour, floors and windows in the shader (dark glass by day, warm lit windows at night), rising in with zoom.
         var OFMC = new Map();
-        function ofmTile(tx, ty) { // shared by street lamps and buildings: one fetch per z14 tile
+        function ofmTile(tx, ty) { // shared by buildings and vegetation: one fetch per z14 tile
           var k = tx + "/" + ty, p = OFMC.get(k);
           if (p) return p;
-          p = (SL.url ? Promise.resolve(SL.url) : fetch("https://tiles.openfreemap.org/planet").then(function (r) { return r.json(); }).then(function (j) { return (SL.url = j.tiles[0]); }))
+          p = (OFM.url ? Promise.resolve(OFM.url) : fetch("https://tiles.openfreemap.org/planet").then(function (r) { return r.json(); }).then(function (j) { return (OFM.url = j.tiles[0]); }))
             .then(function (u) { return fetch(u.replace("{z}", 14).replace("{x}", tx).replace("{y}", ty)); })
             .then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })
             .then(function (ab) {
@@ -2207,11 +1990,11 @@
               " diffuseColor.rgb *= ao * (1.0 - 0.5 * bWin) * (1.0 - 0.12 * vF.z * (1.0 - bFar) * step(fc.y, 0.07)) * (1.0 - 0.25 * vF.z * (1.0 - step(1.0, bCell.y)));" +
               " diffuseColor.rgb *= 1.0 + 0.06 * (fract(sin(vF.w * 311.7 + floor(bCell.y) * 7.1) * 4375.5) - 0.5) * vF.z;") // floor-to-floor variation
             .replace("#include <output_fragment>",
-              "float nk = uSunOn * smoothstep(3.6, 3.9, distance(vBW.xz, uSunW.xz));" +
-              " outgoingLight = mix(outgoingLight, diffuseColor.rgb * vec3(0.05, 0.065, 0.11), nk * 0.92);" +
+              "float bEl = max(-34.0, (1.0 - pow(distance(vBW.xz, uSunW.xz) / 3.75, 4.0)) * 90.0); float nk = uSunOn * (1.0 - pow(smoothstep(-18.0, 8.0, bEl), 2.6));" + // same sun-elevation night as the ground (TRUE NIGHT)
+              " outgoingLight = mix(outgoingLight, diffuseColor.rgb * vec3(0.03, 0.04, 0.075) + vec3(0.0033, 0.0075, 0.0296) * 0.5, nk);" +
               " float h1 = fract(sin(dot(floor(bCell) + vF.w * 91.0, vec2(12.9898, 78.233))) * 43758.5453);" +
               " vec3 wc = mix(vec3(1.0, 0.6, 0.28), vec3(1.0, 0.84, 0.6), fract(h1 * 7.0));" +
-              " outgoingLight += nk * uEl * (wc * bWin * mix(step(0.6, h1) * (0.5 + h1), 0.45, bFar) * 0.8 + vF.z * vec3(1.0, 0.58, 0.26) * 0.12 * exp(-vF.y / 3.0));\n#include <output_fragment>");
+              " outgoingLight += nk * uEl * (wc * bWin * mix(step(0.6, h1) * (0.5 + h1), 0.2, bFar) * 0.8 + vF.z * vec3(1.0, 0.58, 0.26) * 0.12 * exp(-vF.y / 3.0));\n#include <output_fragment>");
         };
         function blImg(tx, ty) { // the Esri z16 imagery under a z14 tile, 4x4 tiles stitched into a 256 px colour grid for sampling
           var cv = document.createElement("canvas"); cv.width = cv.height = 256; var cx = cv.getContext("2d", { willReadFrequently: true }), n = 0;
@@ -2391,7 +2174,7 @@
         }
         // elevation: rebelvue.github.io/enoch-tiles height/{L}/{ty}/{tx}.png, 256 px Terrarium PNGs (R*256+G+B/256-32768 m, sea floor negative), L0-L6,
         // on this map's own north-pole azimuthal equidistant disc: square [-1,1]^2, L = 2^L x 2^L tiles, ty from the top, x = r sin(lon), y = r cos(lon), r = (90 - lat) / 180
-        var ETU = "https://rebelvue.github.io/enoch-tiles/height/", EMAX = 6;
+        var ETU = "https://rebelvue.github.io/enoch-tiles/height/", ETL = "https://rebelvue.github.io/enoch-tiles/lights/", EMAX = 6;
         function eDisc(lat, lon) { var r = (90 - lat) / 180, a = lon * DEG; return [(r * Math.sin(a) + 1) / 2, (r * Math.cos(a) + 1) / 2]; } // [0,1]^2, origin top-left
         function eKey(q, X, Y) { var n = 1 << q; return q + "/" + Math.min(n - 1, Math.max(0, Math.floor(Y * n))) + "/" + Math.min(n - 1, Math.max(0, Math.floor(X * n))); }
         function eSample(q, X, Y, d) { var n = 1 << q, tx = Math.min(n - 1, Math.max(0, Math.floor(X * n))), ty = Math.min(n - 1, Math.max(0, Math.floor(Y * n))); return bil(d, (X * n - tx) * 256 - 0.5, (Y * n - ty) * 256 - 0.5); }
@@ -2417,7 +2200,7 @@
         // Phase 2 close-zoom relief: Mapterhorn open terrain tiles (tiles.mapterhorn.com/{z}/{x}/{y}.webp, Web Mercator XYZ, 512 px Terrarium, CORS *),
         // Copernicus GLO-30 worldwide (served to z12) plus national LiDAR/open DEMs to z17 where a country publishes them; higher zooms 404 elsewhere -> parent zoom.
         // Esri tile z >= 8 asks for the Mapterhorn tile at z-3 (one 512 px tile spans 8x8 Esri tiles = 64 height px per Esri tile, ~2 per vertex of the PERF.G grid).
-        // NO NASA: Mapterhorn's Israel 10 m layer (isr10) is derived from ASTER GDEM, so inside lat 29.4-33.4, lon 34.2-35.95 Mapterhorn is never requested
+        // Guard (no ASTER-derived data): Mapterhorn's Israel 10 m layer (isr10) is derived from ASTER GDEM, so inside lat 29.4-33.4, lon 34.2-35.95 Mapterhorn is never requested
         // for tiles wholly inside, and never sampled there; the enoch Copernicus heights are used instead.
         var MTU = "https://tiles.mapterhorn.com/", MTMAX = 17, MTG = 12, MTLO = 5, MTHI = -1, MTZ0 = 8, MC = new Map(), MF = new Set(), MCAP = MOB ? 24 : 48;
         var ILB = (function () { var a = merc(33.4, 34.2), b = merc(29.4, 35.95); return [a[0], b[0], a[1], b[1]]; })(); // Israel bbox in mercator [x0, x1, y0 (north), y1 (south)]
@@ -2481,20 +2264,33 @@
           if (MK) mtel(MK[0], MK[1], MK[2], t.pr, function (k, d) { if (t.g === g) { if (d) t.mt = { z: +k.split("/")[0], d: d }; done(); } }); // close-zoom Mapterhorn relief (falls back to enoch when it fails)
         }
         function cancel(t) { if (t.st === 1) { kill(t.rq); t.g++; t.st = 0; if (isBM(t.im)) t.im.close(); t.im = t.el = t.mt = null; } }
-        // D2. regional detail for the night lights: NASA GIBS Black Marble tiles (Web Mercator, max z8, ~600 m) per streamed tile
+        // D2. regional detail for the night lights: enoch-tiles lights/{L}/{ty}/{tx}.webp (GHSL built-up, European Commission JRC),
+        // 512 px greyscale (sqrt of light) on the disc projection, L5 (~2.4 km/px) and L6 (~1.2 km/px). NLB5/NLB6: one bit per tile
+        // that has any light (empty tiles are not published, so they are never requested). Fallback: the global night_lights texture.
+        var NLB = { 5: "AAAAAAAAAAAAAAAAAAAAAAAA4AAAACIAAAvuAAAQvwAAAP8AACA/gAAFH8AAAAfgAgF/gAA//4AAf/+AAX5/AAH+fgAB//8AA/3/gB/l/AAf5/6AD+f/gAf3/wAA8/8AAAB8AAAAfAAAADgAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", 6: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8AAAAAAAAAOAAAAAAAAAAAAAAAAAAAAAICAAAAAAABpx8AAAAAABOnHwAAAAAAACAfgAAAAADAAY3AAAAAAAAUfsAAAAAAAA5/wAAAAAIAAT/AAAAAAAAAj6AAAAAADABH3AAAAAAAQF/8AAAAAAAAA94AAAAAAAAH3AAAAAAAAefgAAACAADL/+AAAAAAYR/44AAAAAP9v//wAAAAB/+//+AAAAAH/5//4AAAAA/8D//AAAAATf8H/4AAAABN9w/+AAAAAB//B/4AAAAAf/4f/4AAAAD+O7//gAAAAf6Yv/3AAAAB/gB/+CAAAB/+AP/4AAAAf/wEf/gAAAB//Ab//BAAAD/+A//9AAAAH/4D//wgAAAH/gv6/aAAAAP/D//7gAAACP+D//+AAAAAH8P//4AAAAAMAf/8AAAAAAAAD/wAAAAAAAAH/AAAAAAAAAf8AAAAAAAAA/gAAAAAAAAB8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" }, NLBits = {};
+        function nlHas(L, tx, ty) { var b = NLBits[L]; if (!b) { var s = atob(NLB[L]); b = NLBits[L] = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); } var k = ty * (1 << L) + tx; return (b[k >> 3] >> (7 - (k & 7))) & 1; }
         var NTC = new Map(), NT0 = new THREE.DataTexture(new Uint8Array(4), 1, 1); NT0.needsUpdate = true;
         function nightTile(t, mat) {
-          var zg = Math.min(t.z, 8), d = t.z - zg, n = 1 << d, ax = t.x >> d, ay = t.y >> d, k = zg + "/" + ax + "/" + ay, e = NTC.get(k), sc = 1 / n;
-          mat.userData.nt = { value: NT0 }; mat.userData.ntk = { value: 0 };
-          mat.userData.nto = { value: new THREE.Vector4((t.x - ax * n) * sc, 1 - (t.y - ay * n) * sc - sc, sc, mat.map.flipY ? 0 : 1) };
-          if (!e) {
-            e = { tex: null, w: [], u: 0 }; NTC.set(k, e);
-            new THREE.TextureLoader().load("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2012-01-01/GoogleMapsCompatible_Level8/" + k.replace(/^(\d+)\/(\d+)\/(\d+)$/, "$1/$3/$2") + ".png", function (tx) {
-              tx.minFilter = THREE.LinearFilter; tx.generateMipmaps = false; e.tex = tx; e.w.forEach(function (m) { m.userData.nt.value = tx; m.userData.ntk.value = 1; }); e.w = [];
-            }, undefined, function () { e.w = []; });
+          mat.userData.nt = { value: NT0 }; mat.userData.ntk = { value: 0 }; mat.userData.nto = { value: new THREE.Vector4(0, 0, 1, 0) };
+          if (t.z < 8) return;
+          var n = 1 << t.z, uv = [];
+          [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(function (c) { var p = ll(mlat((t.y + c[1]) / n), (t.x + c[0]) / n * 360 - 180); uv.push([0.5 + p[0] / 20, 0.5 + p[1] / 20]); });
+          for (var L = t.z >= 10 ? 6 : 5; L >= 5; L--) {
+            var m = 1 << L, tx = Math.floor(uv[0][0] * m), ty = Math.floor(uv[0][1] * m);
+            if (!uv.every(function (q) { return Math.floor(q[0] * m) === tx && Math.floor(q[1] * m) === ty; })) continue; // the Esri tile must sit inside one lights tile
+            if (tx < 0 || ty < 0 || tx >= m || ty >= m || !nlHas(L, tx, ty)) return;
+            var k = L + "/" + ty + "/" + tx, e = NTC.get(k);
+            mat.userData.nto.value.set(tx / m, ty / m, m, 0);
+            if (!e) {
+              e = { tex: null, w: [], u: 0 }; NTC.set(k, e);
+              new THREE.TextureLoader().load(ETL + k + ".webp", function (tx2) {
+                tx2.flipY = false; tx2.minFilter = THREE.LinearFilter; tx2.generateMipmaps = false; tx2.needsUpdate = true; e.tex = tx2; e.w.forEach(function (mm) { mm.userData.nt.value = tx2; mm.userData.ntk.value = 1; }); e.w = []; kick();
+              }, undefined, function () { e.w = []; });
+            }
+            e.u++; mat.userData.ntKey = k;
+            if (e.tex) { mat.userData.nt.value = e.tex; mat.userData.ntk.value = 1; } else e.w.push(mat);
+            return;
           }
-          e.u++; mat.userData.ntKey = k;
-          if (e.tex) { mat.userData.nt.value = e.tex; mat.userData.ntk.value = 1; } else e.w.push(mat);
         }
         function tileOBC(sh) {
           Object.assign(sh.uniforms, WU); sh.uniforms.uFoam = this.userData.f;
@@ -2506,7 +2302,7 @@
             .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>" + WFR)
             .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + WFN)
             .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>" + SELE + WFE)
-            .replace("#include <output_fragment>", NIGHT.replace("float ey =", "if (uNTk > 0.5) { vec2 nu = vec2(vUv.x, mix(vUv.y, 1.0 - vUv.y, uNTo.w)); float nd = 0.0025; vec2 nq = clamp(uNTo.xy + nu * uNTo.z, vec2(nd + 0.002), vec2(0.998 - nd)); vec3 nc = 0.25 * (texture2D(uNT, nq + vec2(nd, nd)).rgb + texture2D(uNT, nq + vec2(-nd, nd)).rgb + texture2D(uNT, nq + vec2(nd, -nd)).rgb + texture2D(uNT, nq + vec2(-nd, -nd)).rgb); nl.r = 0.8 * pow(clamp((nc.r - 0.6 * nc.b) * 1.5, 0.0, 1.0) * step(0.9 * nc.b, nc.r), 1.3); }\nfloat ey ="));
+            .replace("#include <output_fragment>", NIGHT.replace("float ey =", "if (uNTk > 0.5) { vec2 nq = (((vWP.xz + uNLA) / 20.0 + 0.5) - uNTo.xy) * uNTo.z; if (nq.x >= 0.0 && nq.y >= 0.0 && nq.x <= 1.0 && nq.y <= 1.0) { float nr = texture2D(uNT, nq).r; nI = nr * nr; } }\nfloat ey ="));
         }
         // draw order with the stencil: detail tiles first (mark 1), then the zoom-2 backdrop where none drew (mark 1), then the base disc
         // verified: detail ref 1 Always/Replace at renderOrder z (3..19) < backdrop ref 1 NotEqual at 30 < base disc ref 1 NotEqual/Keep at 40,
@@ -3407,6 +3203,68 @@
           return { sd: s[0], sl: s[1], md: m[0], ml: m[1], st: -gst * d2r, ph: ((lm - ls) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI), mi: (mo + 7) % 12 };
         }
         var clock = new THREE.Clock(), dayT = skyNow(), v = new THREE.Vector3(), hw, hh, lastMonth = -1, altEl = $("alt");
+        // CLOCK HUD (below 3000 m): IANA time zone + abbreviation and civil time at the camera's ground point (Intl, live seconds,
+        // following the sky clock: Live = now), plus local apparent solar time from the sun's subpoint longitude (includes the
+        // equation of time). Zones: tz_data.js (timezone-boundary-builder 2026f, OSM-derived, ODbL), loaded on first use; over open
+        // sea (no polygon, territorial waters are inside the polygons) Etc/GMT+-N by longitude.
+        var CLK = { on: false, x: 0, z: 0, tz: null, tzLL: null, Z: null, loading: false, txt: "", el: $("clk"), elTz: $("clk-tz"), elT: $("clk-t"), elS: $("clk-s"), fmt: {} };
+        function tzDecode() {
+          var P = window.TZ_POLYS; if (!P) return null;
+          return P.map(function (z) {
+            var polys = z[1].map(function (rings) {
+              var bb = [1e9, 1e9, -1e9, -1e9];
+              var rs = rings.map(function (e, ri) {
+                var out = [], i = 0, x = 0, y = 0;
+                while (i < e.length) {
+                  for (var k = 0; k < 2; k++) { var sh = 0, r = 0, b; do { b = e.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); var d = r & 1 ? ~(r >> 1) : r >> 1; if (k === 0) x += d; else y += d; }
+                  out.push(x / 100, y / 100);
+                  if (ri === 0) { bb[0] = Math.min(bb[0], x / 100); bb[1] = Math.min(bb[1], y / 100); bb[2] = Math.max(bb[2], x / 100); bb[3] = Math.max(bb[3], y / 100); }
+                }
+                return new Float32Array(out);
+              });
+              return { r: rs, bb: bb };
+            });
+            return { n: z[0], p: polys };
+          });
+        }
+        function inRing(r, x, y) { var ins = false; for (var i = 0, j = r.length - 2; i < r.length; j = i, i += 2) if ((r[i + 1] > y) !== (r[j + 1] > y) && x < (r[j] - r[i]) * (y - r[i + 1]) / (r[j + 1] - r[i + 1]) + r[i]) ins = !ins; return ins; }
+        function segD(r, x, y) { var best = 1e9; for (var i = 0, j = r.length - 2; i < r.length; j = i, i += 2) { var ax = r[j], ay = r[j + 1], dx = r[i] - ax, dy = r[i + 1] - ay, l = dx * dx + dy * dy, t = l ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l)) : 0, ex = ax + dx * t - x, ey = ay + dy * t - y; best = Math.min(best, ex * ex + ey * ey); } return Math.sqrt(best); }
+        function tzAt(la, lo) {
+          var Z = CLK.Z, near = null, nd = 0.06; // simplified borders: a point in a sliver between two zones takes the nearest within ~6 km
+          if (Z) for (var i = 0; i < Z.length; i++) for (var j = 0; j < Z[i].p.length; j++) {
+            var p = Z[i].p[j], bb = p.bb;
+            if (lo < bb[0] - nd || lo > bb[2] + nd || la < bb[1] - nd || la > bb[3] + nd) continue;
+            if (lo >= bb[0] && lo <= bb[2] && la >= bb[1] && la <= bb[3] && inRing(p.r[0], lo, la)) { var hole = false; for (var h = 1; h < p.r.length; h++) if (inRing(p.r[h], lo, la)) { hole = true; break; } if (!hole) return Z[i].n; }
+            var d = segD(p.r[0], lo, la); if (d < nd) { nd = d; near = Z[i].n; }
+          }
+          if (near) return near;
+          var o = Math.round(lo / 15); return o === 0 ? "Etc/GMT" : "Etc/GMT" + (o > 0 ? "-" : "+") + Math.abs(o); // IANA Etc signs are inverted
+        }
+        function tzFmt(tz) {
+          var f = CLK.fmt[tz]; if (f) return f;
+          try {
+            var a = function (loc) { return new Intl.DateTimeFormat(loc, { timeZone: tz, timeZoneName: "short" }); };
+            f = { t: new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }), d: new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short" }), us: a("en-US"), gb: a("en-GB") };
+          } catch (e) { f = null; }
+          return (CLK.fmt[tz] = f);
+        }
+        function tzAbbr(f, d) { var g = function (x) { var p = x.formatToParts(d).filter(function (q) { return q.type === "timeZoneName"; })[0]; return p ? p.value : ""; }; var u = g(f.us); return /^GMT|^UTC/.test(u) ? (g(f.gb) || u) : u; }
+        function hms(h) { h = ((h % 24) + 24) % 24; var s = Math.floor(h * 3600 + 1e-6), p = function (v) { return (v < 10 ? "0" : "") + v; }; return p(Math.floor(s / 3600) % 24) + ":" + p(Math.floor(s / 60) % 60) + ":" + p(s % 60); }
+        function clkTick() {
+          if (!CLK.on) { if (!CLK.el.hidden) CLK.el.hidden = true; return; }
+          if (!window.TZ_POLYS && !CLK.loading) { CLK.loading = true; var zs = document.createElement("script"); zs.src = "tz_data.js"; zs.async = true; zs.onload = function () { CLK.Z = tzDecode(); CLK.tzLL = null; clkTick(); }; document.head.appendChild(zs); }
+          var L = toLL(CLK.x, CLK.z), la = L[0], lo = ((L[1] + 540) % 360) - 180;
+          if (!CLK.tzLL || Math.abs(CLK.tzLL[0] - la) + Math.abs(CLK.tzLL[1] - lo) > 0.004) { CLK.tz = tzAt(la, lo); CLK.tzLL = [la, lo]; }
+          var f = tzFmt(CLK.tz); if (!f) { CLK.tz = "UTC"; f = tzFmt("UTC"); }
+          var d = new Date((dayT + 10957.5) * 86400000), sk = skyAt(dayT), live = SKY[skyI][1] === 0;
+          var solar = 12 + (lo - sk.sl / DEG) / 15; // local apparent solar time: the sun is due south/north (transits) at 12:00
+          var tzS = CLK.tz + " · " + tzAbbr(f, d), tS = (live ? "" : f.d.format(d) + " ") + f.t.format(d), sS = "solar " + hms(solar);
+          if (CLK.elTz.textContent !== tzS) CLK.elTz.textContent = tzS;
+          if (CLK.elT.textContent !== tS) CLK.elT.textContent = tS;
+          if (CLK.elS.textContent !== sS) CLK.elS.textContent = sS;
+          if (CLK.el.hidden) CLK.el.hidden = false;
+        }
+        setInterval(clkTick, 250);
         var right = new THREE.Vector3(), fwd = new THREE.Vector3(), mvd = new THREE.Vector3();
         function resize() {
           renderer.setSize(innerWidth, innerHeight);
@@ -3554,9 +3412,10 @@
           var nr0 = Math.max(nAlt * 0.05, 1e-7), fr0 = Math.min(4000, Math.max(nAlt * 6000, 100)); // far plane well past the horizon at every altitude
           if (Math.abs(nr0 / camera.near - 1) > 0.1 || Math.abs(fr0 / camera.far - 1) > 0.1) { camera.near = nr0; camera.far = fr0; camera.updateProjectionMatrix(); }
           var akm = (cp.y - g0) * KM;
-          WU.uNLk.value = 0.12 + 0.88 * smooth(3, 25, akm); streetLights(cp, akm, now); if (traffic(cp, akm, dt)) busy = true; if (aircraft(cp, akm, dayT)) busy = true; if (events(cp, akm)) busy = true; if (vegetation(cp, akm, now)) busy = true; buildings(cp, akm, now); // satellite glow gives way to street lamps
+          WU.uNLk.value = 0.08 + 0.92 * smooth(5, 300, akm); // a ~1 km glow reads as city light from afar; close up it stays a faint sky-glow on the paved ground if (aircraft(cp, akm, dayT)) busy = true; if (events(cp, akm)) busy = true; if (vegetation(cp, akm, now)) busy = true; buildings(cp, akm, now); // city light stays on the ground close up (no procedural street lamps)
           WU.uNF.value = cp.y > 0 ? 1 - smooth(0.5, 2, akm) : 0; // moonlit floor raised below 2 km
           WU.uHz.value = Math.sqrt(2 * 6371 * Math.max(akm, 0.001) + akm * akm) / KM; WU.uHzK.value = cp.y > 0 ? 1 - smooth(50, 300, akm) : 0; // light haze at the true horizon, near the ground only
+          var clkOn = cp.y > 0 && akm < 3 && Math.hypot(cp.x, cp.z) < R; CLK.x = cp.x; CLK.z = cp.z; if (clkOn !== CLK.on) { CLK.on = clkOn; clkTick(); } // clock HUD below 3000 m
           altEl.textContent = (Math.abs(akm) < 10 ? akm.toFixed(3) : Math.abs(akm) < 1000 ? akm.toFixed(1) : Math.round(akm).toLocaleString()) + " km";
 
           // year -> world
@@ -3619,6 +3478,7 @@
           WU.uSunW.value.set(sun.position.x - ANC0.x, sun.position.y, sun.position.z - ANC0.z); WU.uSunV.value.copy(sun.position).applyMatrix4(camera.matrixWorldInverse); // same frame as the sun move
           var mrad = (90 - sk.md) / 180 * R;
           moon.position.set(mrad * Math.sin(sk.ml), 3, mrad * Math.cos(sk.ml));
+          WU.uMoonW.value.set(moon.position.x - ANC0.x, 3, moon.position.z - ANC0.z); WU.uMoonP.value = (1 - Math.cos(sk.ph)) / 2; // moonlight on the night ground: full moon brightest
           domeStars.rotation.y = sk.st; // the stars turn with sidereal time
           var mi = sk.mi, gate = GATE[mi];
           if (mi !== lastMonth) {
@@ -3794,5 +3654,16 @@
         });
       })();
     </script>
-  </body>
+      <script>
+      // tile cache: a service worker (sw.js) keeps Esri / Mapterhorn / enoch-tiles tiles, cache-first, ~300 MB cap.
+      // Only where the page has a real origin (GitHub Pages, any https host). In a sandboxed iframe without allow-same-origin
+      // (the Hark-hosted page) the origin is opaque, service workers are unavailable and this quietly does nothing.
+      (function () {
+        try {
+          if (!window.isSecureContext || location.origin === "null" || !("serviceWorker" in navigator)) return;
+          addEventListener("load", function () { try { navigator.serviceWorker.register("sw.js").then(function (r) { window.__sw = "on"; }, function (e) { window.__sw = "off: " + (e && e.message); }); } catch (e) { window.__sw = "off: " + e.message; } });
+        } catch (e) { window.__sw = "off: " + e.message; }
+      })();
+    </script>
+</body>
 </html>

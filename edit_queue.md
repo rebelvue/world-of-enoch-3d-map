@@ -79,3 +79,9 @@ Motion blur (velocity-based screen-space, mobile-cheap) + subtle camera micro-ji
 
 ## Y - Overall cinematic look (Levi 03:22)
 Film colour grade/LUT, vignette, anamorphic flare + edge CA, golden/blue hour emphasis, god-rays, grain, letterbox for tours. Toggle, mobile fallback. Pair with E/I/X.
+
+## Night realism batch (Levi 2026-11-18) - DONE 2026-11-18 (Hark)
+1. TRUE NIGHT by sun elevation (civil/nautical/astronomical twilight) on base disc + all tiles + buildings, moonlit #0b1530, full-moon boost; night lights from GHSL (European Commission JRC), NASA Black Marble/GIBS removed, credits updated.
+2. Clock HUD below 3000 m: IANA zone + abbreviation, civil time (live seconds), apparent solar time; bundled tz_data.js (timezone-boundary-builder, ODbL), Etc/GMT+-N at sea; hidden with H.
+3. Procedural cars, street lamps/poles and the 3D airliner mesh removed with their toggle and code; photoreal trees kept.
+4. Faster loading: preconnect, parent-first/centre-first queue (already), sw.js tile cache (~300 MB) where an origin exists (not on hark.com/site: sandboxed opaque origin).
