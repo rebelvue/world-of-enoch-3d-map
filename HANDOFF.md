@@ -3,11 +3,11 @@
 You are continuing work on **World of Enoch 3D Map** for Levi (David Daragiu). Hark has been building it; if Hark ran out of limits, start here.
 
 ## What this is
-A single-file interactive 3D web map (three.js r147, classic scripts, no build step) of the flat disc earth as described in 1 Enoch and Genesis. It works like Google Earth: photoreal, real scale, a timeline from 3382 BC to 2026.
-- Main file: `index.html` (~205 KB). Local libs: `three.min.js` and `OrbitControls.js`. Data: `borders_data.js` (window.BORDERS) and the countries files.
+A single-file interactive 3D web map (three.js r147, classic scripts, no build step) of the flat disc earth as described in 1 Enoch and Genesis. It works like Google Earth: photoreal, real scale. Since 2026-11-18 it shows the present day only (2026, today) with a time-of-day scrubber; the 3382 BC-2026 timeline and all history were removed at Levi's request.
+- Main file: `index.html` (~307 KB). Local lib: `three.min.js`. Data: `borders_data.js` (window.BORDERS.modern only), `countries_info.js`, `airports_data.js`, `cities_data.js` (lazy), `tz_data.js` (lazy, clock HUD).
 - Live (Hark-hosted): https://hark.com/site/c38fa708-62d3-426e-b65f-e825840d47ac
 - Feature checklist (done / not done, how to verify each): **`FEATURES.md`**. Read it first.
-- Full specs per item: **`edit_queue.md`** (items A-X).
+- Full specs per item: **`edit_queue.md`** (items A-Y; history-dependent ones struck 2026-11-18).
 
 ## How to take over
 1. Read `edit_queue.md`. Below you'll find the next item and the item order.
@@ -20,13 +20,13 @@ A single-file interactive 3D web map (three.js r147, classic scripts, no build s
 Done and pushed: vector historical borders, streaming Esri imagery + AWS Terrarium terrain (z19), floating origin, mobile perf profile, Sheol underworld, flame columns in the abyss, waters above the dome, seven prison stars, compass, side buttons, speed chips, selection spotlight (P).
 T3 gestures + reset + U search + fineprint removal: DONE (commit after 8115350).
 
-Next, in this order: **Q** ice wall + fast progressive load -> **D** city lights by era -> **M** wars, bombings, fires, nuclear -> **V** eclipses + Joshua 10 + Hezekiah's sundial -> **W** Creation cinematic + pre-Enoch events (4004-3382 BC) -> **C** landmarks rising and falling -> **L** ~300 historical events -> **S** OSM 3D buildings (Overpass: overpass.kumi.systems or overpass.private.coffee) -> **E-K** + **X** (motion blur/shake) atmosphere, clouds, ocean, Milky Way, cinematic mode.
+Next (2026-11-18 on, present day only): **E-K** + **X** atmosphere, clouds, ocean, Milky Way/real constellations (H), motion blur/shake. Dropped with the history (do not build): D-by-era, M, V, W, C, L, J.
 
 ## Hard rules (Levi's)
 - **Real scale only.** R = 10 units = 20,015 km. No relief exaggeration.
 - **Projection:** north-pole azimuthal equidistant. lon 0 points down, +90 right. r=(90-lat)/180*R, x=r*sin(lon), z=r*cos(lon).
 - **Photoreal only.** No cartoon primitives (boxes, cones, plain cylinders, flat trees). **Never box buildings.** Sprites, glows and shaders are OK.
-- One photoreal map for every year; borders and labels follow the year.
+- Present day only (2026, today): no timeline, no historical borders or events (Levi 2026-11-18). Time of day is the only time control.
 - Stars only on the dome underside, black void outside, waters above the firmament.
 - Moonlit areas are dark blue (~#0b1530), never pitch black. No glare: ACES, exposure ~0.9, no sun specular.
 - Sheol is a dark cavern with dim embers, visible only from the side or below.
@@ -154,3 +154,14 @@ Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72
 - Removed: street lamps (SL, POLE, slBuild, streetLights), traffic (TR, CARG, trBuild, traffic(), LHT/leftHand), the Traffic toggle, the instanced 3D airliner (ACG/AC_MESH; aircraft remain dots, nav lights, contrails, tap cards), harkDbg.roof/lht. `mvtRoads` + `SLK` stay (vegetation paints roads out). OpenFreeMap URL now `OFM.url`.
 - Loading: preconnect links for the tile hosts; `sw.js` (cache woe-tiles-v1, cache-first for Esri tiles, Mapterhorn, enoch-tiles; trims oldest entries when navigator.storage.estimate() > 300 MB) registered only when the page has a real origin (GitHub Pages). On hark.com/site the page runs in a sandboxed iframe (no allow-same-origin, opaque origin) so service workers cannot run there; registration is skipped silently. The existing queue already requests parents first and screen-centre tiles first, and keeps the parent drawn until all children are built.
 - Tests: headless Chromium (Playwright 1.48, swiftshader), tile hosts routed through Node fetch, lights served from the bake: 0 pageerrors.
+
+## 2026-only: history and events removed, time-of-day scrubber with auto-return (2026-11-18, Hark)
+Levi: "Focus strictly on 2026, the current day, to lighten the load. Remove history ... keep the 24-hour simulation ... automatic return ... a cool slider to scrub the hour and minute of the day."
+- REMOVED: year slider/arrows/play/1-10-100 y/s chips, AM + year readout, EVENTS captions (#verse), setYear/yF/yearN/SN/lastBI, polities.js + polities.json (labels set P, nearPol, selMaskPol, polity search + year jumps, "Not yet established", "Year shown"), historical snapshots in borders_data.js (now `{modern}` only, 39 KB), Events layer M (EV/EVS/evTap/evOpen + the Events menu block), Flood rain + windows of heaven (waterU.uFl stays 0), ancient A/B place labels, LIGHTS table + pre-electric lamp points (cityL/lightsBuild) + towns_data.js + elecYear, the era factor in the night-light shader (nlE = 1, uNLY gone), OSM window glow by era (uEl stays 1), aircraft era curve/types (acCount() = today's ~10,300; modern types; 14,000 km range), city founding filter, Ussher/historical-basemaps credits, "Timeline speed" menu section, "Event captions" label toggle. `var YEAR = 2026` is the only year left.
+- ADDED: `.x-ts` panel in `.x-bottom` (where the year slider was): `#ts-t` HH:MM, `#ts-d` date, `#ts-s` status, `#sky-spd` chip, `#ts-now`, `#ts-track` (role=slider) with `#ts-band` day/night gradient, hour ticks, `#ts-nowm`, `#ts-thumb`; altitude readout `#alt` under it. JS after `setInterval(clkTick)`: `TS` state, `tsT(min)`/`tsMin(dayT)` (local-date minutes, DST-safe), `tsUI()` (frame + every 250 ms), `tsBand()` (49 samples of the sky's elevation model `(1-(d/3.75)^4)*90` at `tsRef()`), `tsReturn()`, `tsHold()` (4 s), `window.onSky` hook called by `setSky`.
+- Frame sky time: `TS.ret` eases dayT from the scrubbed time to now + w (w = whole days skipped by going the short way round), moon/stars/phase use dayT - w*e so they end exactly on now; `TS.held || TS.drag` freeze dayT; Live = skyNow(); speeds advance and loop within today. `clkTick` uses `tsLive()`.
+- Debug: `harkDbg.ts()` -> {live, held, drag, ret, min, now, txt, st, sky}. `harkDbg.year` removed.
+- FIXED: aircraft(), vegetation(), buildings() were inside a // comment on the uNLk line since 0052525 (never ran); restored.
+- Model note (not changed): the sky's day/night model (day where the disc distance to the sun subpoint < 3.75 units) gives very short northern winter days (e.g. Nov 18 at 25N about 09:15-13:45, at 46N about 12:00-13:30 Bucharest time). The scrubber's band shows exactly that model.
+- Weight (index.html + scripts at start): 1,285,359 -> 1,086,333 bytes; plus the auto-loaded set after the first frame (borders, cities, towns): 1,069,151 -> 526,313 bytes. Total 2,354,510 -> 1,612,646 (-31%).
+- Tests: node --check on all inline scripts; headless Chromium (Playwright 1.48, swiftshader, port 8768, tile hosts via Node fetch): 0 pageerrors; scrub to 12:00 / 22:00, fine scrub, 4 s auto-return, Now button, play + scrub all verified via harkDbg.ts().

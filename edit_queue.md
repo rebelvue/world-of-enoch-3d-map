@@ -1,17 +1,19 @@
 # Edit queue (World of Enoch 3D Map) - Levi approved all, 2026-11-02
+
+**2026-11-18: Levi switched the map to the present day only ("focus strictly on 2026, the current day"). Every history-dependent item below is struck (~~like this~~) and must not be built: C, D-by-era, J, L, M, V, W, and the Flood/timeline parts of B, I and T+. The year timeline was replaced by a time-of-day scrubber with auto-return (see HANDOFF.md).**
 A (running): rendering fixes, lighting, sun/moon/stars, ice cliff, Sheol/pillars
 B: same photoreal map all years (drop supercontinent/Peleg morph); waters above dome + windows of heaven at Flood; stars only inside dome; 7 prison stars beyond abyss; Google-Earth-style touch controls (1-finger pan, pinch zoom, 2-finger rotate/tilt), joystick optional
-C: landmarks rise/fall with timeline, Civ VII oversized, build-up/destruction anims
-D (city lights DONE; speed chooser was already there): time controls: timeline speed chooser; sky sim speed: 24h cycle, real system time, faster options; city lights switch on progressively at dusk, off progressively at morning; lights by era: none before ~1880 (oil lamps/fires as faint warm dots only in cities before), electric from 1880s in early cities (London, NYC, Paris), spread by region/era through 20th c., full modern by ~1970
+~~C: landmarks rise/fall with timeline, Civ VII oversized, build-up/destruction anims~~ (dropped 2026-11-18, history removed)
+D (city lights DONE; by-era rules and the timeline speed chooser REMOVED 2026-11-18, lights are present-day only): ~~time controls: timeline speed chooser;~~ sky sim speed: 24h cycle, real system time, faster options; city lights switch on progressively at dusk, off progressively at morning; lights by era: none before ~1880 (oil lamps/fires as faint warm dots only in cities before), electric from 1880s in early cities (London, NYC, Paris), spread by region/era through 20th c., full modern by ~1970
 E: atmosphere scattering, volumetric clouds+shadows, soft terminator, moonlit blue night + water reflections, AO
 F: ocean depth colour/foam/waves, rivers sheen
 G: detail textures by slope/altitude, snow, seasons by sun gates, trees low altitude
 H: Milky Way + real constellations on dome, real-size sun/moon, Enoch lunar phases
 I: cinematic: subtle bloom, flare, DOF, grain, motion blur, smooth fly-to, guided tours (Creation, Flood, Babel, Exodus)
-J: cities grow over centuries; animated events (Flood, Sodom, Red Sea)
+~~J: cities grow over centuries; animated events (Flood, Sodom, Red Sea)~~ (dropped 2026-11-18, history removed)
 K: desktop high-quality mode vs mobile light mode
-L: expand event captions into a rich dated event+fact feed (~300 events, biblical + world history, each with 1-line fact), shown as cards while scrubbing/playing; data inlined as JS
-M: conflict VFX tied to timeline: fires/smoke at major battles & sacks (Jericho, Troy, Nineveh 612BC, Jerusalem 586BC & AD70, Carthage 146BC, Rome 64/410, Baghdad 1258, Constantinople 1453, WWI fronts, WWII Stalingrad/Dresden/London Blitz), nuclear: Trinity Jul 1945, Hiroshima 6 Aug 1945, Nagasaki 9 Aug 1945 (flash, fireball, mushroom cloud, shockwave ring), plus major test sites (Bikini 1946/54, Novaya Zemlya Tsar Bomba 1961) briefly
+~~L: expand event captions into a rich dated event+fact feed (~300 events, biblical + world history, each with 1-line fact), shown as cards while scrubbing/playing; data inlined as JS~~ (dropped 2026-11-18, history removed)
+~~M: conflict VFX tied to timeline: fires/smoke at major battles & sacks (Jericho, Troy, Nineveh 612BC, Jerusalem 586BC & AD70, Carthage 146BC, Rome 64/410, Baghdad 1258, Constantinople 1453, WWI fronts, WWII Stalingrad/Dresden/London Blitz), nuclear: Trinity Jul 1945, Hiroshima 6 Aug 1945, Nagasaki 9 Aug 1945 (flash, fireball, mushroom cloud, shockwave ring), plus major test sites (Bikini 1946/54, Novaya Zemlya Tsar Bomba 1961) briefly~~ (dropped 2026-11-18, history removed)
 
 N. (Levi 01:25) Abyss "columns of heavenly fire" (1 Enoch 18:11) are plain translucent orange cylinders (fireMat, CylinderGeometry r 0.12-0.3, h 3.5, at r=11.8, y=-2.4) -> look like cartoon red pillars under the earth. Replace with photoreal volumetric fire/ember sprite columns (or remove if Levi prefers). APPROVED (Levi 01:29): photoreal animated flame + smoke columns. Remove cylinders entirely.
 
@@ -26,7 +28,7 @@ R+. (Levi 01:55, screenshot at 0.100 km) Imagery very blurry close up: zoom capp
 S. (Levi 01:57) 3D buildings: APPROVED OpenStreetMap. Overpass API (overpass.kumi.systems / overpass-api.de fallback) fetched live per tile at zoom>=15 near camera, footprints extruded to height (height tag, building:levels*3 m, default 6-9 m by type), roof from roof:shape where simple, facade material procedural (plaster/brick by type) with window rows, roof color sampled from Esri imagery under the footprint, ambient occlusion at base. Trees from natural=tree/landuse=forest as instanced billboards? -> no (no cartoon) skip. Cache in memory only. Dispatch after R.
 
 T. (Levi 01:59) On-screen gesture controls on the screen sides, replacing the Fly mode joystick (remove joystick + Fly mode toggle). Left edge, vertical cluster: tilt up / tilt down, rotate left / rotate right. Right edge: altitude up / down, move forward / backward, (pan left/right optional). Small translucent glass circular buttons with clear SF-style icons, safe-area aware, never over year readout/slider or info card, press-and-hold with smooth ease-in acceleration and inertia on release, speed scaled to altitude, haptic-free, no text selection, auto-dim after 4 s idle. Dispatch after R, before S.
-T+. (Levi 02:01) Luminaries speed control (sun/moon/stars): fold into T. A compact control (in the menu or a small chip near the year readout): Real time (current system clock, real sun/moon positions for now), 1 day per 24 min, 1 day per minute, 1 day per 10 s, Pause. Independent from timeline speed (timeline speed: 1, 10, 100 years/s, chip beside play). Persist in memory only.
+T+. (Levi 02:01) Luminaries speed control (sun/moon/stars): fold into T. (Kept 2026-11-18 as the sky speed chip beside Now; the timeline-speed part is removed.) A compact control (in the menu or a small chip near the year readout): Real time (current system clock, real sun/moon positions for now), 1 day per 24 min, 1 day per minute, 1 day per 10 s, Pause. Independent from timeline speed (timeline speed: 1, 10, 100 years/s, chip beside play). Persist in memory only.
 
 ## R2 (from 88dd9231, 02:07) - close-up sharpness, run right after -6
 - Mobile pixel ratio: PERF.prIdle 1.25 -> min(devicePixelRatio,2.5) idle, 1.5 while moving.
@@ -64,15 +66,15 @@ T+. (Levi 02:01) Luminaries speed control (sun/moon/stars): fold into T. A compa
 - Compass tap: heading to north, keep tilt. NEW view reset button (glass, under compass): animate 1.2s to default view (top-down, north/lon0 down, whole disc ~80% screen).
 - Keep: max zoom-out clamp disc >=25% screen, 20 m floor with target lifted, side buttons, no text selection.
 
-## V - Historical eclipses + Joshua's long day (Levi, 2026-11-02 02:49)
-Model: 1 Enoch 72-79 (Book of Luminaries) - sun and moon ride chariots through the 6 eastern / 6 western gates, circling above the disc below the dome. Eclipse = moon passes between sun and viewer; shadow is a local soft umbra/penumbra spot moving over the disc along the REAL historical path (NASA Five Millennium Canon dates/paths, projected to the azimuthal disc). Sky darkens, corona glow, stars appear for viewers inside the path.
-Events (timeline markers, tap to play, year slider jumps):
-- Ugarit 5 Mar 1223 BC; Assyrian (Bur-Sagale) 15 Jun 763 BC; Thales/Halys 28 May 585 BC; Crucifixion darkness AD 33 (shown as darkness, note: Passover full moon, not a solar eclipse); 1919 Eddington; 11 Aug 1999 Europe; 21 Aug 2017 USA; 8 Apr 2024 USA. More from canon later.
-- Joshua 10:12-14 "sun stood still upon Gibeon, moon in the valley of Ajalon": sun halts above Gibeon, moon over Aijalon, ~a whole day; date: traditional c. 1406 BC (alt: proposed eclipse 30 Oct 1207 BC, mention in card). INCLUDED (Levi said yes): Hezekiah sign - shadow on the stairs of Ahaz goes back 10 steps (2 Kings 20:9-11, Isaiah 38:8), c. 701 BC, Jerusalem; sun visibly moves back along its path.
-Cards cite the verse/source. Small separate edit after T3.
+~~## V - Historical eclipses + Joshua's long day (Levi, 2026-11-02 02:49)~~ (dropped 2026-11-18, history removed)
+~~Model: 1 Enoch 72-79 (Book of Luminaries) - sun and moon ride chariots through the 6 eastern / 6 western gates, circling above the disc below the dome. Eclipse = moon passes between sun and viewer; shadow is a local soft umbra/penumbra spot moving over the disc along the REAL historical path (NASA Five Millennium Canon dates/paths, projected to the azimuthal disc). Sky darkens, corona glow, stars appear for viewers inside the path.~~ (dropped 2026-11-18, history removed)
+~~Events (timeline markers, tap to play, year slider jumps):~~ (dropped 2026-11-18, history removed)
+~~- Ugarit 5 Mar 1223 BC; Assyrian (Bur-Sagale) 15 Jun 763 BC; Thales/Halys 28 May 585 BC; Crucifixion darkness AD 33 (shown as darkness, note: Passover full moon, not a solar eclipse); 1919 Eddington; 11 Aug 1999 Europe; 21 Aug 2017 USA; 8 Apr 2024 USA. More from canon later.~~ (dropped 2026-11-18, history removed)
+~~- Joshua 10:12-14 "sun stood still upon Gibeon, moon in the valley of Ajalon": sun halts above Gibeon, moon over Aijalon, ~a whole day; date: traditional c. 1406 BC (alt: proposed eclipse 30 Oct 1207 BC, mention in card). INCLUDED (Levi said yes): Hezekiah sign - shadow on the stairs of Ahaz goes back 10 steps (2 Kings 20:9-11, Isaiah 38:8), c. 701 BC, Jerusalem; sun visibly moves back along its path.~~ (dropped 2026-11-18, history removed)
+~~Cards cite the verse/source. Small separate edit after T3.~~ (dropped 2026-11-18, history removed)
 
-## M addendum (Levi 2026-11-02 02:51 "don't forget city lights, wars, bombings, fires")
-Great fires: Rome AD 64, London 2-6 Sep 1666, Chicago 8-10 Oct 1871, San Francisco 1906, Tokyo firebombing 9-10 Mar 1945, Hamburg 1943. Priority order after T3: Q, D (city lights), M (wars/bombings/fires/nuclear), V (eclipses), C, L, S.
+~~## M addendum (Levi 2026-11-02 02:51 "don't forget city lights, wars, bombings, fires")~~ (dropped 2026-11-18, history removed)
+~~Great fires: Rome AD 64, London 2-6 Sep 1666, Chicago 8-10 Oct 1871, San Francisco 1906, Tokyo firebombing 9-10 Mar 1945, Hamburg 1943. Priority order after T3: Q, D (city lights), M (wars/bombings/fires/nuclear), V (eclipses), C, L, S.~~ (dropped 2026-11-18, history removed)
 
 ## X - Camera feel (Levi 2026-11-02 02:59)
 Motion blur (velocity-based screen-space, mobile-cheap) + subtle camera micro-jitter/shake scaled by pinch speed and zoom distance (Perlin noise, decays ~0.3 s, off when still; never on idle). Toggle in menu. Goes with E (atmosphere) and F (volumetric clouds you can fly through, haze layers, fog by altitude).
@@ -85,3 +87,8 @@ Film colour grade/LUT, vignette, anamorphic flare + edge CA, golden/blue hour em
 2. Clock HUD below 3000 m: IANA zone + abbreviation, civil time (live seconds), apparent solar time; bundled tz_data.js (timezone-boundary-builder, ODbL), Etc/GMT+-N at sea; hidden with H.
 3. Procedural cars, street lamps/poles and the 3D airliner mesh removed with their toggle and code; photoreal trees kept.
 4. Faster loading: preconnect, parent-first/centre-first queue (already), sw.js tile cache (~300 MB) where an origin exists (not on hark.com/site: sandboxed opaque origin).
+
+## 2026-only (Levi 2026-11-18) - DONE 2026-11-18 (Hark)
+1. History removed: timeline, AM readout, captions, historical borders/polities, events layer M, Flood rain, era light/aircraft rules, ancient labels, related data files (polities.js/.json, towns_data.js, historical borders).
+2. Time-of-day scrubber (today, 00:00-23:59 device clock) with day/night band, now marker, fine control, snapping; sun/moon/stars/night/lights follow it; sky speed chips kept.
+3. Auto return to now 4 s after a Live scrub or on Now: shortest way round the clock, 1.8 s ease in-out, then Live. Camera unchanged.
