@@ -132,3 +132,14 @@ Gen 1:6-8 (waters above), 1 Enoch 18:11-16 (abyss fire, seven stars), 1 Enoch 72
   - Esri World Imagery streaming is unchanged (close-zoom imagery). The enoch imagery is NOT yet a streaming layer.
 - Credits: menu fineprint now reads "Imagery: Sentinel-2 cloudless 2020 by EOX (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0. Elevation: Copernicus DEM GLO-90 (ESA/DLR/Airbus), GEBCO 2024." The Mapzen/AWS Terrarium credit was removed.
 - Remaining NASA assets: `night_lights_4k.webp` / `night_lights_8k.webp` + GIBS VIIRS Black Marble streaming tiles (task D, "NASA Black Marble" credit kept for them), the LRO moon texture in the watch app, the eclipse canon spec (NASA/Espenak).
+
+## Phase 2 — Mapterhorn high-res terrain for close zoom (2026-11-18, Hark)
+- Source: https://tiles.mapterhorn.com/{z}/{x}/{y}.webp (TileJSON https://tiles.mapterhorn.com/tilejson.json: xyz, terrarium, tileSize 512, no maxzoom field; tiles exist to z17). Web Mercator, same scheme as Esri. Copernicus GLO-30 is served worldwide up to z12; z13-z17 only where a national LiDAR/open DEM exists (elsewhere 404). Attribution list: https://download.mapterhorn.com/attribution.json.
+- Code (index.html, after `elev()`): `MTU`, `MC` (Map, LRU, cap `MCAP` 48 desktop / 24 mobile, Float32Array 512x512 = 1 MB each), `MF` (failed keys), `mtKey(t)`, `mtel(z,x,y,pr,cb)`, `mtSample()`, `inIL()`.
+  - Each Esri tile with z >= 8 (`MTZ0`) requests ONE Mapterhorn tile at z-3 (capped at 17): it spans 8x8 Esri tiles = 64 height px per Esri tile (PERF.G is 32/24 vertices, so ~2 px per vertex; z-1 would be 8x the downloads for detail the grid can't show). Requested at priority pr-0.6 through the same `req`/`pump` queue; counted in `load()`'s `done`.
+  - A 404/failed/tainted tile (`dec(im, 512, true)` returns null) is put in `MF` and the request walks up to the parent zoom, down to z12; if that fails too the tile builds from enoch heights (still always requested).
+  - `elevAtM(mx,my)`: finest loaded Mapterhorn tile (MTHI down to z5) unless the point is inside the Israel bbox, else the finest enoch tile (L6..L0). `build()` falls back to the tile's own `t.mt` / `t.el` if the cache evicted them.
+  - Camera floor (`gS` in the frame loop) also takes `elevAt()` (raw finest heights) when streaming, if within 300 m of the drawn ground.
+  - `dec(im, S, strict)` and `bil(d, px, py, S)` now take the tile size (256 enoch, 512 Mapterhorn).
+- NO NASA rule: Mapterhorn's Israel 10 m layer (source isr10) is derived from ASTER GDEM (NASA/METI). Inside lat 29.4-33.4, lon 34.2-35.95 (`ILB`, mercator) Mapterhorn is never sampled, and never requested for Esri tiles wholly inside; enoch Copernicus heights are used there. Keep this guard if you touch elevation.
+- Credit (menu fineprint): "Terrain detail: Mapterhorn (Copernicus GLO-30 and national open elevation data, see mapterhorn.com/attribution)".

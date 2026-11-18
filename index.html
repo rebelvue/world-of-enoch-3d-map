@@ -230,7 +230,7 @@
           <button class="btn" type="button" data-v="ground">Ground level over Jerusalem</button>
           <button class="btn" type="button" data-v="hades">Hades</button>
         </div>
-        <p class="fineprint" style="margin-top: 6px">Imagery: Sentinel-2 cloudless 2020 by <a href="https://s2maps.eu" target="_blank" rel="noopener">EOX</a> (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0. Elevation: Copernicus DEM GLO-90 (ESA/DLR/Airbus), GEBCO 2024.</p>
+        <p class="fineprint" style="margin-top: 6px">Imagery: Sentinel-2 cloudless 2020 by <a href="https://s2maps.eu" target="_blank" rel="noopener">EOX</a> (contains modified Copernicus Sentinel data), CC BY-NC-SA 4.0. Elevation: Copernicus DEM GLO-90 (ESA/DLR/Airbus), GEBCO 2024. Terrain detail: <a href="https://mapterhorn.com/attribution" target="_blank" rel="noopener">Mapterhorn</a> (Copernicus GLO-30 and national open elevation data, see mapterhorn.com/attribution).</p>
         <p class="x-h">Season</p>
         <div class="x-season"><span class="pill" id="month">June · Gate 6</span><button class="btn" id="play" type="button" aria-pressed="true">Pause</button></div>
         <p class="x-h">Timeline speed, years per second</p>
@@ -2352,7 +2352,7 @@
         add("Tartarus (2 Peter 2:4)", 0, 0, "hades", "x-label--fire", -3.3, "tartarus");
         add("Pillars of the earth (1 Samuel 2:8)", Math.cos(Math.PI / 8) * 7.5, Math.sin(Math.PI / 8) * 7.5, "hades", "x-label--sky", -1.6, "pillars");
 
-        // streaming detail: Esri imagery on a quadtree of Web Mercator tiles + self-hosted enoch-tiles relief (Copernicus DEM GLO-90 land, GEBCO 2024 sea), true scale, drawn relative to each tile's center
+        // streaming detail: Esri imagery on a quadtree of Web Mercator tiles + self-hosted enoch-tiles relief (Copernicus DEM GLO-90 land, GEBCO 2024 sea) far out and Mapterhorn close up, true scale, drawn relative to each tile's center
         var TC = new Map(), EC = new Map(), TQ = [], TACT = 0, ROOTS = [], ST = { on: false, k: 0, c: [0, 0], rad: 0, t: 0, n: 0 }, tileRoot = new THREE.Group(), DEG = Math.PI / 180, ecx = null;
         world.add(tileRoot);
         function mlat(fy) { return Math.atan(Math.sinh(Math.PI * (1 - 2 * fy))) / DEG; }
@@ -2374,17 +2374,20 @@
         function isBM(im) { return HAS_IB && typeof ImageBitmap !== "undefined" && im instanceof ImageBitmap; }
         function fin(r, im) { if (r.d) { if (isBM(im)) im.close(); return; } r.d = 1; TACT--; if (!r.x) r.cb(im); else if (isBM(im)) im.close(); setTimeout(pump, 0); kick(); }
         function kill(r) { if (!r || r.d || r.x) return; r.x = 1; if (r.im) { r.im.onload = r.im.onerror = null; r.im.src = ""; r.d = 1; TACT--; } }
-        function dec(im) {
-          if (!ecx) { var c = document.createElement("canvas"); c.width = c.height = 256; ecx = c.getContext("2d", { willReadFrequently: true }); }
-          var o = new Float32Array(65536); if (!im) return o;
-          try { ecx.drawImage(im, 0, 0, 256, 256); var d = ecx.getImageData(0, 0, 256, 256).data; for (var i = 0; i < 65536; i++) o[i] = d[i * 4] * 256 + d[i * 4 + 1] + d[i * 4 + 2] / 256 - 32768; } catch (err) {}
+        var ECX = {};
+        function dec(im, S, strict) { // Terrarium decode of an S x S tile (256 enoch, 512 Mapterhorn) into Float32Array; strict: null on failure instead of zeros
+          S = S || 256; var ecx = ECX[S];
+          if (!ecx) { var c = document.createElement("canvas"); c.width = c.height = S; ecx = ECX[S] = c.getContext("2d", { willReadFrequently: true }); }
+          var N = S * S, o = new Float32Array(N); if (!im) return strict ? null : o;
+          try { ecx.clearRect(0, 0, S, S); ecx.drawImage(im, 0, 0, S, S); var d = ecx.getImageData(0, 0, S, S).data; for (var i = 0; i < N; i++) o[i] = d[i * 4] * 256 + d[i * 4 + 1] + d[i * 4 + 2] / 256 - 32768; } catch (err) { if (strict) o = null; }
           if (isBM(im)) im.close();
           return o;
         }
-        function bil(d, px, py) {
-          px = Math.max(0, Math.min(254.999, px)); py = Math.max(0, Math.min(254.999, py));
-          var x0 = px | 0, y0 = py | 0, fx = px - x0, fy = py - y0, k = y0 * 256 + x0;
-          return (d[k] * (1 - fx) + d[k + 1] * fx) * (1 - fy) + (d[k + 256] * (1 - fx) + d[k + 257] * fx) * fy;
+        function bil(d, px, py, S) {
+          S = S || 256; var lim = S - 1.001;
+          px = Math.max(0, Math.min(lim, px)); py = Math.max(0, Math.min(lim, py));
+          var x0 = px | 0, y0 = py | 0, fx = px - x0, fy = py - y0, k = y0 * S + x0;
+          return (d[k] * (1 - fx) + d[k + 1] * fx) * (1 - fy) + (d[k + S] * (1 - fx) + d[k + S + 1] * fx) * fy;
         }
         // elevation: rebelvue.github.io/enoch-tiles height/{L}/{ty}/{tx}.png, 256 px Terrarium PNGs (R*256+G+B/256-32768 m, sea floor negative), L0-L6,
         // on this map's own north-pole azimuthal equidistant disc: square [-1,1]^2, L = 2^L x 2^L tiles, ty from the top, x = r sin(lon), y = r cos(lon), r = (90 - lat) / 180
@@ -2411,7 +2414,35 @@
           req(ETU + k + ".png", { pr: t.pr - 0.5 }, function (im) { e.d = dec(im); e.w.forEach(function (f) { f(e.d); }); e.w = []; }); // a tile outside the disc 404s: zeros
           if (EC.size > 120) for (var q of EC) if (q[1].d) { EC.delete(q[0]); break; }
         }
-        function elevAtM(mx, my) { // raw meters at a Web Mercator point, from the finest loaded enoch height tile (shared by elevAt and every tile vertex)
+        // Phase 2 close-zoom relief: Mapterhorn open terrain tiles (tiles.mapterhorn.com/{z}/{x}/{y}.webp, Web Mercator XYZ, 512 px Terrarium, CORS *),
+        // Copernicus GLO-30 worldwide (served to z12) plus national LiDAR/open DEMs to z17 where a country publishes them; higher zooms 404 elsewhere -> parent zoom.
+        // Esri tile z >= 8 asks for the Mapterhorn tile at z-3 (one 512 px tile spans 8x8 Esri tiles = 64 height px per Esri tile, ~2 per vertex of the PERF.G grid).
+        // NO NASA: Mapterhorn's Israel 10 m layer (isr10) is derived from ASTER GDEM, so inside lat 29.4-33.4, lon 34.2-35.95 Mapterhorn is never requested
+        // for tiles wholly inside, and never sampled there; the enoch Copernicus heights are used instead.
+        var MTU = "https://tiles.mapterhorn.com/", MTMAX = 17, MTG = 12, MTLO = 5, MTHI = -1, MTZ0 = 8, MC = new Map(), MF = new Set(), MCAP = MOB ? 24 : 48;
+        var ILB = (function () { var a = merc(33.4, 34.2), b = merc(29.4, 35.95); return [a[0], b[0], a[1], b[1]]; })(); // Israel bbox in mercator [x0, x1, y0 (north), y1 (south)]
+        function inIL(mx, my) { return mx >= ILB[0] && mx <= ILB[1] && my >= ILB[2] && my <= ILB[3]; }
+        function mtKey(t) { // the one Mapterhorn tile for an Esri tile, or null (far zoom, or the tile lies wholly in the Israel bbox)
+          if (t.z < MTZ0) return null;
+          var n = 1 << t.z; if (t.x / n >= ILB[0] && (t.x + 1) / n <= ILB[1] && t.y / n >= ILB[2] && (t.y + 1) / n <= ILB[3]) return null;
+          var z = Math.min(MTMAX, t.z - 3), s = t.z - z; return [z, t.x >> s, t.y >> s];
+        }
+        function mtel(z, x, y, pr, cb) { // cb(key, Float32Array 512x512 metres) or cb(null, null); 404 / failure walks up to the parent zoom (down to z12)
+          var k = z + "/" + x + "/" + y;
+          if (MF.has(k)) { if (z > MTG) return mtel(z - 1, x >> 1, y >> 1, pr, cb); return cb(null, null); }
+          var e = MC.get(k);
+          if (e) { MC.delete(k); MC.set(k, e); if (e.d) cb(k, e.d); else e.w.push(cb); return; } // LRU touch
+          e = { d: null, w: [cb] }; MC.set(k, e);
+          req(MTU + k + ".webp", { pr: pr - 0.6 }, function (im) {
+            var w = e.w, d = dec(im, 512, true); e.w = [];
+            if (!d) { if (MC.get(k) === e) MC.delete(k); MF.add(k); if (MF.size > 4000) MF.clear(); w.forEach(function (f) { if (z > MTG) mtel(z - 1, x >> 1, y >> 1, pr, f); else f(null, null); }); return; }
+            e.d = d; if (MC.get(k) === e) MTHI = Math.max(MTHI, z); w.forEach(function (f) { f(k, d); });
+          });
+          if (MC.size > MCAP) for (var q of MC) if (q[1].d) { MC.delete(q[0]); break; } // evict least recently used decoded tile
+        }
+        function mtSample(z, mx, my, d) { var n = 1 << z, tx = Math.floor(mx * n), ty = Math.floor(my * n); return bil(d, (mx * n - tx) * 512 - 0.5, (my * n - ty) * 512 - 0.5, 512); }
+        function elevAtM(mx, my) { // raw meters at a Web Mercator point: finest loaded Mapterhorn tile (outside the Israel bbox), else finest loaded enoch tile (shared by elevAt and every tile vertex)
+          if (MTHI >= 0 && !inIL(mx, my)) for (var z = MTHI; z >= MTLO; z--) { var n = 1 << z, me = MC.get(z + "/" + Math.floor(mx * n) + "/" + Math.floor(my * n)); if (me && me.d) return mtSample(z, mx, my, me.d); }
           var d = eDisc(mlat(my), mx * 360 - 180);
           for (var q = EMAX; q >= 0; q--) { var e = EC.get(eKey(q, d[0], d[1])); if (e && e.d) return eSample(q, d[0], d[1], e.d); }
           return null;
@@ -2437,7 +2468,7 @@
         }
         function getT(z, x, y) { var k = z + "/" + x + "/" + y, t = TC.get(k); if (!t) { t = { k: k, z: z, x: x, y: y, st: 0, f: 0, g: 0, pr: 0 }; TC.set(k, t); } return t; }
         function load(t) {
-          var g = ++t.g, K = eKeys(t), n = 1 + K.length, el = {};
+          var g = ++t.g, K = eKeys(t), MK = mtKey(t), n = 1 + K.length + (MK ? 1 : 0), el = {};
           t.st = 1;
           function done() { if (--n === 0 && t.g === g) BQ.push({ t: t, g: g }); } // built from the queue, a few per frame
           t.rq = req("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/" + t.z + "/" + t.y + "/" + t.x, t, function (im) {
@@ -2447,8 +2478,9 @@
             t.im = im; done();
           });
           K.forEach(function (k) { elev(k, t, function (d) { if (t.g === g) { el[k] = d; if (Object.keys(el).length === K.length) t.el = el; done(); } }); }); // every covering height tile, then build
+          if (MK) mtel(MK[0], MK[1], MK[2], t.pr, function (k, d) { if (t.g === g) { if (d) t.mt = { z: +k.split("/")[0], d: d }; done(); } }); // close-zoom Mapterhorn relief (falls back to enoch when it fails)
         }
-        function cancel(t) { if (t.st === 1) { kill(t.rq); t.g++; t.st = 0; if (isBM(t.im)) t.im.close(); t.im = t.el = null; } }
+        function cancel(t) { if (t.st === 1) { kill(t.rq); t.g++; t.st = 0; if (isBM(t.im)) t.im.close(); t.im = t.el = t.mt = null; } }
         // D2. regional detail for the night lights: NASA GIBS Black Marble tiles (Web Mercator, max z8, ~600 m) per streamed tile
         var NTC = new Map(), NT0 = new THREE.DataTexture(new Uint8Array(4), 1, 1); NT0.needsUpdate = true;
         function nightTile(t, mat) {
@@ -2512,6 +2544,7 @@
           for (var j = 0; j < G; j++) for (var i = 0; i < G; i++) {
             // every vertex samples the same finest loaded elevation tile (elevAtM, as elevAt), so shared edges of tiles of different zoom match
             var u = i / (G - 1), w = j / (G - 1), p = ll(mlat((t.y + w) / n), (t.x + u) / n * 360 - 180), e = elevAtM((t.x + u) / n, (t.y + w) / n), v = j * G + i;
+            if (e === null && t.mt && !inIL((t.x + u) / n, (t.y + w) / n)) e = mtSample(t.mt.z, (t.x + u) / n, (t.y + w) / n, t.mt.d); // its own Mapterhorn tile, if the cache let it go
             if (e === null) { var ed = eDisc(mlat((t.y + w) / n), (t.x + u) / n * 360 - 180); e = 0; for (var ek in t.el) { var eq = +ek.split("/")[0]; if (eKey(eq, ed[0], ed[1]) === ek) { e = eSample(eq, ed[0], ed[1], t.el[ek]); break; } } } // its own height tiles, if the cache let them go
             pos[v * 3] = p[0] - c[0]; pos[v * 3 + 1] = Math.max(0, e) * M; pos[v * 3 + 2] = p[1] - c[1];
             uv[v * 2] = u; uv[v * 2 + 1] = 1 - w; aw[v] = e <= 0 ? 1 : 0;
@@ -2548,7 +2581,7 @@
           // tile centre in absolute coords; the world group's -anchor makes its render position (c - anchor), computed in doubles.
           // a fixed, altitude-independent lift (~1 m) replaces polygonOffset against the base disc
           t.mesh = new THREE.Mesh(geo, mat); t.mesh.position.set(c[0], 0.0000005, c[1]); t.mesh.visible = false;
-          tileRoot.add(t.mesh); t.st = 2; t.f = 0; t.im = t.el = null;
+          tileRoot.add(t.mesh); t.st = 2; t.f = 0; t.im = t.el = t.mt = null;
         }
         function drop(t) {
           cancel(t);
@@ -3472,6 +3505,7 @@
           if (rr < R + 0.1 && cp.y > -0.25) {
             var gS = ground(cp.x, cp.z), gq = 0.00002; // also check ~40 m around, so coarse mesh triangles never clip the camera
             gS = Math.max(gS, ground(cp.x + gq, cp.z), ground(cp.x - gq, cp.z), ground(cp.x, cp.z + gq), ground(cp.x, cp.z - gq));
+            if (ST.on) { var gR = elevAt(cp.x, cp.z); if (gR !== null && gR - gS < 300 * M) gS = Math.max(gS, gR); } // raw finest heights too (Mapterhorn close up), so a peak between mesh vertices never lets the camera under it
             // the floor follows the low-passed ground (tile LOD swaps no longer jolt it); a hard 2 m stop on the raw ground
             var fl = Math.max(gEase(gLP, gS, dt, true) + 20 * M, gS + 2 * M);
             // lift the target by the same dy, so the floor never changes the pitch
